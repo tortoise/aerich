@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "alice"
+version = "0.1.0"
+description = "A database migrations tool for Tortoise ORM."
+authors = ["long2ice <long2ice@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+tortoise-orm = "*"
+aiomysql = "*"
+
+[tool.poetry.dev-dependencies]
+taskipy = "*"
+asynctest = "*"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
+[tool.taskipy.tasks]
+export = "poetry export -f requirements.txt --without-hashes > requirements.txt"
