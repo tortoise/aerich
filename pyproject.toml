@@ -12,6 +12,7 @@ aiomysql = "*"
 [tool.poetry.dev-dependencies]
 taskipy = "*"
 asynctest = "*"
+flake8 = "*"
 
 [build-system]
 requires = ["poetry>=0.12"]
