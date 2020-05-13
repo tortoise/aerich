@@ -1,5 +1,5 @@
 from tests.backends.mysql import DBTestCase
-from tests.models import Category, User
+from tests.models import Category
 
 
 class TestDDL(DBTestCase):
@@ -47,7 +47,3 @@ class TestDDL(DBTestCase):
     def test_drop_fk(self):
         ret = self.ddl.drop_fk(Category, Category._meta.fields_map.get('user'))
         self.assertEqual(ret, "ALTER TABLE category DROP FOREIGN KEY fk_category_user_366ffa6f")
-
-    async def test_aa(self):
-        user = await User.get(username='test')
-        await user.save()

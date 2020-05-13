@@ -63,7 +63,7 @@ class DDL:
                 )
                 if field_object.description else "",
                 is_primary_key=field_object.pk,
-                default=default,
+                default=default
             )
         )
 
