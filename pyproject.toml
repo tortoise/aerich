@@ -8,7 +8,8 @@ authors = ["long2ice <long2ice@gmail.com>"]
 python = "^3.8"
 tortoise-orm = {git = "https://github.com/tortoise/tortoise-orm.git", branch = "develop"}
 aiomysql = "*"
-click = "*"
+asyncclick = "*"
+dill = "*"
 
 [tool.poetry.dev-dependencies]
 taskipy = "*"

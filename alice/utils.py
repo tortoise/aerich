@@ -1,17 +1,11 @@
-import re
+from tortoise import Tortoise
 
 
-def cp_models(old_model_file, new_model_file, new_app):
+def get_app_connection(config: dict, app: str):
     """
-    cp models file to old_models.py and rename model app
-    :param old_app:
-    :param new_app:
-    :param old_model_file:
-    :param new_model_file:
-    :return:r
+    get tortoise connection by app
+    :param config:
+    :param app:
+    :return:
     """
-    pattern = r'(ManyToManyField|ForeignKeyField|OneToOneField)\((model_name)?(\"|\')(?P<app>\w+).+\)'
-    with open(old_model_file, 'r') as f:
-        content = f.read()
-    ret = re.sub(pattern, rf'{new_app} \g<app>', content)
-    print(ret)
+    return Tortoise.get_connection(config.get('apps').get(app).get('default_connection')),

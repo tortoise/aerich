@@ -3,8 +3,13 @@ import os
 import sys
 from enum import Enum
 
-import click
-from click import BadParameter, ClickException
+import asyncclick as click
+from asyncclick import BadParameter, ClickException
+from tortoise import Tortoise, generate_schema_for_client
+
+from alice.backends.mysql import MysqlDDL
+from alice.migrate import Migrate
+from alice.utils import get_app_connection
 
 sys.path.append(os.getcwd())
 
@@ -15,15 +20,15 @@ class Color(str, Enum):
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
-@click.option('-c', '--config', default='settings',
+@click.option('-c', '--config', default='settings', show_default=True,
               help='Tortoise-ORM config module, will read config variable from it, default is `settings`.')
-@click.option('-t', '--tortoise-orm', default='TORTOISE_ORM',
+@click.option('-t', '--tortoise-orm', default='TORTOISE_ORM', show_default=True,
               help='Tortoise-ORM config dict variable, default is `TORTOISE_ORM`.')
-@click.option('-l', '--location', default='./migrations',
+@click.option('-l', '--location', default='./migrations', show_default=True,
               help='Migrate store location, default is `./migrations`.')
-@click.option('--connection', default='default', help='Tortoise-ORM connection name, default is `default`.')
+@click.option('-a', '--app', default='models', show_default=True, help='Tortoise-ORM app name, default is `models`.')
 @click.pass_context
-def cli(ctx, config, tortoise_orm, location, connection):
+async def cli(ctx, config, tortoise_orm, location, app):
     ctx.ensure_object(dict)
     try:
         config_module = importlib.import_module(config)
@@ -31,10 +36,16 @@ def cli(ctx, config, tortoise_orm, location, connection):
         if not config:
             raise BadParameter(param_hint=['--config'],
                                message=f'Can\'t get "{tortoise_orm}" from module "{config_module}"')
+
+        await Tortoise.init(config=config)
+
         ctx.obj['config'] = config
         ctx.obj['location'] = location
-        if connection not in config.get('connections').keys():
-            raise BadParameter(param_hint=['--connection'], message=f'No connection found in "{config}"')
+        ctx.obj['app'] = app
+
+        if app not in config.get('apps').keys():
+            raise BadParameter(param_hint=['--app'], message=f'No app found in "{config}"')
+
     except ModuleNotFoundError:
         raise BadParameter(param_hint=['--tortoise-orm'], message=f'No module named "{config}"')
 
@@ -43,6 +54,17 @@ def cli(ctx, config, tortoise_orm, location, connection):
 @click.pass_context
 def migrate(ctx):
     config = ctx.obj['config']
+    location = ctx.obj['location']
+    app = ctx.obj['app']
+
+    old_models = Migrate.read_old_models(app, location)
+    print(old_models)
+
+    new_models = Tortoise.apps.get(app)
+    print(new_models)
+
+    ret = Migrate(MysqlDDL(get_app_connection(config, app))).diff_models(old_models, new_models)
+    print(ret)
 
 
 @cli.command()
@@ -58,26 +80,38 @@ def downgrade():
 
 
 @cli.command()
+@click.option('--safe', is_flag=True, default=True,
+              help='When set to true, creates the table only when it does not already exist..', show_default=True)
 @click.pass_context
-def initdb():
-    pass
+async def initdb(ctx, safe):
+    location = ctx.obj['location']
+    config = ctx.obj['config']
+    app = ctx.obj['app']
+
+    await generate_schema_for_client(get_app_connection(config, app), safe)
+
+    Migrate.write_old_models(app, location)
+
+    click.secho(f'Success initdb for app `{app}`', fg=Color.green)
 
 
 @cli.command()
-@click.option('--overwrite', type=bool, default=False, help='Overwrite old_models.py.')
+@click.option('--overwrite', is_flag=True, default=False, help=f'Overwrite {Migrate.old_models}.', show_default=True)
 @click.pass_context
 def init(ctx, overwrite):
     location = ctx.obj['location']
-    config = ctx.obj['config']
-    if not os.path.isdir(location) or overwrite:
+    app = ctx.obj['app']
+    if not os.path.isdir(location):
         os.mkdir(location)
-        connections = config.get('connections').keys()
-        for connection in connections:
-            dirname = os.path.join(location, connection)
-            if not os.path.isdir(dirname):
-                os.mkdir(dirname)
-                click.secho(f'Success create migrate location {dirname}', fg=Color.green)
-            if overwrite:
-                pass
+        dirname = os.path.join(location, app)
+        if not os.path.isdir(dirname):
+            os.mkdir(dirname)
+            click.secho(f'Success create migrate location {dirname}', fg=Color.green)
+    if overwrite:
+        Migrate.write_old_models(app, location)
     else:
         raise ClickException('Already inited')
+
+
+if __name__ == '__main__':
+    cli(_anyio_backend='asyncio')

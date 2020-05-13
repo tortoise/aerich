@@ -1,8 +1,12 @@
 import importlib
 import inspect
+import os
+from copy import deepcopy
+
+import dill
 from typing import List, Type, Dict
 
-from tortoise import Model, ForeignKeyFieldInstance
+from tortoise import Model, ForeignKeyFieldInstance, Tortoise
 from tortoise.fields import Field
 
 from alice.backends import DDL
@@ -11,10 +15,29 @@ from alice.backends import DDL
 class Migrate:
     operators: List
     ddl: DDL
+    old_models = 'old_models.pickle'
 
     def __init__(self, ddl: DDL):
         self.operators = []
         self.ddl = ddl
+
+    @staticmethod
+    def write_old_models(app, location):
+        ret = Tortoise.apps.get(app)
+        old_models = {}
+        for k, v in ret.items():
+            old_models[k] = deepcopy(v)
+
+        dirname = os.path.join(location, app)
+
+        with open(os.path.join(dirname, Migrate.old_models), 'wb') as f:
+            dill.dump(old_models, f, )
+
+    @staticmethod
+    def read_old_models(app, location):
+        dirname = os.path.join(location, app)
+        with open(os.path.join(dirname, Migrate.old_models), 'rb') as f:
+            return dill.load(f, )
 
     def diff_models_module(self, old_models_module, new_models_module):
         old_module = importlib.import_module(old_models_module)
