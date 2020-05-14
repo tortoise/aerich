@@ -33,7 +33,7 @@ setup(
     include_package_data=True,
     zip_safe=True,
     entry_points={
-        'console_scripts': ['alice = alice.cli:cli'],
+        'console_scripts': ['alice = alice.cli:main'],
     },
     platforms='any',
     keywords=(

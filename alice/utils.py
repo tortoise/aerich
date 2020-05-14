@@ -1,11 +1,11 @@
 from tortoise import Tortoise
 
 
-def get_app_connection(config: dict, app: str):
+def get_app_connection(config, app):
     """
-    get tortoise connection by app
+    get tortoise app
     :param config:
     :param app:
     :return:
     """
-    return Tortoise.get_connection(config.get('apps').get(app).get('default_connection')),
+    return Tortoise.get_connection(config.get("apps").get(app).get("default_connection"))
