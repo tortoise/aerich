@@ -5,7 +5,7 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Dict, List, Type
 
-from tortoise import ForeignKeyFieldInstance, Model, Tortoise
+from tortoise import BackwardFKRelation, ForeignKeyFieldInstance, Model, Tortoise
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field
 
@@ -18,6 +18,9 @@ from alice.utils import get_app_connection
 class Migrate:
     upgrade_operators: List[str] = []
     downgrade_operators: List[str] = []
+    _upgrade_fk_operators: List[str] = []
+    _downgrade_fk_operators: List[str] = []
+
     ddl: DDL
     migrate_config: dict
     old_models = "old_models"
@@ -73,7 +76,7 @@ class Migrate:
         filename = f"{cls._get_latest_version() + 1}_{now}_{name}.json"
         content = {
             "upgrade": cls.upgrade_operators,
-            "download": cls.downgrade_operators,
+            "downgrade": cls.downgrade_operators,
             "migrate": False,
         }
         with open(os.path.join(cls.migrate_location, filename), "w") as f:
@@ -94,18 +97,26 @@ class Migrate:
         if not cls.upgrade_operators:
             return False
 
+        cls._merge_operators()
+
         return cls._generate_diff_sql(name)
 
     @classmethod
-    def _add_operator(cls, operator: str, upgrade=True):
+    def _add_operator(cls, operator: str, upgrade=True, fk=False):
         if upgrade:
-            cls.upgrade_operators.append(operator)
+            if fk:
+                cls._upgrade_fk_operators.append(operator)
+            else:
+                cls.upgrade_operators.append(operator)
         else:
-            cls.downgrade_operators.append(operator)
+            if fk:
+                cls._downgrade_fk_operators.append(operator)
+            else:
+                cls.downgrade_operators.append(operator)
 
     @classmethod
     def cp_models(
-            cls, model_files: List[str], old_model_file,
+        cls, model_files: List[str], old_model_file,
     ):
         """
         cp currents models to old_model_files
@@ -113,13 +124,11 @@ class Migrate:
         :param old_model_file:
         :return:
         """
-        pattern = (
-            r"(ManyToManyField|ForeignKeyField|OneToOneField)\((model_name)?(\"|\')(\w+)(.+)\)"
-        )
+        pattern = r"(ManyToManyField|ForeignKeyField|OneToOneField)\(('|\")(\w+)."
         for i, model_file in enumerate(model_files):
             with open(model_file, "r") as f:
                 content = f.read()
-            ret = re.sub(pattern, rf"\1\2(\3{cls.diff_app}\5)", content)
+            ret = re.sub(pattern, rf"\1(\2{cls.diff_app}.", content)
             with open(old_model_file, "w" if i == 0 else "w+a") as f:
                 f.write(ret)
 
@@ -142,7 +151,7 @@ class Migrate:
 
     @classmethod
     def _diff_models(
-            cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
+        cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
         diff models and add operators
@@ -184,18 +193,37 @@ class Migrate:
         new_keys = new_fields_map.keys()
         for new_key in new_keys:
             new_field = new_fields_map.get(new_key)
+            if cls._exclude_field(new_field):
+                continue
             if new_key not in old_keys:
-                cls._add_operator(cls._add_field(new_model, new_field), upgrade)
+                cls._add_operator(
+                    cls._add_field(new_model, new_field),
+                    upgrade,
+                    isinstance(new_field, ForeignKeyFieldInstance),
+                )
             else:
                 old_field = old_fields_map.get(new_key)
                 if old_field.index and not new_field.index:
-                    cls._add_operator(cls._remove_index(old_model, old_field), upgrade)
+                    cls._add_operator(
+                        cls._remove_index(old_model, old_field),
+                        upgrade,
+                        isinstance(old_field, ForeignKeyFieldInstance),
+                    )
                 elif new_field.index and not old_field.index:
-                    cls._add_operator(cls._add_index(new_model, new_field), upgrade)
+                    cls._add_operator(
+                        cls._add_index(new_model, new_field),
+                        upgrade,
+                        isinstance(new_field, ForeignKeyFieldInstance),
+                    )
+
         for old_key in old_keys:
-            if old_key not in new_keys:
-                field = old_fields_map.get(old_key)
-                cls._add_operator(cls._remove_field(old_model, field), upgrade)
+            field = old_fields_map.get(old_key)
+            if old_key not in new_keys and not cls._exclude_field(field):
+                cls._add_operator(
+                    cls._remove_field(old_model, field),
+                    upgrade,
+                    isinstance(field, ForeignKeyFieldInstance),
+                )
 
     @classmethod
     def _remove_index(cls, model: Type[Model], field: Field):
@@ -204,6 +232,10 @@ class Migrate:
     @classmethod
     def _add_index(cls, model: Type[Model], field: Field):
         return cls.ddl.add_index(model, [field.model_field_name], field.unique)
+
+    @classmethod
+    def _exclude_field(cls, field: Field):
+        return isinstance(field, BackwardFKRelation)
 
     @classmethod
     def _add_field(cls, model: Type[Model], field: Field):
@@ -217,3 +249,28 @@ class Migrate:
         if isinstance(field, ForeignKeyFieldInstance):
             return cls.ddl.drop_fk(model, field)
         return cls.ddl.drop_column(model, field.model_field_name)
+
+    @classmethod
+    def _add_fk(cls, model: Type[Model], field: Field):
+        return cls.ddl.add_fk(model, field)
+
+    @classmethod
+    def _remove_fk(cls, model: Type[Model], field: Field):
+        return cls.ddl.drop_fk(model, field)
+
+    @classmethod
+    def _merge_operators(cls):
+        """
+        fk must be last when add,first when drop
+        :return:
+        """
+        for _upgrade_fk_operator in cls._upgrade_fk_operators:
+            if "ADD" in _upgrade_fk_operator:
+                cls.upgrade_operators.append(_upgrade_fk_operator)
+            else:
+                cls.upgrade_operators.insert(0, _upgrade_fk_operator)
+        for _downgrade_fk_operator in cls._downgrade_fk_operators:
+            if "ADD" in _downgrade_fk_operator:
+                cls.downgrade_operators.append(_downgrade_fk_operator)
+            else:
+                cls.downgrade_operators.insert(0, _downgrade_fk_operator)

@@ -101,14 +101,14 @@ class DDL:
 
         fk_name = self.schema_generator._generate_fk_name(
             from_table=db_table,
-            from_field=field.model_field_name,
+            from_field=field.source_field or field.model_field_name + "_id",
             to_table=field.related_model._meta.db_table,
             to_field=to_field_name,
         )
         return self._ADD_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=fk_name,
-            db_column=field.model_field_name,
+            db_column=field.source_field or field.model_field_name + "_id",
             table=field.related_model._meta.db_table,
             field=to_field_name,
             on_delete=field.on_delete,
@@ -118,11 +118,12 @@ class DDL:
         to_field_name = field.to_field_instance.source_field
         if not to_field_name:
             to_field_name = field.to_field_instance.model_field_name
+        db_table = model._meta.db_table
         return self._DROP_FK_TEMPLATE.format(
-            table_name=model._meta.db_table,
+            table_name=db_table,
             fk_name=self.schema_generator._generate_fk_name(
-                from_table=model._meta.db_table,
-                from_field=field.model_field_name,
+                from_table=db_table,
+                from_field=field.source_field or field.model_field_name + "_id",
                 to_table=field.related_model._meta.db_table,
                 to_field=to_field_name,
             ),
