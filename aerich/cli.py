@@ -100,7 +100,7 @@ async def upgrade(ctx: Context):
 
             with open(file_path, "w") as f:
                 content["migrate"] = True
-                json.dump(content, f, indent=4)
+                json.dump(content, f, indent=4, ensure_ascii=False)
                 click.secho(f"Success upgrade {file}", fg=Color.green)
 
 
@@ -127,7 +127,7 @@ async def downgrade(ctx: Context):
                     continue
             with open(file_path, "w") as f:
                 content["migrate"] = False
-                json.dump(content, f, indent=4)
+                json.dump(content, f, indent=4, ensure_ascii=False)
                 return click.secho(f"Success downgrade {file}", fg=Color.green)
 
 

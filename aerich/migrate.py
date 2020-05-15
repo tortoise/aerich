@@ -80,7 +80,7 @@ class Migrate:
             "migrate": False,
         }
         with open(os.path.join(cls.migrate_location, filename), "w") as f:
-            json.dump(content, f, indent=4)
+            json.dump(content, f, indent=4, ensure_ascii=False)
         return filename
 
     @classmethod
@@ -128,7 +128,7 @@ class Migrate:
 
     @classmethod
     def cp_models(
-            cls, app: str, model_files: List[str], old_model_file,
+        cls, app: str, model_files: List[str], old_model_file,
     ):
         """
         cp currents models to old_model_files
@@ -177,7 +177,7 @@ class Migrate:
 
     @classmethod
     def _diff_models(
-            cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
+        cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
         diff models and add operators
