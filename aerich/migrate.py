@@ -128,7 +128,7 @@ class Migrate:
 
     @classmethod
     def cp_models(
-        cls, model_files: List[str], old_model_file,
+            cls, app: str, model_files: List[str], old_model_file,
     ):
         """
         cp currents models to old_model_files
@@ -136,11 +136,11 @@ class Migrate:
         :param old_model_file:
         :return:
         """
-        pattern = r"(ManyToManyField|ForeignKeyField|OneToOneField)\(('|\")(\w+)."
+        pattern = rf"\(('|\")({app})(.\w+)('|\")"
         for i, model_file in enumerate(model_files):
             with open(model_file, "r") as f:
                 content = f.read()
-            ret = re.sub(pattern, rf"\1(\2{cls.diff_app}.", content)
+            ret = re.sub(pattern, rf"(\1{cls.diff_app}\3\4", content)
             with open(old_model_file, "w" if i == 0 else "w+a") as f:
                 f.write(ret)
 
@@ -173,11 +173,11 @@ class Migrate:
         for model in models:
             old_model_files.append(model.replace(".", "/") + ".py")
 
-        cls.cp_models(old_model_files, os.path.join(location, app, cls.get_old_model_file()))
+        cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
 
     @classmethod
     def _diff_models(
-        cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
+            cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
         diff models and add operators
