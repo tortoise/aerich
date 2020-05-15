@@ -1,6 +1,3 @@
-.. role:: strike
-    :class: strike
-
 =====
 Alice
 =====
@@ -22,13 +19,13 @@ This project aim to be a best migrations tool for Tortoise-ORM and which written
 Install
 =======
 
-Just install from pypi:
+Just install from pypi (**INVALID**):
 
 .. code-block:: shell
 
-    :strike: $ `pip install alice`
+    $ pip install alice
 
-Bad of pypi project name is used, so only install from source.
+So bad that pypi project name is used, you can only install from source:
 
 .. code-block:: shell
 
