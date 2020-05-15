@@ -1,3 +1,6 @@
+.. role:: strike
+    :class: strike
+
 =====
 Alice
 =====
@@ -23,7 +26,13 @@ Just install from pypi:
 
 .. code-block:: shell
 
-    $ pip install alice
+    :strike: $ `pip install alice`
+
+Bad of pypi project name is used, so only install from source.
+
+.. code-block:: shell
+
+    $ pip install git+https://github.com/long2ice/alice.git
 
 Quick Start
 ===========

@@ -48,3 +48,8 @@ endif
 
 test: deps
 	$(py_warn) py.test
+
+publish: deps
+	rm -fR dist/
+	python setup.py sdist
+	twine upload dist/*
