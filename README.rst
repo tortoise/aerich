@@ -35,41 +35,66 @@ Quick Start
     Usage: aerich [OPTIONS] COMMAND [ARGS]...
 
     Options:
-      --config TEXT        Tortoise-ORM config module, will auto read config dict variable
-                           from it.  [default: settings]
-      --tortoise-orm TEXT  Tortoise-ORM config dict variable.  [default:
-                           TORTOISE_ORM]
-      --location TEXT      Migrate store location.  [default: ./migrations]
-      --app TEXT           Tortoise-ORM app name.  [default: models]
-      -h, --help           Show this message and exit.
+      -c, --config TEXT  Config file.  [default: aerich.ini]
+      --app TEXT         Tortoise-ORM app name.  [default: models]
+      -n, --name TEXT    Name of section in .ini file to use for aerich config.
+                         [default: aerich]
+      -h, --help         Show this message and exit.
 
     Commands:
       downgrade  Downgrade to previous version.
       heads      Show current available heads in migrate location.
       history    List all migrate items.
-      init       Init migrate location and generate schema, you must exec first.
+      init       Init config file and generate migrate location.
+      init-db    Generate schema.
       migrate    Generate migrate changes file.
       upgrade    Upgrade to latest version.
 
 Usage
 =====
 
-Init schema and migrate location
---------------------------------
+Initialization
+--------------
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql init
+    $ aerich init -h
 
-    Success create migrate location ./migrations/models
-    Success init for app "models"
+    Usage: aerich init [OPTIONS]
+
+      Init config file and generate migrate location, you must exec first.
+
+    Options:
+      -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable.
+                               [required]
+      --location TEXT          Migrate store location.  [default: ./migrations]
+      -h, --help               Show this message and exit.
+
+Init config file and location:
+
+.. code-block:: shell
+
+    $ aerich init -t tests.backends.mysql.TORTOISE_ORM
+
+    Success create migrate location ./migrations
+    Success generate config file aerich.ini
+
+Init db
+-------
+
+.. code-block:: shell
+
+    $ aerich init-db
+
+    Success create app migrate location ./migrations/models
+    Success generate schema for app "models"
 
 Update models and make migrate
 ------------------------------
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql migrate --name drop_column
+    $ aerich migrate --name drop_column
 
     Success migrate 1_202029051520102929_drop_column.json
 
@@ -80,7 +105,7 @@ Upgrade to latest version
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql upgrade
+    $ aerich upgrade
 
     Success upgrade 1_202029051520102929_drop_column.json
 
@@ -91,7 +116,7 @@ Downgrade to previous version
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql downgrade
+    $ aerich downgrade
 
     Success downgrade 1_202029051520102929_drop_column.json
 
@@ -102,7 +127,7 @@ Show history
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql history
+    $ aerich history
 
     1_202029051520102929_drop_column.json
 
@@ -111,7 +136,7 @@ Show heads to be migrated
 
 .. code-block:: shell
 
-    $ aerich --config tests.backends.mysql heads
+    $ aerich heads
 
     1_202029051520102929_drop_column.json
 

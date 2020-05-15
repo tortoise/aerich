@@ -1,15 +1,15 @@
-import importlib
 import json
 import os
 import sys
+from configparser import ConfigParser
 from enum import Enum
 
 import asyncclick as click
-from asyncclick import BadOptionUsage, Context, UsageError
+from asyncclick import Context, UsageError
 from tortoise import Tortoise, generate_schema_for_client
 
 from aerich.migrate import Migrate
-from aerich.utils import get_app_connection
+from aerich.utils import get_app_connection, get_tortoise_config
 
 
 class Color(str, Enum):
@@ -18,51 +18,43 @@ class Color(str, Enum):
     yellow = "yellow"
 
 
+parser = ConfigParser()
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option(
-    "--config",
-    default="settings",
-    show_default=True,
-    help="Tortoise-ORM config module, will auto read dict config variable from it.",
-)
-@click.option(
-    "--tortoise-orm",
-    default="TORTOISE_ORM",
-    show_default=True,
-    help="Tortoise-ORM config dict variable.",
-)
-@click.option(
-    "--location", default="./migrations", show_default=True, help="Migrate store location."
+    "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
 )
 @click.option("--app", default="models", show_default=True, help="Tortoise-ORM app name.")
+@click.option(
+    "-n",
+    "--name",
+    default="aerich",
+    show_default=True,
+    help="Name of section in .ini file to use for aerich config.",
+)
 @click.pass_context
-async def cli(ctx: Context, config, tortoise_orm, location, app):
+async def cli(ctx: Context, config, app, name):
     ctx.ensure_object(dict)
-    try:
-        config_module = importlib.import_module(config, ".")
-    except ModuleNotFoundError:
-        raise BadOptionUsage(ctx=ctx, message=f'No module named "{config}"', option_name="--config")
-    config = getattr(config_module, tortoise_orm, None)
-    if not config:
-        raise BadOptionUsage(
-            option_name="--config",
-            message=f'Can\'t get "{tortoise_orm}" from module "{config_module}"',
-            ctx=ctx,
-        )
-
-    if app not in config.get("apps").keys():
-        raise BadOptionUsage(option_name="--config", message=f'No app found in "{config}"', ctx=ctx)
-
     ctx.obj["config"] = config
-    ctx.obj["location"] = location
-    ctx.obj["app"] = app
-
-    if ctx.invoked_subcommand == "init":
-        await Tortoise.init(config=config)
-    else:
-        if not os.path.isdir(location):
+    ctx.obj["name"] = name
+    invoked_subcommand = ctx.invoked_subcommand
+    if invoked_subcommand != "init":
+        if not os.path.exists(config):
             raise UsageError("You must exec init first", ctx=ctx)
-        await Migrate.init_with_old_models(config, app, location)
+        parser.read(config)
+
+        location = parser[name]["location"]
+        tortoise_orm = parser[name]["tortoise_orm"]
+
+        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
+
+        ctx.obj["config"] = tortoise_config
+        ctx.obj["location"] = location
+        ctx.obj["app"] = app
+
+        if invoked_subcommand != "init-db":
+            await Migrate.init_with_old_models(tortoise_config, app, location)
 
 
 @cli.command(help="Generate migrate changes file.")
@@ -100,7 +92,7 @@ async def upgrade(ctx: Context):
 
             with open(file_path, "w") as f:
                 content["migrate"] = True
-                json.dump(content, f, indent=4, ensure_ascii=False)
+                json.dump(content, f, indent=2, ensure_ascii=False)
                 click.secho(f"Success upgrade {file}", fg=Color.green)
 
 
@@ -127,7 +119,7 @@ async def downgrade(ctx: Context):
                     continue
             with open(file_path, "w") as f:
                 content["migrate"] = False
-                json.dump(content, f, indent=4, ensure_ascii=False)
+                json.dump(content, f, indent=2, ensure_ascii=False)
                 return click.secho(f"Success downgrade {file}", fg=Color.green)
 
 
@@ -135,17 +127,45 @@ async def downgrade(ctx: Context):
 @click.pass_context
 def heads(ctx: Context):
     for version in Migrate.get_all_version_files(is_all=False):
-        click.secho(version, fg=Color.yellow)
+        click.secho(version, fg=Color.green)
 
 
 @cli.command(help="List all migrate items.")
 @click.pass_context
 def history(ctx):
     for version in Migrate.get_all_version_files():
-        click.secho(version, fg=Color.yellow)
+        click.secho(version, fg=Color.green)
 
 
-@cli.command(help="Init migrate location and generate schema, you must exec first.")
+@cli.command(help="Init config file and generate migrate location.")
+@click.option(
+    "-t", "--tortoise-orm", required=True, help="Tortoise-ORM config module dict variable.",
+)
+@click.option(
+    "--location", default="./migrations", show_default=True, help="Migrate store location."
+)
+@click.pass_context
+async def init(
+    ctx: Context, tortoise_orm, location,
+):
+    config = ctx.obj["config"]
+    name = ctx.obj["name"]
+
+    parser.add_section(name)
+    parser.set(name, "tortoise_orm", tortoise_orm)
+    parser.set(name, "location", location)
+
+    with open(config, "w") as f:
+        parser.write(f)
+
+    if not os.path.isdir(location):
+        os.mkdir(location)
+
+    click.secho(f"Success create migrate location {location}", fg=Color.green)
+    click.secho(f"Success generate config file {config}", fg=Color.green)
+
+
+@cli.command(help="Generate schema.")
 @click.option(
     "--safe",
     is_flag=True,
@@ -154,27 +174,25 @@ def history(ctx):
     show_default=True,
 )
 @click.pass_context
-async def init(ctx: Context, safe):
+async def init_db(ctx: Context, safe):
+    config = ctx.obj["config"]
     location = ctx.obj["location"]
     app = ctx.obj["app"]
-    config = ctx.obj["config"]
-
-    if not os.path.isdir(location):
-        os.mkdir(location)
 
     dirname = os.path.join(location, app)
     if not os.path.isdir(dirname):
         os.mkdir(dirname)
-        click.secho(f"Success create migrate location {dirname}", fg=Color.green)
+        click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
     else:
         return click.secho(f'Already inited app "{app}"', fg=Color.yellow)
 
     Migrate.write_old_models(config, app, location)
 
+    await Tortoise.init(config=config)
     connection = get_app_connection(config, app)
     await generate_schema_for_client(connection, safe)
 
-    return click.secho(f'Success init for app "{app}"', fg=Color.green)
+    return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
 
 
 def main():

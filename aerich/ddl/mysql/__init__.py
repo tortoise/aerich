@@ -1,6 +1,6 @@
 from typing import List, Type
 
-from tortoise import ForeignKeyFieldInstance, Model
+from tortoise import ForeignKeyFieldInstance, ManyToManyFieldInstance, Model
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field, JSONField, TextField, UUIDField
 
@@ -16,6 +16,28 @@ class MysqlDDL(BaseDDL):
 
     def drop_table(self, model: "Type[Model]"):
         return self._DROP_TABLE_TEMPLATE.format(table_name=model._meta.db_table)
+
+    def create_m2m_table(self, model: "Type[Model]", field: ManyToManyFieldInstance):
+        return self._M2M_TABLE_TEMPLATE.format(
+            table_name=field.through,
+            backward_table=model._meta.db_table,
+            forward_table=field.related_model._meta.db_table,
+            backward_field=model._meta.db_pk_column,
+            forward_field=field.related_model._meta.db_pk_column,
+            backward_key=field.backward_key,
+            backward_type=model._meta.pk.get_for_dialect(self.DIALECT, "SQL_TYPE"),
+            forward_key=field.forward_key,
+            forward_type=field.related_model._meta.pk.get_for_dialect(self.DIALECT, "SQL_TYPE"),
+            extra=self.schema_generator._table_generate_extra(table=field.through),
+            comment=self.schema_generator._table_comment_generator(
+                table=field.through, comment=field.description
+            )
+            if field.description
+            else "",
+        )
+
+    def drop_m2m(self, field: ManyToManyFieldInstance):
+        return self._DROP_TABLE_TEMPLATE.format(table_name=field.through)
 
     def add_column(self, model: "Type[Model]", field_object: Field):
         db_table = model._meta.db_table

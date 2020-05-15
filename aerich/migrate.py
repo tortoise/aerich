@@ -5,7 +5,14 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Dict, List, Type
 
-from tortoise import BackwardFKRelation, ForeignKeyFieldInstance, Model, Tortoise
+from tortoise import (
+    BackwardFKRelation,
+    BackwardOneToOneRelation,
+    ForeignKeyFieldInstance,
+    ManyToManyFieldInstance,
+    Model,
+    Tortoise,
+)
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field
 
@@ -18,8 +25,10 @@ from aerich.utils import get_app_connection
 class Migrate:
     upgrade_operators: List[str] = []
     downgrade_operators: List[str] = []
-    _upgrade_fk_operators: List[str] = []
-    _downgrade_fk_operators: List[str] = []
+    _upgrade_fk_m2m_operators: List[str] = []
+    _downgrade_fk_m2m_operators: List[str] = []
+    _upgrade_m2m: List[str] = []
+    _downgrade_m2m: List[str] = []
 
     ddl: BaseDDL
     migrate_config: dict
@@ -80,7 +89,7 @@ class Migrate:
             "migrate": False,
         }
         with open(os.path.join(cls.migrate_location, filename), "w") as f:
-            json.dump(content, f, indent=4, ensure_ascii=False)
+            json.dump(content, f, indent=2, ensure_ascii=False)
         return filename
 
     @classmethod
@@ -99,10 +108,10 @@ class Migrate:
         cls._diff_models(diff_models, app_models)
         cls._diff_models(app_models, diff_models, False)
 
+        cls._merge_operators()
+
         if not cls.upgrade_operators:
             return False
-
-        cls._merge_operators()
 
         return cls._generate_diff_sql(name)
 
@@ -112,17 +121,17 @@ class Migrate:
         add operator,differentiate fk because fk is order limit
         :param operator:
         :param upgrade:
-        :param fk:
+        :param fk_m2m:
         :return:
         """
         if upgrade:
             if fk:
-                cls._upgrade_fk_operators.append(operator)
+                cls._upgrade_fk_m2m_operators.append(operator)
             else:
                 cls.upgrade_operators.append(operator)
         else:
             if fk:
-                cls._downgrade_fk_operators.append(operator)
+                cls._downgrade_fk_m2m_operators.append(operator)
             else:
                 cls.downgrade_operators.append(operator)
 
@@ -132,6 +141,7 @@ class Migrate:
     ):
         """
         cp currents models to old_model_files
+        :param app:
         :param model_files:
         :param old_model_file:
         :return:
@@ -219,13 +229,13 @@ class Migrate:
         new_keys = new_fields_map.keys()
         for new_key in new_keys:
             new_field = new_fields_map.get(new_key)
-            if cls._exclude_field(new_field):
+            if cls._exclude_field(new_field, upgrade):
                 continue
             if new_key not in old_keys:
                 cls._add_operator(
                     cls._add_field(new_model, new_field),
                     upgrade,
-                    isinstance(new_field, ForeignKeyFieldInstance),
+                    isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                 )
             else:
                 old_field = old_fields_map.get(new_key)
@@ -233,22 +243,22 @@ class Migrate:
                     cls._add_operator(
                         cls._remove_index(old_model, old_field),
                         upgrade,
-                        isinstance(old_field, ForeignKeyFieldInstance),
+                        isinstance(old_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                     )
                 elif new_field.index and not old_field.index:
                     cls._add_operator(
                         cls._add_index(new_model, new_field),
                         upgrade,
-                        isinstance(new_field, ForeignKeyFieldInstance),
+                        isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                     )
 
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
-            if old_key not in new_keys and not cls._exclude_field(field):
+            if old_key not in new_keys and not cls._exclude_field(field, upgrade):
                 cls._add_operator(
                     cls._remove_field(old_model, field),
                     upgrade,
-                    isinstance(field, ForeignKeyFieldInstance),
+                    isinstance(field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                 )
 
     @classmethod
@@ -260,25 +270,42 @@ class Migrate:
         return cls.ddl.add_index(model, [field.model_field_name], field.unique)
 
     @classmethod
-    def _exclude_field(cls, field: Field):
+    def _exclude_field(cls, field: Field, upgrade=False):
         """
-        exclude BackwardFKRelation
+        exclude BackwardFKRelation and repeat m2m field
         :param field:
         :return:
         """
-        return isinstance(field, BackwardFKRelation)
+        if isinstance(field, ManyToManyFieldInstance):
+            through = field.through
+            if upgrade:
+                if through in cls._upgrade_m2m:
+                    return True
+                else:
+                    cls._upgrade_m2m.append(through)
+                    return False
+            else:
+                if through in cls._downgrade_m2m:
+                    return True
+                else:
+                    cls._downgrade_m2m.append(through)
+                    return False
+        return isinstance(field, (BackwardFKRelation, BackwardOneToOneRelation))
 
     @classmethod
     def _add_field(cls, model: Type[Model], field: Field):
         if isinstance(field, ForeignKeyFieldInstance):
             return cls.ddl.add_fk(model, field)
-        else:
-            return cls.ddl.add_column(model, field)
+        if isinstance(field, ManyToManyFieldInstance):
+            return cls.ddl.create_m2m_table(model, field)
+        return cls.ddl.add_column(model, field)
 
     @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):
         if isinstance(field, ForeignKeyFieldInstance):
             return cls.ddl.drop_fk(model, field)
+        if isinstance(field, ManyToManyFieldInstance):
+            return cls.ddl.drop_m2m(field)
         return cls.ddl.drop_column(model, field.model_field_name)
 
     @classmethod
@@ -304,16 +331,17 @@ class Migrate:
     @classmethod
     def _merge_operators(cls):
         """
-        fk must be last when add,first when drop
+        fk/m2m must be last when add,first when drop
         :return:
         """
-        for _upgrade_fk_operator in cls._upgrade_fk_operators:
-            if "ADD" in _upgrade_fk_operator:
-                cls.upgrade_operators.append(_upgrade_fk_operator)
+        for _upgrade_fk_m2m_operator in cls._upgrade_fk_m2m_operators:
+            if "ADD" in _upgrade_fk_m2m_operator or "CREATE" in _upgrade_fk_m2m_operator:
+                cls.upgrade_operators.append(_upgrade_fk_m2m_operator)
             else:
-                cls.upgrade_operators.insert(0, _upgrade_fk_operator)
-        for _downgrade_fk_operator in cls._downgrade_fk_operators:
-            if "ADD" in _downgrade_fk_operator:
-                cls.downgrade_operators.append(_downgrade_fk_operator)
+                cls.upgrade_operators.insert(0, _upgrade_fk_m2m_operator)
+
+        for _downgrade_fk_m2m_operator in cls._downgrade_fk_m2m_operators:
+            if "ADD" in _downgrade_fk_m2m_operator or "CREATE" in _downgrade_fk_m2m_operator:
+                cls.downgrade_operators.append(_downgrade_fk_m2m_operator)
             else:
-                cls.downgrade_operators.insert(0, _downgrade_fk_operator)
+                cls.downgrade_operators.insert(0, _downgrade_fk_m2m_operator)
