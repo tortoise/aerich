@@ -1,13 +1,13 @@
-=====
-Alice
-=====
+======
+Aerich
+======
 
-.. image:: https://img.shields.io/pypi/v/alice.svg?style=flat
-   :target: https://pypi.python.org/pypi/alice
-.. image:: https://img.shields.io/github/license/long2ice/alice
-   :target: https://github.com/long2ice/alice
-.. image:: https://github.com/long2ice/alice/workflows/pypi/badge.svg
-   :target: https://github.com/long2ice/alice/actions?query=workflow:pypi
+.. image:: https://img.shields.io/pypi/v/aerich.svg?style=flat
+   :target: https://pypi.python.org/pypi/aerich
+.. image:: https://img.shields.io/github/license/long2ice/aerich
+   :target: https://github.com/long2ice/aerich
+.. image:: https://github.com/long2ice/aerich/workflows/pypi/badge.svg
+   :target: https://github.com/long2ice/aerich/actions?query=workflow:pypi
 
 Introduction
 ============
@@ -19,26 +19,20 @@ This project aim to be a best migrations tool for Tortoise-ORM and which written
 Install
 =======
 
-Just install from pypi (**INVALID**):
+Just install from pypi:
 
 .. code-block:: shell
 
-    $ pip install alice
-
-So bad that pypi project name is occupied, you can only install from source:
-
-.. code-block:: shell
-
-    $ pip install git+https://github.com/long2ice/alice.git
+    $ pip install aerich
 
 Quick Start
 ===========
 
 .. code-block:: shell
 
-    $ alice -h
+    $ aerich -h
 
-    Usage: alice [OPTIONS] COMMAND [ARGS]...
+    Usage: aerich [OPTIONS] COMMAND [ARGS]...
 
     Options:
       --config TEXT        Tortoise-ORM config module, will auto read config dict variable
@@ -65,7 +59,7 @@ Init schema and migrate location
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql init
+    $ aerich --config tests.backends.mysql init
 
     Success create migrate location ./migrations/models
     Success init for app "models"
@@ -75,7 +69,7 @@ Update models and make migrate
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql migrate --name drop_column
+    $ aerich --config tests.backends.mysql migrate --name drop_column
 
     Success migrate 1_202029051520102929_drop_column.json
 
@@ -86,7 +80,7 @@ Upgrade to latest version
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql upgrade
+    $ aerich --config tests.backends.mysql upgrade
 
     Success upgrade 1_202029051520102929_drop_column.json
 
@@ -97,7 +91,7 @@ Downgrade to previous version
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql downgrade
+    $ aerich --config tests.backends.mysql downgrade
 
     Success downgrade 1_202029051520102929_drop_column.json
 
@@ -108,7 +102,7 @@ Show history
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql history
+    $ aerich --config tests.backends.mysql history
 
     1_202029051520102929_drop_column.json
 
@@ -117,10 +111,10 @@ Show heads to be migrated
 
 .. code-block:: shell
 
-    $ alice --config tests.backends.mysql heads
+    $ aerich --config tests.backends.mysql heads
 
     1_202029051520102929_drop_column.json
 
 License
 =======
-This project is licensed under the `MIT <https://github.com/long2ice/alice/blob/master/LICENSE>`_ License.
+This project is licensed under the `MIT <https://github.com/long2ice/aerich/blob/master/LICENSE>`_ License.

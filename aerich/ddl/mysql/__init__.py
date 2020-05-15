@@ -4,7 +4,7 @@ from tortoise import ForeignKeyFieldInstance, Model
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field, JSONField, TextField, UUIDField
 
-from alice.ddl import BaseDDL
+from aerich.ddl import BaseDDL
 
 
 class MysqlDDL(BaseDDL):

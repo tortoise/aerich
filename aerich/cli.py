@@ -8,8 +8,8 @@ import asyncclick as click
 from asyncclick import BadOptionUsage, Context, UsageError
 from tortoise import Tortoise, generate_schema_for_client
 
-from alice.migrate import Migrate
-from alice.utils import get_app_connection
+from aerich.migrate import Migrate
+from aerich.utils import get_app_connection
 
 
 class Color(str, Enum):
@@ -145,9 +145,7 @@ def history(ctx):
         click.secho(version, fg=Color.yellow)
 
 
-@cli.command(
-    help="Init migrate location and generate schema, you must exec first."
-)
+@cli.command(help="Init migrate location and generate schema, you must exec first.")
 @click.option(
     "--safe",
     is_flag=True,

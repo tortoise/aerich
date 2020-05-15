@@ -7,4 +7,4 @@ ChangeLog
 ===
 0.1.1
 -----
-- Now alice is basic worked.
+- Now aerich is basic worked.

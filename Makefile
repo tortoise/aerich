@@ -1,9 +1,9 @@
-checkfiles = alice/ tests/
+checkfiles = aerich/ tests/
 black_opts = -l 100 -t py38
 py_warn = PYTHONDEVMODE=1
 
 help:
-	@echo "Alice development makefile"
+	@echo "Aerich development makefile"
 	@echo
 	@echo  "usage: make <target>"
 	@echo  "Targets:"

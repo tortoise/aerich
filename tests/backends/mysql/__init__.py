@@ -1,7 +1,7 @@
 from asynctest import TestCase
 from tortoise import Tortoise
 
-from alice.ddl.mysql import MysqlDDL
+from aerich.ddl.mysql import MysqlDDL
 
 TORTOISE_ORM = {
     "connections": {"default": "mysql://root:123456@127.0.0.1:3306/test",},

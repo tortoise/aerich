@@ -9,10 +9,10 @@ from tortoise import BackwardFKRelation, ForeignKeyFieldInstance, Model, Tortois
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field
 
-from alice.ddl import BaseDDL
-from alice.ddl.mysql import MysqlDDL
-from alice.exceptions import ConfigurationError
-from alice.utils import get_app_connection
+from aerich.ddl import BaseDDL
+from aerich.ddl.mysql import MysqlDDL
+from aerich.exceptions import ConfigurationError
+from aerich.utils import get_app_connection
 
 
 class Migrate:

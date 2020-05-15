@@ -1,7 +1,7 @@
 from asynctest import TestCase
 from tortoise import Tortoise
 
-from alice.migrate import Migrate
+from aerich.migrate import Migrate
 from tests.backends.mysql import TORTOISE_ORM
 
 

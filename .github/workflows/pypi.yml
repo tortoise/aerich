@@ -2,7 +2,7 @@ name: pypi
 on:
   push:
     paths:
-      - 'alice/__init__.py'
+      - 'aerich/__init__.py'
       - '.github/workflows/pypi.yml'
 jobs:
   build:
