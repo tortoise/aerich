@@ -79,7 +79,7 @@ Update models and make migrate
 
     Success migrate 1_202029051520102929_drop_column.json
 
-Format of migrate filename is {version}_{datetime}_{name|update}.json
+Format of migrate filename is ``{version}_{datetime}_{name|update}.json``
 
 Upgrade to latest version
 -------------------------
