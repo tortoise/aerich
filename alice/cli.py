@@ -5,7 +5,7 @@ import sys
 from enum import Enum
 
 import asyncclick as click
-from asyncclick import BadOptionUsage, BadParameter, Context, UsageError
+from asyncclick import BadOptionUsage, Context, UsageError
 from tortoise import Tortoise, generate_schema_for_client
 
 from alice.migrate import Migrate
@@ -23,7 +23,7 @@ class Color(str, Enum):
     "--config",
     default="settings",
     show_default=True,
-    help="Tortoise-ORM config module, will read config variable from it.",
+    help="Tortoise-ORM config module, will auto read dict config variable from it.",
 )
 @click.option(
     "--tortoise-orm",
@@ -44,10 +44,14 @@ async def cli(ctx: Context, config, tortoise_orm, location, app):
         raise BadOptionUsage(ctx=ctx, message=f'No module named "{config}"', option_name="--config")
     config = getattr(config_module, tortoise_orm, None)
     if not config:
-        raise BadOptionUsage(f'Can\'t get "{tortoise_orm}" from module "{config_module}"', ctx=ctx)
+        raise BadOptionUsage(
+            option_name="--config",
+            message=f'Can\'t get "{tortoise_orm}" from module "{config_module}"',
+            ctx=ctx,
+        )
 
     if app not in config.get("apps").keys():
-        raise BadOptionUsage(f'No app found in "{config}"', ctx=ctx)
+        raise BadOptionUsage(option_name="--config", message=f'No app found in "{config}"', ctx=ctx)
 
     ctx.obj["config"] = config
     ctx.obj["location"] = location
@@ -142,7 +146,7 @@ def history(ctx):
 
 
 @cli.command(
-    help="Init migrate location and generate schema, you must exec first before other cmd."
+    help="Init migrate location and generate schema, you must exec first."
 )
 @click.option(
     "--safe",

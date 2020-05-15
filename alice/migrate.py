@@ -9,7 +9,7 @@ from tortoise import BackwardFKRelation, ForeignKeyFieldInstance, Model, Tortois
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.fields import Field
 
-from alice.ddl import DDL
+from alice.ddl import BaseDDL
 from alice.ddl.mysql import MysqlDDL
 from alice.exceptions import ConfigurationError
 from alice.utils import get_app_connection
@@ -21,7 +21,7 @@ class Migrate:
     _upgrade_fk_operators: List[str] = []
     _downgrade_fk_operators: List[str] = []
 
-    ddl: DDL
+    ddl: BaseDDL
     migrate_config: dict
     old_models = "old_models"
     diff_app = "diff_models"
@@ -85,6 +85,11 @@ class Migrate:
 
     @classmethod
     def migrate(cls, name):
+        """
+        diff old models and new models to generate diff content
+        :param name:
+        :return:
+        """
         if not cls.migrate_config:
             raise ConfigurationError("You must call init_with_old_models() first!")
         apps = Tortoise.apps
@@ -103,6 +108,13 @@ class Migrate:
 
     @classmethod
     def _add_operator(cls, operator: str, upgrade=True, fk=False):
+        """
+        add operator,differentiate fk because fk is order limit
+        :param operator:
+        :param upgrade:
+        :param fk:
+        :return:
+        """
         if upgrade:
             if fk:
                 cls._upgrade_fk_operators.append(operator)
@@ -134,6 +146,13 @@ class Migrate:
 
     @classmethod
     def _get_migrate_config(cls, config: dict, app: str, location: str):
+        """
+        generate tmp config with old models
+        :param config:
+        :param app:
+        :param location:
+        :return:
+        """
         temp_config = deepcopy(config)
         path = os.path.join(location, app, cls.old_models)
         path = path.replace("/", ".").lstrip(".")
@@ -142,6 +161,13 @@ class Migrate:
 
     @classmethod
     def write_old_models(cls, config: dict, app: str, location: str):
+        """
+        write new models to old models
+        :param config:
+        :param app:
+        :param location:
+        :return:
+        """
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:
@@ -235,6 +261,11 @@ class Migrate:
 
     @classmethod
     def _exclude_field(cls, field: Field):
+        """
+        exclude BackwardFKRelation
+        :param field:
+        :return:
+        """
         return isinstance(field, BackwardFKRelation)
 
     @classmethod
@@ -251,11 +282,23 @@ class Migrate:
         return cls.ddl.drop_column(model, field.model_field_name)
 
     @classmethod
-    def _add_fk(cls, model: Type[Model], field: Field):
+    def _add_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
+        """
+        add fk
+        :param model:
+        :param field:
+        :return:
+        """
         return cls.ddl.add_fk(model, field)
 
     @classmethod
-    def _remove_fk(cls, model: Type[Model], field: Field):
+    def _remove_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
+        """
+        drop fk
+        :param model:
+        :param field:
+        :return:
+        """
         return cls.ddl.drop_fk(model, field)
 
     @classmethod

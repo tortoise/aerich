@@ -29,8 +29,6 @@ class User(Model):
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
     avatar = fields.CharField(max_length=200, default="")
     intro = fields.TextField(default="")
-    created_at = fields.DatetimeField(auto_now_add=True)
-    updated_at = fields.DatetimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.pk}#{self.username}"
