@@ -137,9 +137,9 @@ def history(ctx):
         click.secho(version, fg=Color.green)
 
 
-@cli.command(help="Init config file and generate migrate location.")
+@cli.command(help="Init config file and generate root migrate location.")
 @click.option(
-    "-t", "--tortoise-orm", required=True, help="Tortoise-ORM config module dict variable.",
+    "-t", "--tortoise-orm", required=True, help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
 )
 @click.option(
     "--location", default="./migrations", show_default=True, help="Migrate store location."
@@ -165,7 +165,7 @@ async def init(
     click.secho(f"Success generate config file {config}", fg=Color.green)
 
 
-@cli.command(help="Generate schema.")
+@cli.command(help="Generate schema and generate app migrate location.")
 @click.option(
     "--safe",
     is_flag=True,

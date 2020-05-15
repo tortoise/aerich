@@ -45,8 +45,8 @@ Quick Start
       downgrade  Downgrade to previous version.
       heads      Show current available heads in migrate location.
       history    List all migrate items.
-      init       Init config file and generate migrate location.
-      init-db    Generate schema.
+      init       Init config file and generate root migrate location.
+      init-db    Generate schema and generate app migrate location.
       migrate    Generate migrate changes file.
       upgrade    Upgrade to latest version.
 
@@ -62,10 +62,10 @@ Initialization
 
     Usage: aerich init [OPTIONS]
 
-      Init config file and generate migrate location, you must exec first.
+      Init config file and generate root migrate location.
 
     Options:
-      -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable.
+      -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.
                                [required]
       --location TEXT          Migrate store location.  [default: ./migrations]
       -h, --help               Show this message and exit.
