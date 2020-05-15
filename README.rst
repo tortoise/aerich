@@ -25,7 +25,7 @@ Just install from pypi (**INVALID**):
 
     $ pip install alice
 
-So bad that pypi project name is used, you can only install from source:
+So bad that pypi project name is occupied, you can only install from source:
 
 .. code-block:: shell
 
