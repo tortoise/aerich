@@ -139,7 +139,10 @@ def history(ctx):
 
 @cli.command(help="Init config file and generate root migrate location.")
 @click.option(
-    "-t", "--tortoise-orm", required=True, help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
+    "-t",
+    "--tortoise-orm",
+    required=True,
+    help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
 )
 @click.option(
     "--location", default="./migrations", show_default=True, help="Migrate store location."
