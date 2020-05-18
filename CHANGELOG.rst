@@ -6,7 +6,7 @@ ChangeLog
 ===
 0.1.4
 -----
-- Fix transaction.
+- Fix transaction and fields import.
 
 0.1.3
 -----
