@@ -6,7 +6,7 @@ from enum import Enum
 
 import asyncclick as click
 from asyncclick import Context, UsageError
-from tortoise import Tortoise, generate_schema_for_client
+from tortoise import Tortoise, generate_schema_for_client, ConfigurationError
 
 from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_tortoise_config
@@ -54,7 +54,10 @@ async def cli(ctx: Context, config, app, name):
         ctx.obj["app"] = app
 
         if invoked_subcommand != "init-db":
-            await Migrate.init_with_old_models(tortoise_config, app, location)
+            try:
+                await Migrate.init_with_old_models(tortoise_config, app, location)
+            except ConfigurationError:
+                raise UsageError(ctx=ctx, message='You must exec ini-db first')
 
 
 @cli.command(help="Generate migrate changes file.")
@@ -149,7 +152,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-    ctx: Context, tortoise_orm, location,
+        ctx: Context, tortoise_orm, location,
 ):
     config = ctx.obj["config"]
     name = ctx.obj["name"]
