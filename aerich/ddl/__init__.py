@@ -2,7 +2,7 @@ from typing import List, Type
 
 from tortoise import BaseDBAsyncClient, ForeignKeyFieldInstance, ManyToManyFieldInstance, Model
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
-from tortoise.fields import Field
+from tortoise.fields import Field, JSONField, TextField, UUIDField
 
 
 class BaseDDL:
