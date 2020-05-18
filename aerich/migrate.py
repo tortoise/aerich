@@ -137,7 +137,7 @@ class Migrate:
 
     @classmethod
     def cp_models(
-            cls, app: str, model_files: List[str], old_model_file,
+        cls, app: str, model_files: List[str], old_model_file,
     ):
         """
         cp currents models to old_model_files
@@ -187,7 +187,7 @@ class Migrate:
 
     @classmethod
     def _diff_models(
-            cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
+        cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
         diff models and add operators
@@ -248,7 +248,9 @@ class Migrate:
                 old_field = old_fields_map.get(new_key)
                 if old_field.index and not new_field.index:
                     cls._add_operator(
-                        cls._remove_index(old_model, [old_field.model_field_name], old_field.unique),
+                        cls._remove_index(
+                            old_model, [old_field.model_field_name], old_field.unique
+                        ),
                         upgrade,
                         isinstance(old_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                     )
@@ -270,33 +272,25 @@ class Migrate:
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
-                cls._add_operator(
-                    cls._add_index(new_model, new_index, ), upgrade
-                )
+                cls._add_operator(cls._add_index(new_model, new_index,), upgrade)
         for old_index in old_indexes:
             if old_index not in new_indexes:
-                cls._add_operator(
-                    cls._remove_index(old_model, old_index), upgrade
-                )
+                cls._add_operator(cls._remove_index(old_model, old_index), upgrade)
 
         for new_unique in new_unique_together:
             if new_unique not in old_unique_together:
-                cls._add_operator(
-                    cls._add_index(new_model, new_unique, unique=True), upgrade
-                )
+                cls._add_operator(cls._add_index(new_model, new_unique, unique=True), upgrade)
 
         for old_unique in old_unique_together:
             if old_unique not in new_unique_together:
-                cls._add_operator(
-                    cls._remove_index(old_model, old_unique, unique=True), upgrade
-                )
+                cls._add_operator(cls._remove_index(old_model, old_unique, unique=True), upgrade)
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: List[str]):
         ret = []
         for field_name in fields_name:
             if field_name in model._meta.fk_fields:
-                ret.append(field_name + '_id')
+                ret.append(field_name + "_id")
             else:
                 ret.append(field_name)
         return ret

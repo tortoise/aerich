@@ -1,9 +1,10 @@
 name: pypi
+
 on:
-  push:
-    paths:
-      - 'aerich/__init__.py'
-      - '.github/workflows/pypi.yml'
+  release:
+    types:
+      - created
+
 jobs:
   build:
     runs-on: ubuntu-latest

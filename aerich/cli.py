@@ -6,10 +6,11 @@ from enum import Enum
 
 import asyncclick as click
 from asyncclick import Context, UsageError
-from tortoise import Tortoise, generate_schema_for_client, ConfigurationError
+from tortoise import ConfigurationError, Tortoise, generate_schema_for_client
+from tortoise.transactions import in_transaction
 
 from aerich.migrate import Migrate
-from aerich.utils import get_app_connection, get_tortoise_config
+from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
 
 
 class Color(str, Enum):
@@ -57,7 +58,7 @@ async def cli(ctx: Context, config, app, name):
             try:
                 await Migrate.init_with_old_models(tortoise_config, app, location)
             except ConfigurationError:
-                raise UsageError(ctx=ctx, message='You must exec ini-db first')
+                raise UsageError(ctx=ctx, message="You must exec ini-db first")
 
 
 @cli.command(help="Generate migrate changes file.")
@@ -80,11 +81,10 @@ async def migrate(ctx: Context, name):
 async def upgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
-    connection = get_app_connection(config, app)
     available_versions = Migrate.get_all_version_files(is_all=False)
     if not available_versions:
         return click.secho("No migrate items", fg=Color.yellow)
-    async with connection._in_transaction() as conn:
+    async with in_transaction(get_app_connection_name(config, app)) as conn:
         for file in available_versions:
             file_path = os.path.join(Migrate.migrate_location, file)
             with open(file_path, "r") as f:
@@ -104,12 +104,11 @@ async def upgrade(ctx: Context):
 async def downgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
-    connection = get_app_connection(config, app)
     available_versions = Migrate.get_all_version_files()
     if not available_versions:
         return click.secho("No migrate items", fg=Color.yellow)
 
-    async with connection._in_transaction() as conn:
+    async with in_transaction(get_app_connection_name(config, app)) as conn:
         for file in reversed(available_versions):
             file_path = os.path.join(Migrate.migrate_location, file)
             with open(file_path, "r") as f:
@@ -152,7 +151,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-        ctx: Context, tortoise_orm, location,
+    ctx: Context, tortoise_orm, location,
 ):
     config = ctx.obj["config"]
     name = ctx.obj["name"]

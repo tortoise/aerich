@@ -4,9 +4,14 @@ ChangeLog
 
 0.1
 ===
+0.1.4
+-----
+- Fix transaction.
+
 0.1.3
 -----
 - Support indexes and unique_together.
+
 0.1.2
 -----
 - Now aerich support m2m.

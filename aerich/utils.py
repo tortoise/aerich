@@ -4,14 +4,24 @@ from asyncclick import BadOptionUsage, Context
 from tortoise import Tortoise
 
 
-def get_app_connection(config, app):
+def get_app_connection_name(config, app):
     """
-    get tortoise app
+    get connection name
     :param config:
     :param app:
     :return:
     """
-    return Tortoise.get_connection(config.get("apps").get(app).get("default_connection"))
+    return config.get("apps").get(app).get("default_connection")
+
+
+def get_app_connection(config, app):
+    """
+    get connection name
+    :param config:
+    :param app:
+    :return:
+    """
+    return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
 def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
