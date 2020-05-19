@@ -146,11 +146,11 @@ class Migrate:
         :param old_model_file:
         :return:
         """
-        pattern = rf"\(('|\")({app})(.\w+)('|\")"
+        pattern = rf"(\n)?('|\")({app})(.\w+)('|\")"
         for i, model_file in enumerate(model_files):
             with open(model_file, "r") as f:
                 content = f.read()
-            ret = re.sub(pattern, rf"(\1{cls.diff_app}\3\4", content)
+            ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
             with open(old_model_file, "w" if i == 0 else "w+a") as f:
                 f.write(ret)
 

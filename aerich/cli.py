@@ -3,7 +3,7 @@ import os
 import sys
 from configparser import ConfigParser
 from enum import Enum
-from . import __version__
+
 import asyncclick as click
 from asyncclick import Context, UsageError
 from tortoise import ConfigurationError, Tortoise, generate_schema_for_client
@@ -11,6 +11,8 @@ from tortoise.transactions import in_transaction
 
 from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
+
+from . import __version__
 
 
 class Color(str, Enum):
@@ -58,8 +60,8 @@ async def cli(ctx: Context, config, app, name):
         if invoked_subcommand != "init-db":
             try:
                 await Migrate.init_with_old_models(tortoise_config, app, location)
-            except ConfigurationError as e:
-                raise UsageError(ctx=ctx, message=f"Tortoise ConfigurationError, {e}")
+            except ConfigurationError:
+                raise UsageError(ctx=ctx, message="You must exec init-db first")
 
 
 @cli.command(help="Generate migrate changes file.")
