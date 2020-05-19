@@ -19,7 +19,7 @@ class TestDDL(DBTestCase):
 
     def test_drop_table(self):
         ret = self.ddl.drop_table(Category)
-        self.assertEqual(ret, "DROP TABLE category IF EXISTS")
+        self.assertEqual(ret, "DROP TABLE IF EXISTS category")
 
     def test_add_column(self):
         ret = self.ddl.add_column(Category, Category._meta.fields_map.get("name"))
@@ -27,6 +27,7 @@ class TestDDL(DBTestCase):
 
     def test_drop_column(self):
         ret = self.ddl.drop_column(Category, "name")
+        self.assertEqual(ret, "ALTER TABLE category DROP COLUMN name")
         self.assertEqual(ret, "ALTER TABLE category DROP COLUMN name")
 
     def test_add_index(self):
@@ -47,9 +48,9 @@ class TestDDL(DBTestCase):
         ret = self.ddl.add_fk(Category, Category._meta.fields_map.get("user"))
         self.assertEqual(
             ret,
-            "ALTER TABLE category ADD CONSTRAINT `fk_category_user_366ffa6f` FOREIGN KEY (`user`) REFERENCES `user` (`id`) ON DELETE CASCADE",
+            "ALTER TABLE category ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
         )
 
     def test_drop_fk(self):
         ret = self.ddl.drop_fk(Category, Category._meta.fields_map.get("user"))
-        self.assertEqual(ret, "ALTER TABLE category DROP FOREIGN KEY fk_category_user_366ffa6f")
+        self.assertEqual(ret, "ALTER TABLE category DROP FOREIGN KEY fk_category_user_e2e3874c")

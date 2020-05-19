@@ -16,6 +16,7 @@ asynctest = "*"
 flake8 = "*"
 isort = "*"
 black = "^19.10b0"
+pytest = "*"
 
 [tool.taskipy.tasks]
 export = "poetry export -f requirements.txt --without-hashes > requirements.txt"
