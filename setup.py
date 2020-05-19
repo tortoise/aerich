@@ -39,6 +39,6 @@ setup(
     keywords=(
         'migrate Tortoise-ORM mysql'
     ),
-    dependency_links=['https://github.com/tortoise/tortoise-orm.git@branch#egg=tortoise-orm'],
+    dependency_links=['https://github.com/tortoise/tortoise-orm.git@develop#egg=tortoise-orm'],
     install_requires=requirements(),
 )
