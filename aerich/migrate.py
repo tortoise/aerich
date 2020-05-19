@@ -246,7 +246,9 @@ class Migrate:
                 )
             else:
                 old_field = old_fields_map.get(new_key)
-                if old_field.index and not new_field.index:
+                if (old_field.index and not new_field.index) or (
+                    old_field.unique and not new_field.unique
+                ):
                     cls._add_operator(
                         cls._remove_index(
                             old_model, [old_field.model_field_name], old_field.unique
@@ -254,7 +256,9 @@ class Migrate:
                         upgrade,
                         isinstance(old_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                     )
-                elif new_field.index and not old_field.index:
+                elif (new_field.index and not old_field.index) or (
+                    new_field.unique and not old_field.unique
+                ):
                     cls._add_operator(
                         cls._add_index(new_model, [new_field.model_field_name], new_field.unique),
                         upgrade,

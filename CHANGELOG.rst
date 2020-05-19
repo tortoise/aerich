@@ -7,6 +7,7 @@ ChangeLog
 0.1.4
 -----
 - Fix transaction and fields import.
+- Make unique index worked.
 
 0.1.3
 -----
