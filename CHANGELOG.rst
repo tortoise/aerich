@@ -8,6 +8,7 @@ ChangeLog
 -----
 - Fix transaction and fields import.
 - Make unique index worked.
+- Add cli --version.
 
 0.1.3
 -----

@@ -3,7 +3,7 @@ import os
 import sys
 from configparser import ConfigParser
 from enum import Enum
-
+from . import __version__
 import asyncclick as click
 from asyncclick import Context, UsageError
 from tortoise import ConfigurationError, Tortoise, generate_schema_for_client
@@ -23,6 +23,7 @@ parser = ConfigParser()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(__version__)
 @click.option(
     "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
 )
@@ -151,7 +152,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-    ctx: Context, tortoise_orm, location,
+        ctx: Context, tortoise_orm, location,
 ):
     config = ctx.obj["config"]
     name = ctx.obj["name"]
