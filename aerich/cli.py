@@ -58,8 +58,8 @@ async def cli(ctx: Context, config, app, name):
         if invoked_subcommand != "init-db":
             try:
                 await Migrate.init_with_old_models(tortoise_config, app, location)
-            except ConfigurationError:
-                raise UsageError(ctx=ctx, message="You must exec ini-db first")
+            except ConfigurationError as e:
+                raise UsageError(ctx=ctx, message=f"Tortoise ConfigurationError, {e}")
 
 
 @cli.command(help="Generate migrate changes file.")
