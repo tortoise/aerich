@@ -13,11 +13,15 @@ from tortoise import (
     Model,
     Tortoise,
 )
+from tortoise.backends.asyncpg.schema_generator import AsyncpgSchemaGenerator
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
+from tortoise.backends.sqlite.schema_generator import SqliteSchemaGenerator
 from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.ddl.mysql import MysqlDDL
+from aerich.ddl.postgres import PostgresDDL
+from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import ConfigurationError
 from aerich.utils import get_app_connection
 
@@ -76,6 +80,10 @@ class Migrate:
         connection = get_app_connection(config, app)
         if connection.schema_generator is MySQLSchemaGenerator:
             cls.ddl = MysqlDDL(connection)
+        elif connection.schema_generator is SqliteSchemaGenerator:
+            cls.ddl = SqliteDDL(connection)
+        elif connection.schema_generator is AsyncpgSchemaGenerator:
+            cls.ddl = PostgresDDL(connection)
         else:
             raise NotImplementedError("Current only support MySQL")
 

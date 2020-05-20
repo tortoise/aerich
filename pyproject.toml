@@ -6,9 +6,9 @@ authors = ["long2ice <long2ice@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-tortoise-orm = {git = "https://github.com/tortoise/tortoise-orm.git", branch = "develop"}
-aiomysql = "*"
+tortoise-orm = {git = "https://github.com/long2ice/tortoise-orm.git", branch = "develop"}
 asyncclick = "*"
+pydantic = "*"
 
 [tool.poetry.dev-dependencies]
 taskipy = "*"
@@ -17,6 +17,11 @@ flake8 = "*"
 isort = "*"
 black = "^19.10b0"
 pytest = "*"
+pytest-cov = "*"
+aiomysql = "*"
+asyncpg = "*"
+pytest-xdist = "*"
+mypy = "*"
 
 [tool.taskipy.tasks]
 export = "poetry export -f requirements.txt --without-hashes > requirements.txt"

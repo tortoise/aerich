@@ -4,6 +4,10 @@ ChangeLog
 
 0.1
 ===
+0.1.5
+-----
+- Add sqlite and postgres support
+
 0.1.4
 -----
 - Fix transaction and fields import.

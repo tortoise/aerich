@@ -8,6 +8,8 @@ Aerich
    :target: https://github.com/long2ice/aerich
 .. image:: https://github.com/long2ice/aerich/workflows/pypi/badge.svg
    :target: https://github.com/long2ice/aerich/actions?query=workflow:pypi
+.. image:: https://github.com/long2ice/aerich/workflows/test/badge.svg
+   :target: https://github.com/long2ice/aerich/actions?query=workflow:test
 
 Introduction
 ============

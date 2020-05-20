@@ -1,12 +1,10 @@
 name: pypi
-
 on:
   release:
     types:
       - created
-
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2

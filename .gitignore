@@ -143,3 +143,4 @@ cython_debug/
 .idea
 migrations
 aerich.ini
+src

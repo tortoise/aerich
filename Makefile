@@ -1,6 +1,10 @@
 checkfiles = aerich/ tests/
 black_opts = -l 100 -t py38
 py_warn = PYTHONDEVMODE=1
+MYSQL_HOST ?= "127.0.0.1"
+MYSQL_PORT ?= 3306
+POSTGRES_HOST ?= "127.0.0.1"
+POSTGRES_PORT ?= 5432
 
 help:
 	@echo "Aerich development makefile"
@@ -18,10 +22,6 @@ deps:
 	@which pip-sync > /dev/null || pip install -q pip-tools
 	@pip install -r requirements-dev.txt
 
-up:
-	CUSTOM_COMPILE_COMMAND="make up" pip-compile -o requirements-dev.txt -U
-	sed -i "s/^-e .*/-e ./" requirements.txt
-
 style: deps
 	isort -rc $(checkfiles)
 	black $(black_opts) $(checkfiles)
@@ -36,20 +36,25 @@ endif
 	bandit -r $(checkfiles)
 	python setup.py check -mrs
 
-lint: deps
-ifneq ($(shell which black),)
-	black --check $(black_opts) $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-endif
-	flake8 $(checkfiles)
-	mypy $(checkfiles)
-	pylint $(checkfiles)
-	bandit -r $(checkfiles)
-	python setup.py check -mrs
-
 test: deps
-	$(py_warn) py.test
+	$(py_warn) TEST_DB=sqlite://:memory: py.test
+
+test_sqlite:
+	$(py_warn) TEST_DB=sqlite://:memory: py.test --cov-report=
+
+test_mysql:
+	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" py.test --cov-append --cov-report=
+
+test_postgres:
+	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" py.test --cov-append --cov-report=
+
+testall: deps test_sqlite test_postgres test_mysql
+	coverage report
 
 publish: deps
 	rm -fR dist/
 	python setup.py sdist
 	twine upload dist/*
+
+ci:
+	@act -P ubuntu-latest=nektos/act-environments-ubuntu:18.04 -b
