@@ -40,16 +40,15 @@ test: deps
 	$(py_warn) TEST_DB=sqlite://:memory: py.test
 
 test_sqlite:
-	$(py_warn) TEST_DB=sqlite://:memory: py.test --cov-report=
+	$(py_warn) TEST_DB=sqlite://:memory: py.test
 
 test_mysql:
-	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" py.test --cov-append --cov-report=
+	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" py.test
 
 test_postgres:
-	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" py.test --cov-append --cov-report=
+	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" py.test
 
 testall: deps test_sqlite test_postgres test_mysql
-	coverage report
 
 publish: deps
 	rm -fR dist/

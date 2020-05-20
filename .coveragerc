@@ -1,6 +1,0 @@
-[run]
-branch = True
-source =
-    aerich
-[report]
-show_missing = True
