@@ -13,6 +13,7 @@ from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
 
 from . import __version__
+from .models import Aerich
 
 
 class Color(str, Enum):
@@ -83,24 +84,23 @@ async def migrate(ctx: Context, name):
 @cli.command(help="Upgrade to latest version.")
 @click.pass_context
 async def upgrade(ctx: Context):
-    app = ctx.obj["app"]
     config = ctx.obj["config"]
-    available_versions = Migrate.get_all_version_files(is_all=False)
-    if not available_versions:
-        return click.secho("No migrate items", fg=Color.yellow)
-    async with in_transaction(get_app_connection_name(config, app)) as conn:
-        for file in available_versions:
-            file_path = os.path.join(Migrate.migrate_location, file)
-            with open(file_path, "r") as f:
-                content = json.load(f)
-                upgrade_query_list = content.get("upgrade")
-                for upgrade_query in upgrade_query_list:
-                    await conn.execute_query(upgrade_query)
-
-            with open(file_path, "w") as f:
-                content["migrate"] = True
-                json.dump(content, f, indent=2, ensure_ascii=False)
-                click.secho(f"Success upgrade {file}", fg=Color.green)
+    app = ctx.obj["app"]
+    migrated = False
+    for version in Migrate.get_all_version_files():
+        if not await Aerich.exists(version=version, app=app):
+            async with in_transaction(get_app_connection_name(config, app)) as conn:
+                file_path = os.path.join(Migrate.migrate_location, version)
+                with open(file_path, "r") as f:
+                    content = json.load(f)
+                    upgrade_query_list = content.get("upgrade")
+                    for upgrade_query in upgrade_query_list:
+                        await conn.execute_query(upgrade_query)
+            await Aerich.create(version=version, app=app)
+            click.secho(f"Success upgrade {version}", fg=Color.green)
+            migrated = True
+    if not migrated:
+        click.secho("No migrate items", fg=Color.yellow)
 
 
 @cli.command(help="Downgrade to previous version.")
@@ -108,39 +108,43 @@ async def upgrade(ctx: Context):
 async def downgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
-    available_versions = Migrate.get_all_version_files()
-    if not available_versions:
-        return click.secho("No migrate items", fg=Color.yellow)
-
+    last_version = await Migrate.get_last_version()
+    if not last_version:
+        return click.secho("No last version found", fg=Color.yellow)
+    file = last_version.version
     async with in_transaction(get_app_connection_name(config, app)) as conn:
-        for file in reversed(available_versions):
-            file_path = os.path.join(Migrate.migrate_location, file)
-            with open(file_path, "r") as f:
-                content = json.load(f)
-                if content.get("migrate"):
-                    downgrade_query_list = content.get("downgrade")
-                    for downgrade_query in downgrade_query_list:
-                        await conn.execute_query(downgrade_query)
-                else:
-                    continue
-            with open(file_path, "w") as f:
-                content["migrate"] = False
-                json.dump(content, f, indent=2, ensure_ascii=False)
-                return click.secho(f"Success downgrade {file}", fg=Color.green)
+        file_path = os.path.join(Migrate.migrate_location, file)
+        with open(file_path, "r") as f:
+            content = json.load(f)
+            downgrade_query_list = content.get("downgrade")
+            for downgrade_query in downgrade_query_list:
+                await conn.execute_query(downgrade_query)
+            await last_version.delete()
+        return click.secho(f"Success downgrade {file}", fg=Color.green)
 
 
 @cli.command(help="Show current available heads in migrate location.")
 @click.pass_context
-def heads(ctx: Context):
-    for version in Migrate.get_all_version_files(is_all=False):
-        click.secho(version, fg=Color.green)
+async def heads(ctx: Context):
+    app = ctx.obj["app"]
+    versions = Migrate.get_all_version_files()
+    is_heads = False
+    for version in versions:
+        if not await Aerich.exists(version=version, app=app):
+            click.secho(version, fg=Color.green)
+            is_heads = True
+    if not is_heads:
+        click.secho("No available heads,try migrate", fg=Color.green)
 
 
 @cli.command(help="List all migrate items.")
 @click.pass_context
 def history(ctx):
-    for version in Migrate.get_all_version_files():
+    versions = Migrate.get_all_version_files()
+    for version in versions:
         click.secho(version, fg=Color.green)
+    if not versions:
+        click.secho("No history,try migrate", fg=Color.green)
 
 
 @cli.command(help="Init config file and generate root migrate location.")

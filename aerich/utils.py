@@ -1,10 +1,10 @@
 import importlib
 
 from asyncclick import BadOptionUsage, Context
-from tortoise import Tortoise
+from tortoise import BaseDBAsyncClient, Tortoise
 
 
-def get_app_connection_name(config, app):
+def get_app_connection_name(config, app) -> str:
     """
     get connection name
     :param config:
@@ -14,7 +14,7 @@ def get_app_connection_name(config, app):
     return config.get("apps").get(app).get("default_connection")
 
 
-def get_app_connection(config, app):
+def get_app_connection(config, app) -> BaseDBAsyncClient:
     """
     get connection name
     :param config:

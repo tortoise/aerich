@@ -3,7 +3,7 @@ import os
 import re
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Type
+from typing import Dict, List, Tuple, Type
 
 from tortoise import (
     BackwardFKRelation,
@@ -16,7 +16,6 @@ from tortoise import (
 from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
-from aerich.exceptions import ConfigurationError
 from aerich.models import Aerich
 from aerich.utils import get_app_connection
 
@@ -41,26 +40,12 @@ class Migrate:
         return cls.old_models + ".py"
 
     @classmethod
-    def _get_all_migrate_files(cls):
+    def get_all_version_files(cls) -> List[str]:
         return sorted(filter(lambda x: x.endswith("json"), os.listdir(cls.migrate_location)))
 
     @classmethod
-    def _get_latest_version(cls) -> int:
-        ret = cls._get_all_migrate_files()
-        if ret:
-            return int(ret[-1].split("_")[0])
-        return 0
-
-    @classmethod
-    def get_all_version_files(cls, is_all=True):
-        files = cls._get_all_migrate_files()
-        ret = []
-        for file in files:
-            with open(os.path.join(cls.migrate_location, file), "r") as f:
-                content = json.load(f)
-                if is_all or not content.get("migrate"):
-                    ret.append(file)
-        return ret
+    async def get_last_version(cls) -> Aerich:
+        return await Aerich.filter(app=cls.app).first()
 
     @classmethod
     async def init_with_old_models(cls, config: dict, app: str, location: str):
@@ -89,21 +74,28 @@ class Migrate:
             raise NotImplementedError("Current only support MySQL")
 
     @classmethod
+    async def _get_last_version_num(cls):
+        last_version = await cls.get_last_version()
+        if not last_version:
+            return 0
+        version = last_version.version
+        return version.split("_")[0]
+
+    @classmethod
     async def _generate_diff_sql(cls, name):
         now = datetime.now().strftime("%Y%M%D%H%M%S").replace("/", "")
-        version = f"{cls._get_latest_version() + 1}_{now}_{name}"
-        filename = f"{version}.json"
+        last_version_num = await cls._get_last_version_num()
+        version = f"{last_version_num + 1}_{now}_{name}.json"
         content = {
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
         }
-        with open(os.path.join(cls.migrate_location, filename), "w") as f:
+        with open(os.path.join(cls.migrate_location, version), "w") as f:
             json.dump(content, f, indent=2, ensure_ascii=False)
-        await Aerich.create(version=version)
-        return filename
+        return version
 
     @classmethod
-    async def migrate(cls, name):
+    async def migrate(cls, name) -> str:
         """
         diff old models and new models to generate diff content
         :param name:
@@ -119,7 +111,7 @@ class Migrate:
         cls._merge_operators()
 
         if not cls.upgrade_operators:
-            return False
+            return ""
 
         return await cls._generate_diff_sql(name)
 
@@ -260,7 +252,7 @@ class Migrate:
                 ):
                     cls._add_operator(
                         cls._remove_index(
-                            old_model, [old_field.model_field_name], old_field.unique
+                            old_model, (old_field.model_field_name,), old_field.unique
                         ),
                         upgrade,
                         isinstance(old_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
@@ -269,7 +261,7 @@ class Migrate:
                     new_field.unique and not old_field.unique
                 ):
                     cls._add_operator(
-                        cls._add_index(new_model, [new_field.model_field_name], new_field.unique),
+                        cls._add_index(new_model, (new_field.model_field_name,), new_field.unique),
                         upgrade,
                         isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
                     )
@@ -299,7 +291,7 @@ class Migrate:
                 cls._add_operator(cls._remove_index(old_model, old_unique, unique=True), upgrade)
 
     @classmethod
-    def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: List[str]):
+    def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
         ret = []
         for field_name in fields_name:
             if field_name in model._meta.fk_fields:
@@ -309,12 +301,12 @@ class Migrate:
         return ret
 
     @classmethod
-    def _remove_index(cls, model: Type[Model], fields_name: List[str], unique=False):
+    def _remove_index(cls, model: Type[Model], fields_name: Tuple[str], unique=False):
         fields_name = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, fields_name, unique)
 
     @classmethod
-    def _add_index(cls, model: Type[Model], fields_name: List[str], unique=False):
+    def _add_index(cls, model: Type[Model], fields_name: Tuple[str], unique=False):
         fields_name = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.add_index(model, fields_name, unique)
 

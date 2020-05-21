@@ -54,6 +54,19 @@ Quick Start
 
 Usage
 =====
+You need add ``aerich.models`` to your ``Tortoise-ORM`` config first, example:
+
+.. code-block:: python
+
+    TORTOISE_ORM = {
+        "connections": {"default": "mysql://root:123456@127.0.0.1:3306/test"},
+        "apps": {
+            "models": {
+                "models": ["tests.models", "aerich.models"],
+                "default_connection": "default",
+            },
+        },
+    }
 
 Initialization
 --------------
@@ -100,7 +113,7 @@ Update models and make migrate
 
     Success migrate 1_202029051520102929_drop_column.json
 
-Format of migrate filename is ``{version}_{datetime}_{name|update}.json``
+Format of migrate filename is ``{version_num}_{datetime}_{name|update}.json``
 
 Upgrade to latest version
 -------------------------

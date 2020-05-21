@@ -8,6 +8,7 @@ ChangeLog
 -----
 - Add sqlite and postgres support.
 - Fix dependency import.
+- Store versions in db.
 
 0.1.4
 -----
