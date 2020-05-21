@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "aerich"
-version = "0.1.1"
+version = "0.1.5"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-tortoise-orm = {git = "https://github.com/long2ice/tortoise-orm.git", branch = "develop"}
+tortoise-orm = {git = "https://github.com/tortoise-orm/tortoise-orm.git", branch = "develop"}
 asyncclick = "*"
 pydantic = "*"
 
