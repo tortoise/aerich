@@ -6,7 +6,8 @@ ChangeLog
 ===
 0.1.5
 -----
-- Add sqlite and postgres support
+- Add sqlite and postgres support.
+- Fix dependency import.
 
 0.1.4
 -----

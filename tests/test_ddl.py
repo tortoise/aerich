@@ -48,7 +48,6 @@ class TestDDL(test.TruncationTestCase):
 );""",
             )
         elif isinstance(self.ddl, PostgresDDL):
-            print(ret)
             self.assertEqual(
                 ret,
                 """CREATE TABLE IF NOT EXISTS "category" (

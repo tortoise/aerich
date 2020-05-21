@@ -30,18 +30,12 @@ class User(Model):
     avatar = fields.CharField(max_length=200, default="")
     intro = fields.TextField(default="")
 
-    def __str__(self):
-        return f"{self.pk}#{self.username}"
-
 
 class Category(Model):
     slug = fields.CharField(max_length=200)
     name = fields.CharField(max_length=200)
     user = fields.ForeignKeyField("models.User", description="User")
     created_at = fields.DatetimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.pk}#{self.name}"
 
 
 class Product(Model):
@@ -55,15 +49,9 @@ class Product(Model):
     body = fields.TextField()
     created_at = fields.DatetimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.pk}#{self.name}"
-
 
 class Config(Model):
     label = fields.CharField(max_length=200)
     key = fields.CharField(max_length=20)
     value = fields.JSONField()
     status: Status = fields.IntEnumField(Status, default=Status.on)
-
-    def __str__(self):
-        return f"{self.pk}#{self.label}"
