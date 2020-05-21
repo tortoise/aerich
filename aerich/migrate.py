@@ -17,6 +17,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.exceptions import ConfigurationError
+from aerich.models import Aerich
 from aerich.utils import get_app_connection
 
 
@@ -88,27 +89,26 @@ class Migrate:
             raise NotImplementedError("Current only support MySQL")
 
     @classmethod
-    def _generate_diff_sql(cls, name):
+    async def _generate_diff_sql(cls, name):
         now = datetime.now().strftime("%Y%M%D%H%M%S").replace("/", "")
-        filename = f"{cls._get_latest_version() + 1}_{now}_{name}.json"
+        version = f"{cls._get_latest_version() + 1}_{now}_{name}"
+        filename = f"{version}.json"
         content = {
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
-            "migrate": False,
         }
         with open(os.path.join(cls.migrate_location, filename), "w") as f:
             json.dump(content, f, indent=2, ensure_ascii=False)
+        await Aerich.create(version=version)
         return filename
 
     @classmethod
-    def migrate(cls, name):
+    async def migrate(cls, name):
         """
         diff old models and new models to generate diff content
         :param name:
         :return:
         """
-        if not cls.migrate_config:
-            raise ConfigurationError("You must call init_with_old_models() first!")
         apps = Tortoise.apps
         diff_models = apps.get(cls.diff_app)
         app_models = apps.get(cls.app)
@@ -121,7 +121,7 @@ class Migrate:
         if not cls.upgrade_operators:
             return False
 
-        return cls._generate_diff_sql(name)
+        return await cls._generate_diff_sql(name)
 
     @classmethod
     def _add_operator(cls, operator: str, upgrade=True, fk=False):
@@ -159,7 +159,8 @@ class Migrate:
             with open(model_file, "r") as f:
                 content = f.read()
             ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
-            with open(old_model_file, "w" if i == 0 else "w+a") as f:
+            mode = "w" if i == 0 else "a"
+            with open(old_model_file, mode) as f:
                 f.write(ret)
 
     @classmethod

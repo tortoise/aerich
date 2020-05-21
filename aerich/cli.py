@@ -40,8 +40,10 @@ parser = ConfigParser()
 @click.pass_context
 async def cli(ctx: Context, config, app, name):
     ctx.ensure_object(dict)
-    ctx.obj["config"] = config
+    ctx.obj["config_file"] = config
     ctx.obj["name"] = name
+    ctx.obj["app"] = app
+
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
         if not os.path.exists(config):
@@ -55,7 +57,6 @@ async def cli(ctx: Context, config, app, name):
 
         ctx.obj["config"] = tortoise_config
         ctx.obj["location"] = location
-        ctx.obj["app"] = app
 
         if invoked_subcommand != "init-db":
             try:
@@ -72,7 +73,7 @@ async def migrate(ctx: Context, name):
     location = ctx.obj["location"]
     app = ctx.obj["app"]
 
-    ret = Migrate.migrate(name)
+    ret = await Migrate.migrate(name)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
     Migrate.write_old_models(config, app, location)
@@ -156,21 +157,23 @@ def history(ctx):
 async def init(
     ctx: Context, tortoise_orm, location,
 ):
-    config = ctx.obj["config"]
+    config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
+    if os.path.exists(config_file):
+        return click.secho("You have inited", fg=Color.yellow)
 
     parser.add_section(name)
     parser.set(name, "tortoise_orm", tortoise_orm)
     parser.set(name, "location", location)
 
-    with open(config, "w") as f:
+    with open(config_file, "w") as f:
         parser.write(f)
 
     if not os.path.isdir(location):
         os.mkdir(location)
 
     click.secho(f"Success create migrate location {location}", fg=Color.green)
-    click.secho(f"Success generate config file {config}", fg=Color.green)
+    click.secho(f"Success generate config file {config_file}", fg=Color.green)
 
 
 @cli.command(help="Generate schema and generate app migrate location.")
@@ -191,8 +194,6 @@ async def init_db(ctx: Context, safe):
     if not os.path.isdir(dirname):
         os.mkdir(dirname)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
-    else:
-        return click.secho(f'Already inited app "{app}"', fg=Color.yellow)
 
     Migrate.write_old_models(config, app, location)
 
