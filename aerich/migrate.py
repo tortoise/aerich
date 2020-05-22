@@ -182,7 +182,8 @@ class Migrate:
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:
-            old_model_files.append(model.replace(".", "/") + ".py")
+            if model != "aerich.models":
+                old_model_files.append(model.replace(".", "/") + ".py")
 
         cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
 
