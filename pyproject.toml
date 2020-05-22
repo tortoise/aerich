@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aerich"
-version = "0.1.6"
+version = "0.1.7"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 

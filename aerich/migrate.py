@@ -78,15 +78,21 @@ class Migrate:
     async def _get_last_version_num(cls):
         last_version = await cls.get_last_version()
         if not last_version:
-            return 0
+            return None
         version = last_version.version
         return version.split("_")[0]
 
     @classmethod
-    async def _generate_diff_sql(cls, name):
+    async def generate_version(cls, name=None):
         now = datetime.now().strftime("%Y%M%D%H%M%S").replace("/", "")
         last_version_num = await cls._get_last_version_num()
-        version = f"{last_version_num + 1}_{now}_{name}.json"
+        if last_version_num is None:
+            return f"0_{now}_init.json"
+        return f"{last_version_num + 1}_{now}_{name}.json"
+
+    @classmethod
+    async def _generate_diff_sql(cls, name):
+        version = await cls.generate_version(name)
         content = {
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
@@ -181,6 +187,8 @@ class Migrate:
         :param location:
         :return:
         """
+        cls.app = app
+
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:

@@ -4,6 +4,15 @@ ChangeLog
 
 0.1
 ===
+0.1.7
+-----
+- Exclude models.Aerich.
+- Add init record when init-db.
+
+0.1.6
+-----
+- update dependency_links
+
 0.1.5
 -----
 - Add sqlite and postgres support.

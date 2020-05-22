@@ -8,6 +8,7 @@ import asyncclick as click
 from asyncclick import Context, UsageError
 from tortoise import ConfigurationError, Tortoise, generate_schema_for_client
 from tortoise.transactions import in_transaction
+from tortoise.utils import get_schema_sql
 
 from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
@@ -117,6 +118,8 @@ async def downgrade(ctx: Context):
         with open(file_path, "r") as f:
             content = json.load(f)
             downgrade_query_list = content.get("downgrade")
+            if not downgrade_query_list:
+                return click.secho(f"No downgrade item dound", fg=Color.yellow)
             for downgrade_query in downgrade_query_list:
                 await conn.execute_query(downgrade_query)
             await last_version.delete()
@@ -198,6 +201,8 @@ async def init_db(ctx: Context, safe):
     if not os.path.isdir(dirname):
         os.mkdir(dirname)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
+    else:
+        return click.secho(f"Inited {app} already", fg=Color.yellow)
 
     Migrate.write_old_models(config, app, location)
 
@@ -205,6 +210,15 @@ async def init_db(ctx: Context, safe):
     connection = get_app_connection(config, app)
     await generate_schema_for_client(connection, safe)
 
+    schema = get_schema_sql(connection, safe)
+
+    version = await Migrate.generate_version()
+    await Aerich.create(version=version, app=app)
+    with open(os.path.join(dirname, version), "w") as f:
+        content = {
+            "upgrade": schema,
+        }
+        json.dump(content, f, ensure_ascii=False, indent=2)
     return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
 
 
