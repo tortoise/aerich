@@ -27,6 +27,7 @@ class Migrate:
     _downgrade_fk_m2m_index_operators: List[str] = []
     _upgrade_m2m: List[str] = []
     _downgrade_m2m: List[str] = []
+    _aerich = Aerich.__name__
 
     ddl: BaseDDL
     migrate_config: dict
@@ -104,6 +105,7 @@ class Migrate:
         apps = Tortoise.apps
         diff_models = apps.get(cls.diff_app)
         app_models = apps.get(cls.app)
+        app_models.pop(cls._aerich, None)
 
         cls._diff_models(diff_models, app_models)
         cls._diff_models(app_models, diff_models, False)
