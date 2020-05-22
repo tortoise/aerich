@@ -8,6 +8,7 @@ ChangeLog
 -----
 - Exclude models.Aerich.
 - Add init record when init-db.
+- Fix version num str.
 
 0.1.6
 -----

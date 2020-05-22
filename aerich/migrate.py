@@ -80,7 +80,7 @@ class Migrate:
         if not last_version:
             return None
         version = last_version.version
-        return version.split("_")[0]
+        return int(version.split("_")[0])
 
     @classmethod
     async def generate_version(cls, name=None):
