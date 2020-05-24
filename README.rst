@@ -104,6 +104,10 @@ Init db
     Success create app migrate location ./migrations/models
     Success generate schema for app "models"
 
+.. note::
+
+    If your Tortoise-ORM app is not default ``models``, you must specify ``--app`` like ``aerich --app other_models init-db``.
+
 Update models and make migrate
 ------------------------------
 

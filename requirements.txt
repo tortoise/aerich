@@ -7,4 +7,5 @@ iso8601==0.1.12; sys_platform == "win32" or implementation_name != "cpython"
 pydantic==1.5.1
 pypika==0.37.6
 sniffio==1.1.0
+tortoise-orm==0.16.12
 typing-extensions==3.7.4.2

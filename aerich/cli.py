@@ -12,6 +12,7 @@ from tortoise.utils import get_schema_sql
 
 from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
+
 from . import __version__
 from .models import Aerich
 
@@ -158,7 +159,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-        ctx: Context, tortoise_orm, location,
+    ctx: Context, tortoise_orm, location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]

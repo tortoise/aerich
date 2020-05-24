@@ -1,4 +1,4 @@
-checkfiles = aerich/ tests/
+checkfiles = aerich/ tests/ conftest.py
 black_opts = -l 100 -t py38
 py_warn = PYTHONDEVMODE=1
 MYSQL_HOST ?= "127.0.0.1"

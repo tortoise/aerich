@@ -111,10 +111,9 @@ class Migrate:
         apps = Tortoise.apps
         diff_models = apps.get(cls.diff_app)
         app_models = apps.get(cls.app)
-        app_models.pop(cls._aerich, None)
 
-        cls._diff_models(diff_models, app_models)
-        cls._diff_models(app_models, diff_models, False)
+        cls.diff_models(diff_models, app_models)
+        cls.diff_models(app_models, diff_models, False)
 
         cls._merge_operators()
 
@@ -198,7 +197,7 @@ class Migrate:
         cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
 
     @classmethod
-    def _diff_models(
+    def diff_models(
         cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
@@ -208,6 +207,9 @@ class Migrate:
         :param upgrade:
         :return:
         """
+        old_models.pop(cls._aerich, None)
+        new_models.pop(cls._aerich, None)
+
         for new_model_str, new_model in new_models.items():
             if new_model_str not in old_models.keys():
                 cls._add_operator(cls.add_model(new_model), upgrade)
