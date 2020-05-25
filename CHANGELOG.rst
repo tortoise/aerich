@@ -4,9 +4,11 @@ ChangeLog
 
 0.1
 ===
+
 0.1.8
-_____
+-----
 - Fix upgrade error when migrate.
+- Fix init db sql error.
 
 0.1.7
 -----

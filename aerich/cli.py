@@ -218,7 +218,7 @@ async def init_db(ctx: Context, safe):
     await Aerich.create(version=version, app=app)
     with open(os.path.join(dirname, version), "w") as f:
         content = {
-            "upgrade": schema,
+            "upgrade": [schema],
         }
         json.dump(content, f, ensure_ascii=False, indent=2)
     return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
