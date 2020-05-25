@@ -61,9 +61,18 @@ def test_add_column():
         assert ret == 'ALTER TABLE category ADD "name" VARCHAR(200) NOT NULL'
 
 
+def test_modify_column():
+    ret = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE category MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE category MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
+    elif isinstance(Migrate.ddl, SqliteDDL):
+        assert ret == 'ALTER TABLE category MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
+
+
 def test_drop_column():
     ret = Migrate.ddl.drop_column(Category, "name")
-    assert ret == "ALTER TABLE category DROP COLUMN name"
     assert ret == "ALTER TABLE category DROP COLUMN name"
 
 

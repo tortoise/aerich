@@ -164,7 +164,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-        ctx: Context, tortoise_orm, location,
+    ctx: Context, tortoise_orm, location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
@@ -218,7 +218,7 @@ async def init_db(ctx: Context, safe):
     await Aerich.create(version=version, app=app)
     with open(os.path.join(dirname, version), "w") as f:
         content = {
-            "upgrade": schema,
+            "upgrade": [schema],
         }
         json.dump(content, f, ensure_ascii=False, indent=2)
     return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)

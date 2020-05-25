@@ -161,7 +161,7 @@ Show heads to be migrated
 
 Limitations
 ===========
-* Not support ``change column`` now.
+* Not support ``rename column`` now.
 * ``Sqlite`` and ``Postgres`` may not work as expected because I don't use those in my work.
 
 License
