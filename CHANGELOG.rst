@@ -4,6 +4,9 @@ ChangeLog
 
 0.1
 ===
+0.1.9
+-----
+- Fix default_connection when upgrade
 
 0.1.8
 -----
