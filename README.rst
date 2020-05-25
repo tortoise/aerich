@@ -159,6 +159,11 @@ Show heads to be migrated
 
     1_202029051520102929_drop_column.json
 
+Limitations
+-----------
+* Not support ``change column`` now.
+* ``Sqlite`` and ``Postgres`` may not work as expected because I don't use those in my work.
+
 License
 =======
 This project is licensed under the `MIT <https://github.com/long2ice/aerich/blob/master/LICENSE>`_ License.

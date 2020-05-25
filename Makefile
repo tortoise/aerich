@@ -12,7 +12,7 @@ help:
 	@echo  "usage: make <target>"
 	@echo  "Targets:"
 	@echo  "    up			Updates dev/test dependencies"
-	@echo  "    deps        Ensure dev/test dependencies are installed"
+	@echo  "    deps		Ensure dev/test dependencies are installed"
 	@echo  "    check		Checks that build is sane"
 	@echo  "    lint		Reports all linter violations"
 	@echo  "    test		Runs all tests"
