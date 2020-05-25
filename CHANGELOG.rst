@@ -4,6 +4,10 @@ ChangeLog
 
 0.1
 ===
+0.1.8
+_____
+- Fix upgrade error when migrate.
+
 0.1.7
 -----
 - Exclude models.Aerich.

@@ -7,6 +7,7 @@ from enum import Enum
 import asyncclick as click
 from asyncclick import Context, UsageError
 from tortoise import Tortoise, generate_schema_for_client
+from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
@@ -86,7 +87,11 @@ async def upgrade(ctx: Context):
     app = ctx.obj["app"]
     migrated = False
     for version in Migrate.get_all_version_files():
-        if not await Aerich.exists(version=version, app=app):
+        try:
+            exists = await Aerich.exists(version=version, app=app)
+        except OperationalError:
+            exists = False
+        if not exists:
             async with in_transaction(get_app_connection_name(config, app)) as conn:
                 file_path = os.path.join(Migrate.migrate_location, version)
                 with open(file_path, "r") as f:
@@ -159,7 +164,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-    ctx: Context, tortoise_orm, location,
+        ctx: Context, tortoise_orm, location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
