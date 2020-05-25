@@ -221,6 +221,10 @@ class Migrate:
                 cls._add_operator(cls.remove_model(old_models.get(old_model)), upgrade)
 
     @classmethod
+    def _is_fk_m2m(cls, field: Field):
+        return isinstance(field, (ForeignKeyFieldInstance, ManyToManyFieldInstance))
+
+    @classmethod
     def add_model(cls, model: Type[Model]):
         return cls.ddl.create_table(model)
 
@@ -260,6 +264,14 @@ class Migrate:
                 )
             else:
                 old_field = old_fields_map.get(new_key)
+                new_field_dict = new_field.describe(serializable=True)
+                new_field_dict.pop("unique")
+                new_field_dict.pop("indexed")
+                old_field_dict = old_field.describe(serializable=True)
+                old_field_dict.pop("unique")
+                old_field_dict.pop("indexed")
+                if not cls._is_fk_m2m(new_field) and new_field_dict != old_field_dict:
+                    cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
                     old_field.unique and not new_field.unique
                 ):
@@ -268,7 +280,7 @@ class Migrate:
                             old_model, (old_field.model_field_name,), old_field.unique
                         ),
                         upgrade,
-                        isinstance(old_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                        cls._is_fk_m2m(old_field),
                     )
                 elif (new_field.index and not old_field.index) or (
                     new_field.unique and not old_field.unique
@@ -276,16 +288,14 @@ class Migrate:
                     cls._add_operator(
                         cls._add_index(new_model, (new_field.model_field_name,), new_field.unique),
                         upgrade,
-                        isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                        cls._is_fk_m2m(new_field),
                     )
 
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
                 cls._add_operator(
-                    cls._remove_field(old_model, field),
-                    upgrade,
-                    isinstance(field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                    cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
                 )
 
         for new_index in new_indexes:
@@ -353,6 +363,10 @@ class Migrate:
         if isinstance(field, ManyToManyFieldInstance):
             return cls.ddl.create_m2m_table(model, field)
         return cls.ddl.add_column(model, field)
+
+    @classmethod
+    def _modify_field(cls, model: Type[Model], field: Field):
+        return cls.ddl.modify_column(model, field)
 
     @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):

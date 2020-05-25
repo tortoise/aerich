@@ -16,10 +16,7 @@ db_url = os.getenv("TEST_DB", "sqlite://:memory:")
 tortoise_orm = {
     "connections": {"default": expand_db_url(db_url, True)},
     "apps": {
-        "models": {
-            "models": ["tests.models", "aerich.models"],
-            "default_connection": "default",
-        },
+        "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default",},
     },
 }
 
@@ -42,8 +39,11 @@ def loop():
 
 @pytest.fixture(scope="session", autouse=True)
 def initialize_tests(loop, request):
-    tortoise_orm['connections']['diff_models'] = "sqlite://:memory:"
-    tortoise_orm['apps']['diff_models'] = {"models": ["tests.diff_models"], "default_connection": "diff_models"}
+    tortoise_orm["connections"]["diff_models"] = "sqlite://:memory:"
+    tortoise_orm["apps"]["diff_models"] = {
+        "models": ["tests.diff_models"],
+        "default_connection": "diff_models",
+    }
 
     loop.run_until_complete(Tortoise.init(config=tortoise_orm, _create_db=True))
     loop.run_until_complete(

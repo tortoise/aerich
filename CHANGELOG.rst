@@ -9,6 +9,7 @@ ChangeLog
 -----
 - Fix upgrade error when migrate.
 - Fix init db sql error.
+- Support change column.
 
 0.1.7
 -----

@@ -164,7 +164,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-        ctx: Context, tortoise_orm, location,
+    ctx: Context, tortoise_orm, location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
