@@ -176,7 +176,7 @@ class Migrate:
         path = path.replace("/", ".").lstrip(".")
         temp_config["apps"][cls.diff_app] = {
             "models": [path],
-            "default_connection": config.get("apps").get(app).get("default_connection","default"),
+            "default_connection": config.get("apps").get(app).get("default_connection", "default"),
         }
         return temp_config
 

@@ -7,6 +7,8 @@ ChangeLog
 0.1.9
 -----
 - Fix default_connection when upgrade
+- Find default app instead of default.
+- Diff MySQL ddl.
 
 0.1.8
 -----
