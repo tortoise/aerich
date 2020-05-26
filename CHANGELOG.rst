@@ -9,6 +9,7 @@ ChangeLog
 - Fix default_connection when upgrade
 - Find default app instead of default.
 - Diff MySQL ddl.
+- Check tortoise config.
 
 0.1.8
 -----

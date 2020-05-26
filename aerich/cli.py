@@ -57,6 +57,8 @@ async def cli(ctx: Context, config, app, name):
 
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]
+        if "aerich.models" not in tortoise_config.get("apps").get(app).get("models"):
+            raise UsageError("Check your tortoise config and add aerich.models to it.", ctx=ctx)
         ctx.obj["config"] = tortoise_config
         ctx.obj["location"] = location
         ctx.obj["app"] = app
