@@ -32,7 +32,7 @@ parser = ConfigParser()
 @click.option(
     "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
 )
-@click.option("--app", default="models", show_default=True, help="Tortoise-ORM app name.")
+@click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.option(
     "-n",
     "--name",
@@ -45,7 +45,6 @@ async def cli(ctx: Context, config, app, name):
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
     ctx.obj["name"] = name
-    ctx.obj["app"] = app
 
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
@@ -57,9 +56,12 @@ async def cli(ctx: Context, config, app, name):
         tortoise_orm = parser[name]["tortoise_orm"]
 
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
-
+        app = app or list(tortoise_config.get("apps").keys())[0]
+        if "aerich.models" not in tortoise_config.get("apps").get(app).get("models"):
+            raise UsageError("Check your tortoise config and add aerich.models to it.", ctx=ctx)
         ctx.obj["config"] = tortoise_config
         ctx.obj["location"] = location
+        ctx.obj["app"] = app
 
         if invoked_subcommand != "init-db":
             await Migrate.init_with_old_models(tortoise_config, app, location)

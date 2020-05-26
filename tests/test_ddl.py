@@ -48,63 +48,76 @@ COMMENT ON COLUMN "category"."user_id" IS 'User';"""
 
 def test_drop_table():
     ret = Migrate.ddl.drop_table(Category)
-    assert ret == "DROP TABLE IF EXISTS category"
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "DROP TABLE IF EXISTS `category`"
+    else:
+        assert ret == 'DROP TABLE IF EXISTS "category"'
 
 
 def test_add_column():
     ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name"))
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE category ADD `name` VARCHAR(200) NOT NULL"
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE category ADD "name" VARCHAR(200) NOT NULL'
-    elif isinstance(Migrate.ddl, SqliteDDL):
-        assert ret == 'ALTER TABLE category ADD "name" VARCHAR(200) NOT NULL'
+        assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL"
+    else:
+        assert ret == 'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL'
 
 
 def test_modify_column():
     ret = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE category MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE category MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
-    elif isinstance(Migrate.ddl, SqliteDDL):
-        assert ret == 'ALTER TABLE category MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
+        assert ret == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
+    else:
+        assert ret == 'ALTER TABLE "category" MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
 
 
 def test_drop_column():
     ret = Migrate.ddl.drop_column(Category, "name")
-    assert ret == "ALTER TABLE category DROP COLUMN name"
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `category` DROP COLUMN `name`"
+    else:
+        assert ret == 'ALTER TABLE "category" DROP COLUMN "name"'
 
 
 def test_add_index():
     index = Migrate.ddl.add_index(Category, ["name"])
     index_u = Migrate.ddl.add_index(Category, ["name"], True)
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert index == "ALTER TABLE category ADD  INDEX idx_category_name_8b0cb9 (`name`)"
-
-        assert index_u == "ALTER TABLE category ADD UNIQUE INDEX uid_category_name_8b0cb9 (`name`)"
-
-    elif isinstance(Migrate.ddl, SqliteDDL):
-        assert index_u == 'ALTER TABLE category ADD UNIQUE INDEX uid_category_name_8b0cb9 ("name")'
-
-        assert index_u == 'ALTER TABLE category ADD UNIQUE INDEX uid_category_name_8b0cb9 ("name")'
+        assert index == "ALTER TABLE `category` ADD  INDEX `idx_category_name_8b0cb9` (`name`)"
+        assert (
+            index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
+        )
+    else:
+        assert index == 'ALTER TABLE "category" ADD  INDEX "idx_category_name_8b0cb9" ("name")'
+        assert (
+            index_u == 'ALTER TABLE "category" ADD UNIQUE INDEX "uid_category_name_8b0cb9" ("name")'
+        )
 
 
 def test_drop_index():
     ret = Migrate.ddl.drop_index(Category, ["name"])
-    assert ret == "ALTER TABLE category DROP INDEX idx_category_name_8b0cb9"
-    ret = Migrate.ddl.drop_index(Category, ["name"], True)
-    assert ret == "ALTER TABLE category DROP INDEX uid_category_name_8b0cb9"
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `category` DROP INDEX `idx_category_name_8b0cb9`"
+    else:
+        assert ret == 'ALTER TABLE "category" DROP INDEX "idx_category_name_8b0cb9"'
 
 
 def test_add_fk():
     ret = Migrate.ddl.add_fk(Category, Category._meta.fields_map.get("user"))
-    assert (
-        ret
-        == "ALTER TABLE category ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
-    )
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert (
+            ret
+            == "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
+        )
+    else:
+        assert (
+            ret
+            == 'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE'
+        )
 
 
 def test_drop_fk():
     ret = Migrate.ddl.drop_fk(Category, Category._meta.fields_map.get("user"))
-    assert ret == "ALTER TABLE category DROP FOREIGN KEY fk_category_user_e2e3874c"
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`"
+    else:
+        assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_e2e3874c"'
