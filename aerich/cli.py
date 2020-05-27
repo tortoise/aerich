@@ -28,7 +28,7 @@ parser = ConfigParser()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__)
+@click.version_option(__version__, '-V', '--version')
 @click.option(
     "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
 )
@@ -166,7 +166,7 @@ def history(ctx):
 )
 @click.pass_context
 async def init(
-    ctx: Context, tortoise_orm, location,
+        ctx: Context, tortoise_orm, location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
