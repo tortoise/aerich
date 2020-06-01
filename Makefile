@@ -18,9 +18,11 @@ help:
 	@echo  "    test		Runs all tests"
 	@echo  "    style		Auto-formats the code"
 
+up:
+	@poetry install
+
 deps:
-	@which pip-sync > /dev/null || pip install -q pip-tools
-	@pip install -r requirements-dev.txt
+	@poetry update
 
 style: deps
 	isort -rc $(checkfiles)
@@ -50,10 +52,11 @@ test_postgres:
 
 testall: deps test_sqlite test_postgres test_mysql
 
-publish: deps
-	rm -fR dist/
-	python setup.py sdist
-	twine upload dist/*
+build:
+	@poetry build
+
+publish:
+	@poetry publish
 
 ci:
 	@act -P ubuntu-latest=nektos/act-environments-ubuntu:18.04 -b
