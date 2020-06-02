@@ -19,10 +19,10 @@ help:
 	@echo  "    style		Auto-formats the code"
 
 up:
-	@poetry install
+	@poetry update
 
 deps:
-	@poetry update
+	@poetry install -E dbdrivers
 
 style: deps
 	isort -rc $(checkfiles)
@@ -52,10 +52,10 @@ test_postgres:
 
 testall: deps test_sqlite test_postgres test_mysql
 
-build:
+build: deps
 	@poetry build
 
-publish:
+publish: deps
 	@poetry publish
 
 ci:

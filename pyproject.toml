@@ -29,6 +29,8 @@ pytest = "*"
 pytest-xdist = "*"
 mypy = "*"
 pytest-asyncio = "*"
+aiomysql = {version = "*", optional = true}
+asyncpg = {version = "*", optional = true}
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]

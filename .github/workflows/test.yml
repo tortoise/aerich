@@ -16,11 +16,10 @@ jobs:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v2
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v1.5.0
+      - uses: actions/setup-python@v2
         with:
-          python_version: 3.8.0
-          args: install
+          python-version: '3.x'
+      - uses: dschep/install-poetry-action@v1.3
       - name: CI
         env:
           MYSQL_PASS: root
