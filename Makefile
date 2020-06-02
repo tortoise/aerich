@@ -52,10 +52,10 @@ test_postgres:
 
 testall: deps test_sqlite test_postgres test_mysql
 
-build:
+build: deps
 	@poetry build
 
-publish:
+publish: deps
 	@poetry publish
 
 ci:

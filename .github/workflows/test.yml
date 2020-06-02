@@ -3,6 +3,8 @@ on: [push, pull_request]
 jobs:
   testall:
     runs-on: ubuntu-latest
+    env:
+      POETRY_VIRTUALENVS_CREATE: false
     services:
       postgres:
         image: postgres:latest
@@ -17,13 +19,7 @@ jobs:
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v2
       - name: Install poetry
-        uses: abatilo/actions-poetry@v1.5.0
-        env:
-          POETRY_VIRTUALENVS_CREATE: false
-        with:
-          python_version: 3.8.0
-          poetry_version: 1.0.5
-          args: install
+        run: curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
       - name: CI
         env:
           MYSQL_PASS: root

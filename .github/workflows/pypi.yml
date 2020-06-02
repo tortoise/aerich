@@ -6,19 +6,13 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      POETRY_VIRTUALENVS_CREATE: false
     steps:
       - uses: actions/checkout@v2
       - name: Install poetry
-        uses: abatilo/actions-poetry@v1.5.0
-        env:
-          POETRY_VIRTUALENVS_CREATE: false
-        with:
-          python_version: 3.8.0
-          poetry_version: 1.0.5
-          args: install
-      - name: Build dists
-        run: |
-          make build
+        run: curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
       - name: Pypi Publish
         run: |
+          make build
           make publish
