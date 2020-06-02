@@ -8,14 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v1.5.0
         with:
-          python-version: '3.x'
+          python_version: 3.8.0
+          args: install
       - name: Build dists
         run: |
-          python3 setup.py sdist
+          make build
       - name: Pypi Publish
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
+        run: |
+          make publish
