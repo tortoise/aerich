@@ -19,10 +19,10 @@ help:
 	@echo  "    style		Auto-formats the code"
 
 up:
-	@poetry install
+	@poetry update
 
 deps:
-	@poetry update
+	@poetry install
 
 style: deps
 	isort -rc $(checkfiles)

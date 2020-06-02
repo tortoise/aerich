@@ -22,6 +22,7 @@ jobs:
           POETRY_VIRTUALENVS_CREATE: false
         with:
           python_version: 3.8.0
+          poetry_version: 1.0.5
           args: install
       - name: CI
         env:
