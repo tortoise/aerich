@@ -19,6 +19,8 @@ python = "^3.8"
 tortoise-orm = "*"
 asyncclick = "*"
 pydantic = "*"
+aiomysql = {version = "*", optional = true}
+asyncpg = {version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
 taskipy = "*"
@@ -29,8 +31,6 @@ pytest = "*"
 pytest-xdist = "*"
 mypy = "*"
 pytest-asyncio = "*"
-aiomysql = {version = "*", optional = true}
-asyncpg = {version = "*", optional = true}
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]
