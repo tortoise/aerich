@@ -14,5 +14,4 @@ jobs:
       - uses: dschep/install-poetry-action@v1.3
       - name: Pypi Publish
         run: |
-          make build
           make publish

@@ -56,6 +56,6 @@ build: deps
 	@poetry build
 
 publish: deps
-	@poetry publish
+	@poetry publish --build
 
 ci: testall
