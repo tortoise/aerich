@@ -6,12 +6,12 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    env:
-      POETRY_VIRTUALENVS_CREATE: false
     steps:
       - uses: actions/checkout@v2
-      - name: Install poetry
-        run: curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - uses: dschep/install-poetry-action@v1.3
       - name: Pypi Publish
         run: |
           make build

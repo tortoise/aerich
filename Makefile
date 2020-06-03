@@ -22,7 +22,7 @@ up:
 	@poetry update
 
 deps:
-	@poetry install
+	@poetry install -E dbdrivers
 
 style: deps
 	isort -rc $(checkfiles)
@@ -58,5 +58,4 @@ build: deps
 publish: deps
 	@poetry publish
 
-ci:
-	@act -P ubuntu-latest=nektos/act-environments-ubuntu:18.04 -b
+ci: testall
