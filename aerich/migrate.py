@@ -3,6 +3,7 @@ import os
 import re
 from copy import deepcopy
 from datetime import datetime
+from importlib import import_module
 from typing import Dict, List, Tuple, Type
 
 from tortoise import (
@@ -195,7 +196,7 @@ class Migrate:
         models = config.get("apps").get(app).get("models")
         for model in models:
             if model != "aerich.models":
-                old_model_files.append(model.replace(".", "/") + ".py")
+                old_model_files.append(import_module(model).__file__)
 
         cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
 

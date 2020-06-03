@@ -4,6 +4,10 @@ ChangeLog
 
 0.1
 ===
+0.2.0
+-----
+- Update model file find method.
+
 0.1.9
 -----
 - Fix default_connection when upgrade
