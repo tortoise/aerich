@@ -1,14 +1,26 @@
 [tool.poetry]
 name = "aerich"
-version = "0.1.9"
+version = "0.2.0"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
+license = "MIT"
+readme = "README.rst"
+homepage = "https://github.com/long2ice/aerich"
+repository = "git@github.com:long2ice/aerich.git"
+documentation = "https://github.com/long2ice/aerich"
+keywords = ["migrate", "Tortoise-ORM", "mysql"]
+packages = [
+    { include = "aerich" }
+]
+include = ["CHANGELOG.rst", "LICENSE", "README.rst"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
 tortoise-orm = "*"
 asyncclick = "*"
 pydantic = "*"
+aiomysql = {version = "*", optional = true}
+asyncpg = {version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
 taskipy = "*"
@@ -16,17 +28,16 @@ flake8 = "*"
 isort = "*"
 black = "^19.10b0"
 pytest = "*"
-aiomysql = "*"
-asyncpg = "*"
 pytest-xdist = "*"
 mypy = "*"
 pytest-asyncio = "*"
 
-[tool.taskipy.tasks]
-export = "poetry export -f requirements.txt --without-hashes > requirements.txt"
-export-dev = "poetry export -f requirements.txt --dev --without-hashes > requirements-dev.txt"
+[tool.poetry.extras]
+dbdrivers = ["aiomysql", "asyncpg"]
 
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
+[tool.poetry.scripts]
+aerich = "aerich.cli:main"

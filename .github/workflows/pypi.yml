@@ -8,12 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v1
+      - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
+      - uses: dschep/install-poetry-action@v1.3
       - name: Build dists
-        run: |
-          python3 setup.py sdist
+        run: make build
       - name: Pypi Publish
         uses: pypa/gh-action-pypi-publish@master
         with:

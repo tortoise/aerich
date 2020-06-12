@@ -1,6 +1,12 @@
 =========
 ChangeLog
 =========
+0.2
+===
+0.2.0
+-----
+- Update model file find method.
+- Set ``--safe`` bool.
 
 0.1
 ===

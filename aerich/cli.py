@@ -28,7 +28,7 @@ parser = ConfigParser()
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__)
+@click.version_option(__version__, "-V", "--version")
 @click.option(
     "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
 )
@@ -190,7 +190,7 @@ async def init(
 @cli.command(help="Generate schema and generate app migrate location.")
 @click.option(
     "--safe",
-    is_flag=True,
+    type=bool,
     default=True,
     help="When set to true, creates the table only when it does not already exist.",
     show_default=True,
