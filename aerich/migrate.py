@@ -72,8 +72,6 @@ class Migrate:
             from aerich.ddl.postgres import PostgresDDL
 
             cls.ddl = PostgresDDL(connection)
-        else:
-            raise NotImplementedError("Current only support MySQL")
 
     @classmethod
     async def _get_last_version_num(cls):
@@ -195,8 +193,7 @@ class Migrate:
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:
-            if model != "aerich.models":
-                old_model_files.append(import_module(model).__file__)
+            old_model_files.append(import_module(model).__file__)
 
         cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
 
