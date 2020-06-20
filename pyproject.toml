@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 license = "Apache-2.0"
-readme = "README.rst"
+readme = "README.md"
 homepage = "https://github.com/long2ice/aerich"
 repository = "https://github.com/long2ice/aerich.git"
 documentation = "https://github.com/long2ice/aerich"
@@ -12,7 +12,7 @@ keywords = ["migrate", "Tortoise-ORM", "mysql"]
 packages = [
     { include = "aerich" }
 ]
-include = ["CHANGELOG.rst", "LICENSE", "README.rst"]
+include = ["CHANGELOG.rst", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
