@@ -179,4 +179,4 @@ Donate money by [paypal](https://www.paypal.me/long2ice) to my account long2ice.
 ## License
 
 This project is licensed under the
-[MIT](https://github.com/long2ice/aerich/blob/master/LICENSE) License.
+[Apache-2.0](https://github.com/long2ice/aerich/blob/master/LICENSE) License.
