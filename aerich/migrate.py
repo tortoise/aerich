@@ -96,7 +96,7 @@ class Migrate:
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
         }
-        with open(os.path.join(cls.migrate_location, version), "w") as f:
+        with open(os.path.join(cls.migrate_location, version), "w", encoding="utf-8") as f:
             json.dump(content, f, indent=2, ensure_ascii=False)
         return version
 
@@ -154,11 +154,11 @@ class Migrate:
         """
         pattern = rf"(\n)?('|\")({app})(.\w+)('|\")"
         for i, model_file in enumerate(model_files):
-            with open(model_file, "r") as f:
+            with open(model_file, "r", encoding="utf-8") as f:
                 content = f.read()
             ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
             mode = "w" if i == 0 else "a"
-            with open(old_model_file, mode) as f:
+            with open(old_model_file, mode, encoding="utf-8") as f:
                 f.write(ret)
 
     @classmethod
