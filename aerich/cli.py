@@ -123,7 +123,7 @@ async def downgrade(ctx: Context):
             content = json.load(f)
             downgrade_query_list = content.get("downgrade")
             if not downgrade_query_list:
-                return click.secho(f"No downgrade item dound", fg=Color.yellow)
+                return click.secho("No downgrade item found", fg=Color.yellow)
             for downgrade_query in downgrade_query_list:
                 await conn.execute_query(downgrade_query)
             await last_version.delete()

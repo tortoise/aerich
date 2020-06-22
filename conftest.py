@@ -16,7 +16,7 @@ db_url = os.getenv("TEST_DB", "sqlite://:memory:")
 tortoise_orm = {
     "connections": {"default": expand_db_url(db_url, True)},
     "apps": {
-        "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default",},
+        "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
     },
 }
 

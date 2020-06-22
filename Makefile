@@ -22,21 +22,15 @@ up:
 	@poetry update
 
 deps:
-	@poetry install -E dbdrivers
+	@poetry install -E dbdrivers --no-root
 
 style: deps
 	isort -rc $(checkfiles)
 	black $(black_opts) $(checkfiles)
 
 check: deps
-ifneq ($(shell which black),)
 	black --check $(black_opts) $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-endif
 	flake8 $(checkfiles)
-	mypy $(checkfiles)
-	pylint -d C,W,R $(checkfiles)
-	bandit -r $(checkfiles)
-	python setup.py check -mrs
 
 test: deps
 	$(py_warn) TEST_DB=sqlite://:memory: py.test
@@ -58,4 +52,4 @@ build: deps
 publish: deps
 	@poetry publish --build
 
-ci: testall
+ci: check testall
