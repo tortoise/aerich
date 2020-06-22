@@ -144,3 +144,4 @@ cython_debug/
 migrations
 aerich.ini
 src
+.vscode

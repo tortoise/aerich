@@ -2,6 +2,7 @@ import importlib
 
 from asyncclick import BadOptionUsage, Context
 from tortoise import BaseDBAsyncClient, Tortoise
+from inspect import isfunction
 
 
 def get_app_connection_name(config, app) -> str:
@@ -48,4 +49,13 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
             message=f'Can\'t get "{tortoise_config}" from module "{config_module}"',
             ctx=ctx,
         )
+    if isfunction(config):
+        try:
+            config = config()
+        except TypeError as err:
+            raise BadOptionUsage(
+                option_name="--config",
+                message=f'Unable to execute "{tortoise_orm}": {err}',
+                ctx=ctx,
+            )
     return config
