@@ -96,7 +96,7 @@ async def upgrade(ctx: Context):
         if not exists:
             async with in_transaction(get_app_connection_name(config, app)) as conn:
                 file_path = os.path.join(Migrate.migrate_location, version)
-                with open(file_path, "r") as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = json.load(f)
                     upgrade_query_list = content.get("upgrade")
                     for upgrade_query in upgrade_query_list:
@@ -119,7 +119,7 @@ async def downgrade(ctx: Context):
     file = last_version.version
     async with in_transaction(get_app_connection_name(config, app)) as conn:
         file_path = os.path.join(Migrate.migrate_location, file)
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = json.load(f)
             downgrade_query_list = content.get("downgrade")
             if not downgrade_query_list:
@@ -177,7 +177,7 @@ async def init(
     parser.set(name, "tortoise_orm", tortoise_orm)
     parser.set(name, "location", location)
 
-    with open(config_file, "w") as f:
+    with open(config_file, "w", encoding="utf-8") as f:
         parser.write(f)
 
     if not os.path.isdir(location):
@@ -218,7 +218,7 @@ async def init_db(ctx: Context, safe):
 
     version = await Migrate.generate_version()
     await Aerich.create(version=version, app=app)
-    with open(os.path.join(dirname, version), "w") as f:
+    with open(os.path.join(dirname, version), "w", encoding="utf-8") as f:
         content = {
             "upgrade": [schema],
         }
