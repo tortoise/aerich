@@ -173,6 +173,7 @@ class Migrate:
         temp_config = deepcopy(config)
         path = os.path.join(location, app, cls.old_models)
         path = path.replace("/", ".").lstrip(".")
+        path = path.replace("\\", ".")
         temp_config["apps"][cls.diff_app] = {
             "models": [path],
             "default_connection": config.get("apps").get(app).get("default_connection", "default"),
