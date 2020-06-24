@@ -3,6 +3,11 @@ ChangeLog
 =========
 0.2
 ===
+
+0.2.1
+-----
+- Fix bug in windows.
+
 0.2.0
 -----
 - Update model file find method.
