@@ -101,7 +101,7 @@ async def upgrade(ctx: Context):
                     upgrade_query_list = content.get("upgrade")
                     for upgrade_query in upgrade_query_list:
                         await conn.execute_query(upgrade_query)
-            await Aerich.create(version=version, app=app)
+                await Aerich.create(version=version, app=app)
             click.secho(f"Success upgrade {version}", fg=Color.green)
             migrated = True
     if not migrated:

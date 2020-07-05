@@ -29,6 +29,7 @@ black = "^19.10b0"
 pytest = "*"
 pytest-xdist = "*"
 pytest-asyncio = "*"
+bandit = "*"
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]
