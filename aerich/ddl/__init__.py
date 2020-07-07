@@ -179,3 +179,12 @@ class BaseDDL:
                 to_field=to_field_name,
             ),
         )
+
+    def alter_column_default(self, model: "Type[Model]", field_object: Field):
+        pass
+
+    def alter_column_null(self, model: "Type[Model]", field_object: Field):
+        pass
+
+    def set_comment(self, model: "Type[Model]", field_object: Field):
+        pass
