@@ -1,3 +1,6 @@
+from typing import Type
+
+from tortoise import Model
 from tortoise.backends.asyncpg.schema_generator import AsyncpgSchemaGenerator
 from tortoise.fields import Field
 
