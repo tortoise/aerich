@@ -11,7 +11,7 @@ def get_app_connection_name(config, app) -> str:
     :param app:
     :return:
     """
-    return config.get("apps").get(app).get("default_connection")
+    return config.get("apps").get(app).get("default_connection", "default")
 
 
 def get_app_connection(config, app) -> BaseDBAsyncClient:

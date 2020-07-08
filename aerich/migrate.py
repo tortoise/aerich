@@ -36,6 +36,7 @@ class Migrate:
     diff_app = "diff_models"
     app: str
     migrate_location: str
+    dialect: str
 
     @classmethod
     def get_old_model_file(cls):
@@ -60,15 +61,16 @@ class Migrate:
         await Tortoise.init(config=migrate_config)
 
         connection = get_app_connection(config, app)
-        if connection.schema_generator.DIALECT == "mysql":
+        cls.dialect = connection.schema_generator.DIALECT
+        if cls.dialect == "mysql":
             from aerich.ddl.mysql import MysqlDDL
 
             cls.ddl = MysqlDDL(connection)
-        elif connection.schema_generator.DIALECT == "sqlite":
+        elif cls.dialect == "sqlite":
             from aerich.ddl.sqlite import SqliteDDL
 
             cls.ddl = SqliteDDL(connection)
-        elif connection.schema_generator.DIALECT == "postgres":
+        elif cls.dialect == "postgres":
             from aerich.ddl.postgres import PostgresDDL
 
             cls.ddl = PostgresDDL(connection)
@@ -79,7 +81,7 @@ class Migrate:
         if not last_version:
             return None
         version = last_version.version
-        return int(version.split("_")[0])
+        return int(version.split("_", 1)[0])
 
     @classmethod
     async def generate_version(cls, name=None):
@@ -272,6 +274,19 @@ class Migrate:
                 old_field_dict.pop("unique")
                 old_field_dict.pop("indexed")
                 if not cls._is_fk_m2m(new_field) and new_field_dict != old_field_dict:
+                    if cls.dialect == "postgres":
+                        if new_field.null != old_field.null:
+                            cls._add_operator(
+                                cls._alter_null(new_model, new_field), upgrade=upgrade
+                            )
+                        if new_field.default != old_field.default:
+                            cls._add_operator(
+                                cls._alter_default(new_model, new_field), upgrade=upgrade
+                            )
+                        if new_field.description != old_field.description:
+                            cls._add_operator(
+                                cls._set_comment(new_model, new_field), upgrade=upgrade
+                            )
                     cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
                     old_field.unique and not new_field.unique
@@ -364,6 +379,18 @@ class Migrate:
         if isinstance(field, ManyToManyFieldInstance):
             return cls.ddl.create_m2m_table(model, field)
         return cls.ddl.add_column(model, field)
+
+    @classmethod
+    def _alter_default(cls, model: Type[Model], field: Field):
+        return cls.ddl.alter_column_default(model, field)
+
+    @classmethod
+    def _alter_null(cls, model: Type[Model], field: Field):
+        return cls.ddl.alter_column_null(model, field)
+
+    @classmethod
+    def _set_comment(cls, model: Type[Model], field: Field):
+        return cls.ddl.set_comment(model, field)
 
     @classmethod
     def _modify_field(cls, model: Type[Model], field: Field):
