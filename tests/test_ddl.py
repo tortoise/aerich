@@ -77,7 +77,10 @@ def test_modify_column():
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
     else:
-        assert ret == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
+        assert (
+            ret
+            == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
+        )
 
 
 def test_alter_column_default():
@@ -89,7 +92,9 @@ def test_alter_column_default():
 
     ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("created_at"))
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        assert (
+            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        )
     else:
         assert ret == None
 

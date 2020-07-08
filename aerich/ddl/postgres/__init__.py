@@ -18,7 +18,7 @@ class PostgresDDL(BaseDDL):
         return self._ALTER_DEFAULT_TEMPLATE.format(
             table_name=db_table,
             column=field_object.model_field_name,
-            default="SET" + default if default else "DROP DEFAULT"
+            default="SET" + default if default else "DROP DEFAULT",
         )
 
     def alter_column_null(self, model: "Type[Model]", field_object: Field):
@@ -26,7 +26,7 @@ class PostgresDDL(BaseDDL):
         return self._ALTER_NULL_TEMPLATE.format(
             table_name=db_table,
             column=field_object.model_field_name,
-            set_drop="DROP" if field_object.null else "SET"
+            set_drop="DROP" if field_object.null else "SET",
         )
 
     def modify_column(self, model: "Type[Model]", field_object: Field):
@@ -34,7 +34,7 @@ class PostgresDDL(BaseDDL):
         return self._MODIFY_COLUMN_TEMPLATE.format(
             table_name=db_table,
             column=field_object.model_field_name,
-            datatype=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE")
+            datatype=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE"),
         )
 
     def set_comment(self, model: "Type[Model]", field_object: Field):
@@ -42,5 +42,5 @@ class PostgresDDL(BaseDDL):
         return self._SET_COMMENT_TEMPLATE.format(
             table_name=db_table,
             column=field_object.model_field_name,
-            comment="'{}'".format(field_object.description) if field_object.description else 'NULL'
+            comment="'{}'".format(field_object.description) if field_object.description else "NULL",
         )

@@ -276,11 +276,17 @@ class Migrate:
                 if not cls._is_fk_m2m(new_field) and new_field_dict != old_field_dict:
                     if cls.dialect == "postgres":
                         if new_field.null != old_field.null:
-                            cls._add_operator(cls._alter_null(new_model, new_field), upgrade=upgrade)
+                            cls._add_operator(
+                                cls._alter_null(new_model, new_field), upgrade=upgrade
+                            )
                         if new_field.default != old_field.default:
-                            cls._add_operator(cls._alter_default(new_model, new_field), upgrade=upgrade)
+                            cls._add_operator(
+                                cls._alter_default(new_model, new_field), upgrade=upgrade
+                            )
                         if new_field.description != old_field.description:
-                            cls._add_operator(cls._set_comment(new_model, new_field), upgrade=upgrade)
+                            cls._add_operator(
+                                cls._set_comment(new_model, new_field), upgrade=upgrade
+                            )
                     cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
                     old_field.unique and not new_field.unique
