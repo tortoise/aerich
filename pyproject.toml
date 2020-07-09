@@ -1,18 +1,18 @@
 [tool.poetry]
 name = "aerich"
-version = "0.2.0"
+version = "0.2.1"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
-license = "MIT"
-readme = "README.rst"
+license = "Apache-2.0"
+readme = "README.md"
 homepage = "https://github.com/long2ice/aerich"
-repository = "git@github.com:long2ice/aerich.git"
+repository = "https://github.com/long2ice/aerich.git"
 documentation = "https://github.com/long2ice/aerich"
 keywords = ["migrate", "Tortoise-ORM", "mysql"]
 packages = [
     { include = "aerich" }
 ]
-include = ["CHANGELOG.rst", "LICENSE", "README.rst"]
+include = ["CHANGELOG.rst", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -23,14 +23,13 @@ aiomysql = {version = "*", optional = true}
 asyncpg = {version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
-taskipy = "*"
 flake8 = "*"
 isort = "*"
 black = "^19.10b0"
 pytest = "*"
 pytest-xdist = "*"
-mypy = "*"
 pytest-asyncio = "*"
+bandit = "*"
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]

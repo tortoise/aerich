@@ -2,7 +2,7 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
-from tests.models import Category
+from tests.models import Category, User
 
 
 def test_create_table():
@@ -66,8 +66,68 @@ def test_modify_column():
     ret = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)'
     else:
         assert ret == 'ALTER TABLE "category" MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
+
+    ret = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert (
+            ret
+            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
+        )
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
+    else:
+        assert (
+            ret
+            == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
+        )
+
+
+def test_alter_column_default():
+    ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("name"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP DEFAULT'
+    else:
+        assert ret is None
+
+    ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("created_at"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert (
+            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        )
+    else:
+        assert ret is None
+
+    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map.get("avatar"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "user" ALTER COLUMN "avatar" SET DEFAULT \'\''
+    else:
+        assert ret is None
+
+
+def test_alter_column_null():
+    ret = Migrate.ddl.alter_column_null(Category, Category._meta.fields_map.get("name"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL'
+    else:
+        assert ret is None
+
+
+def test_set_comment():
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
+    else:
+        assert ret is None
+
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("user"))
+    if isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'COMMENT ON COLUMN "category"."user" IS \'User\''
+    else:
+        assert ret is None
 
 
 def test_drop_column():
