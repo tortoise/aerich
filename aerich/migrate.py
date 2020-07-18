@@ -3,6 +3,7 @@ import os
 import re
 from copy import deepcopy
 from datetime import datetime
+from functools import wraps
 from importlib import import_module
 from typing import Dict, List, Tuple, Type
 
@@ -19,6 +20,19 @@ from tortoise.fields import Field
 from aerich.ddl import BaseDDL
 from aerich.models import Aerich
 from aerich.utils import get_app_connection
+
+
+def ssl_copy(func):
+    @wraps(func)
+    def wrapper(cls, config: dict, *args, **kwargs):
+        if _ssl := config['connections']['default']['credentials'].pop('ssl', None):
+            copy = func(cls, config, *args, **kwargs)
+            config['connections']['default']['credentials']['ssl'] = _ssl
+            copy['connections']['default']['credentials']['ssl'] = _ssl
+            return copy
+        return func(cls, config, *args, **kwargs)
+
+    return wrapper
 
 
 class Migrate:
@@ -164,6 +178,7 @@ class Migrate:
                 f.write(ret)
 
     @classmethod
+    @ssl_copy
     def _get_migrate_config(cls, config: dict, app: str, location: str):
         """
         generate tmp config with old models
