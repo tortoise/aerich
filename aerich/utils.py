@@ -48,4 +48,6 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
             message=f'Can\'t get "{tortoise_config}" from module "{config_module}"',
             ctx=ctx,
         )
+    if callable(config):
+        return config()
     return config
