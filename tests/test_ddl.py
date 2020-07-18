@@ -9,8 +9,8 @@ def test_create_table():
     ret = Migrate.ddl.create_table(Category)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
-            ret
-            == """CREATE TABLE IF NOT EXISTS `category` (
+                ret
+                == """CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `slug` VARCHAR(200) NOT NULL,
     `name` VARCHAR(200) NOT NULL,
@@ -22,8 +22,8 @@ def test_create_table():
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert (
-            ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+                ret
+                == """CREATE TABLE IF NOT EXISTS "category" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     "slug" VARCHAR(200) NOT NULL,
     "name" VARCHAR(200) NOT NULL,
@@ -34,8 +34,8 @@ def test_create_table():
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
-            ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+                ret
+                == """CREATE TABLE IF NOT EXISTS "category" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "slug" VARCHAR(200) NOT NULL,
     "name" VARCHAR(200) NOT NULL,
@@ -74,15 +74,15 @@ def test_modify_column():
     ret = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
-            ret
-            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
+                ret
+                == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
         )
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
     else:
         assert (
-            ret
-            == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
+                ret
+                == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
         )
 
 
@@ -96,7 +96,7 @@ def test_alter_column_default():
     ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("created_at"))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert (
-            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+                ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
         )
     else:
         assert ret is None
@@ -144,12 +144,12 @@ def test_add_index():
     if isinstance(Migrate.ddl, MysqlDDL):
         assert index == "ALTER TABLE `category` ADD  INDEX `idx_category_name_8b0cb9` (`name`)"
         assert (
-            index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
+                index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
         )
     else:
         assert index == 'ALTER TABLE "category" ADD  INDEX "idx_category_name_8b0cb9" ("name")'
         assert (
-            index_u == 'ALTER TABLE "category" ADD UNIQUE INDEX "uid_category_name_8b0cb9" ("name")'
+                index_u == 'ALTER TABLE "category" ADD UNIQUE INDEX "uid_category_name_8b0cb9" ("name")'
         )
 
 
@@ -165,13 +165,13 @@ def test_add_fk():
     ret = Migrate.ddl.add_fk(Category, Category._meta.fields_map.get("user"))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
-            ret
-            == "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
+                ret
+                == "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
         )
     else:
         assert (
-            ret
-            == 'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE'
+                ret
+                == 'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE'
         )
 
 

@@ -145,7 +145,7 @@ class Migrate:
 
     @classmethod
     def cp_models(
-        cls, app: str, model_files: List[str], old_model_file,
+            cls, app: str, model_files: List[str], old_model_file,
     ):
         """
         cp currents models to old_model_files
@@ -201,7 +201,7 @@ class Migrate:
 
     @classmethod
     def diff_models(
-        cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
+            cls, old_models: Dict[str, Type[Model]], new_models: Dict[str, Type[Model]], upgrade=True
     ):
         """
         diff models and add operators
@@ -289,7 +289,7 @@ class Migrate:
                             )
                     cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
-                    old_field.unique and not new_field.unique
+                        old_field.unique and not new_field.unique
                 ):
                     cls._add_operator(
                         cls._remove_index(
@@ -299,7 +299,7 @@ class Migrate:
                         cls._is_fk_m2m(old_field),
                     )
                 elif (new_field.index and not old_field.index) or (
-                    new_field.unique and not old_field.unique
+                        new_field.unique and not old_field.unique
                 ):
                     cls._add_operator(
                         cls._add_index(new_model, (new_field.model_field_name,), new_field.unique),
@@ -316,7 +316,7 @@ class Migrate:
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
-                cls._add_operator(cls._add_index(new_model, new_index,), upgrade)
+                cls._add_operator(cls._add_index(new_model, new_index, ), upgrade)
         for old_index in old_indexes:
             if old_index not in new_indexes:
                 cls._add_operator(cls._remove_index(old_model, old_index), upgrade)
