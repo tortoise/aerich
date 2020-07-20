@@ -4,6 +4,10 @@ ChangeLog
 0.2
 ===
 
+0.2.2
+-----
+- Fix postgres drop fk.
+
 0.2.1
 -----
 - Fix bug in windows.

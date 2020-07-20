@@ -179,5 +179,7 @@ def test_drop_fk():
     ret = Migrate.ddl.drop_fk(Category, Category._meta.fields_map.get("user"))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "category" DROP CONSTRAINT "fk_category_user_e2e3874c"'
     else:
         assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_e2e3874c"'
