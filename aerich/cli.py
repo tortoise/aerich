@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import sys
@@ -25,6 +26,16 @@ class Color(str, Enum):
 
 
 parser = ConfigParser()
+
+
+def close_db(func):
+    @functools.wraps(func)
+    async def close_db_inner(*args, **kwargs):
+        result = await func(*args, **kwargs)
+        await Tortoise.close_connections()
+        return result
+
+    return close_db_inner
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
