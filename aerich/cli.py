@@ -81,6 +81,7 @@ async def cli(ctx: Context, config, app, name):
 @cli.command(help="Generate migrate changes file.")
 @click.option("--name", default="update", show_default=True, help="Migrate name.")
 @click.pass_context
+@close_db
 async def migrate(ctx: Context, name):
     config = ctx.obj["config"]
     location = ctx.obj["location"]
@@ -95,6 +96,7 @@ async def migrate(ctx: Context, name):
 
 @cli.command(help="Upgrade to latest version.")
 @click.pass_context
+@close_db
 async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
@@ -121,6 +123,7 @@ async def upgrade(ctx: Context):
 
 @cli.command(help="Downgrade to previous version.")
 @click.pass_context
+@close_db
 async def downgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
@@ -143,6 +146,7 @@ async def downgrade(ctx: Context):
 
 @cli.command(help="Show current available heads in migrate location.")
 @click.pass_context
+@close_db
 async def heads(ctx: Context):
     app = ctx.obj["app"]
     versions = Migrate.get_all_version_files()
@@ -207,6 +211,7 @@ async def init(
     show_default=True,
 )
 @click.pass_context
+@close_db
 async def init_db(ctx: Context, safe):
     config = ctx.obj["config"]
     location = ctx.obj["location"]
