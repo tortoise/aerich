@@ -17,7 +17,7 @@ from tortoise import (
 from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
-from aerich.models import Aerich
+from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import get_app_connection
 
 
@@ -89,7 +89,10 @@ class Migrate:
         last_version_num = await cls._get_last_version_num()
         if last_version_num is None:
             return f"0_{now}_init.json"
-        return f"{last_version_num + 1}_{now}_{name}.json"
+        version = f"{last_version_num + 1}_{now}_{name}.json"
+        if len(version) > MAX_VERSION_LENGTH:
+            raise ValueError(f"Version name exceeds maximum length ({MAX_VERSION_LENGTH})")
+        return version
 
     @classmethod
     async def _generate_diff_sql(cls, name):
