@@ -17,7 +17,7 @@ from tortoise import (
 from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
-from aerich.models import Aerich, MAX_VERSION_LENGTH
+from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import get_app_connection
 
 
