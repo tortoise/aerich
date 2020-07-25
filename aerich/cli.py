@@ -162,7 +162,7 @@ async def heads(ctx: Context):
 @cli.command(help="List all migrate items.")
 @click.pass_context
 @close_db
-async def history(ctx):
+async def history(ctx: Context):
     versions = Migrate.get_all_version_files()
     for version in versions:
         click.secho(version, fg=Color.green)
