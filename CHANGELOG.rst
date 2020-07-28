@@ -7,6 +7,7 @@ ChangeLog
 0.2.2
 -----
 - Fix postgres drop fk.
+- Fix version sort.
 
 0.2.1
 -----

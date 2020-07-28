@@ -44,7 +44,10 @@ class Migrate:
 
     @classmethod
     def get_all_version_files(cls) -> List[str]:
-        return sorted(filter(lambda x: x.endswith("json"), os.listdir(cls.migrate_location)))
+        return sorted(
+            filter(lambda x: x.endswith("json"), os.listdir(cls.migrate_location)),
+            key=lambda x: x.split("_")[0],
+        )
 
     @classmethod
     async def get_last_version(cls) -> Aerich:
