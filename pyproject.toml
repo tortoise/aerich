@@ -30,6 +30,7 @@ pytest = "*"
 pytest-xdist = "*"
 pytest-asyncio = "*"
 bandit = "*"
+pytest-mock = "*"
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]

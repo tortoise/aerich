@@ -46,7 +46,7 @@ class Migrate:
     def get_all_version_files(cls) -> List[str]:
         return sorted(
             filter(lambda x: x.endswith("json"), os.listdir(cls.migrate_location)),
-            key=lambda x: x.split("_")[0],
+            key=lambda x: int(x.split("_")[0]),
         )
 
     @classmethod

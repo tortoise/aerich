@@ -28,3 +28,24 @@ def test_migrate():
             'ALTER TABLE "category" DROP COLUMN "name"',
             'ALTER TABLE "user" DROP INDEX "uid_user_usernam_9987ab"',
         ]
+
+
+def test_sort_all_version_files(mocker):
+    mocker.patch(
+        "os.listdir",
+        return_value=[
+            "1_datetime_update.json",
+            "11_datetime_update.json",
+            "10_datetime_update.json",
+            "2_datetime_update.json",
+        ],
+    )
+
+    Migrate.migrate_location = "."
+
+    assert Migrate.get_all_version_files() == [
+        "1_datetime_update.json",
+        "2_datetime_update.json",
+        "10_datetime_update.json",
+        "11_datetime_update.json",
+    ]
