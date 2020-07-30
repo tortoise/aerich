@@ -1,7 +1,6 @@
 import json
 import os
 import re
-from copy import deepcopy
 from datetime import datetime
 from importlib import import_module
 from typing import Dict, List, Tuple, Type
@@ -178,14 +177,13 @@ class Migrate:
         :param location:
         :return:
         """
-        temp_config = deepcopy(config)
         path = os.path.join(location, app, cls.old_models)
         path = path.replace(os.sep, ".").lstrip(".")
-        temp_config["apps"][cls.diff_app] = {
+        config["apps"][cls.diff_app] = {
             "models": [path],
             "default_connection": config.get("apps").get(app).get("default_connection", "default"),
         }
-        return temp_config
+        return config
 
     @classmethod
     def write_old_models(cls, config: dict, app: str, location: str):
