@@ -12,7 +12,7 @@ class PostgresDDL(BaseDDL):
     DIALECT = AsyncpgSchemaGenerator.DIALECT
     _ADD_INDEX_TEMPLATE = 'CREATE INDEX "{index_name}" ON "{table_name}" ({column_names})'
     _ADD_UNIQUE_TEMPLATE = (
-        'ALTER TABLE "{table_name}" ADD CONSTRAINT "{index_name}" UNIQUE  ({column_names})'
+        'ALTER TABLE "{table_name}" ADD CONSTRAINT "{index_name}" UNIQUE ({column_names})'
     )
     _DROP_INDEX_TEMPLATE = 'DROP INDEX "{index_name}"'
     _DROP_UNIQUE_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT "{index_name}"'
