@@ -146,6 +146,12 @@ def test_add_index():
         assert (
             index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
         )
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert index == 'CREATE INDEX "idx_category_name_8b0cb9" ON "category" ("name")'
+        assert (
+            index_u
+            == 'ALTER TABLE "category" ADD CONSTRAINT "uid_category_name_8b0cb9" UNIQUE  ("name")'
+        )
     else:
         assert index == 'ALTER TABLE "category" ADD  INDEX "idx_category_name_8b0cb9" ("name")'
         assert (
@@ -155,10 +161,16 @@ def test_add_index():
 
 def test_drop_index():
     ret = Migrate.ddl.drop_index(Category, ["name"])
+    ret_u = Migrate.ddl.drop_index(Category, ["name"], True)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP INDEX `idx_category_name_8b0cb9`"
+        assert ret_u == "ALTER TABLE `category` DROP INDEX `uid_category_name_8b0cb9`"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'DROP INDEX "idx_category_name_8b0cb9"'
+        assert ret_u == 'ALTER TABLE "category" DROP CONSTRAINT "uid_category_name_8b0cb9"'
     else:
         assert ret == 'ALTER TABLE "category" DROP INDEX "idx_category_name_8b0cb9"'
+        assert ret_u == 'ALTER TABLE "category" DROP INDEX "uid_category_name_8b0cb9"'
 
 
 def test_add_fk():
