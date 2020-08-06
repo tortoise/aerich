@@ -150,7 +150,7 @@ def test_add_index():
         assert index == 'CREATE INDEX "idx_category_name_8b0cb9" ON "category" ("name")'
         assert (
             index_u
-            == 'ALTER TABLE "category" ADD CONSTRAINT "uid_category_name_8b0cb9" UNIQUE  ("name")'
+            == 'ALTER TABLE "category" ADD CONSTRAINT "uid_category_name_8b0cb9" UNIQUE ("name")'
         )
     else:
         assert index == 'ALTER TABLE "category" ADD  INDEX "idx_category_name_8b0cb9" ("name")'
