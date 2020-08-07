@@ -1,6 +1,7 @@
 from tortoise import Tortoise
 
 from aerich.ddl.mysql import MysqlDDL
+from aerich.ddl.postgres import PostgresDDL
 from aerich.migrate import Migrate
 
 
@@ -18,6 +19,15 @@ def test_migrate():
         assert Migrate.downgrade_operators == [
             "ALTER TABLE `category` DROP COLUMN `name`",
             "ALTER TABLE `user` DROP INDEX `uid_user_usernam_9987ab`",
+        ]
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert Migrate.upgrade_operators == [
+            'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
+            'ALTER TABLE "user" ADD CONSTRAINT "uid_user_usernam_9987ab" UNIQUE ("username")',
+        ]
+        assert Migrate.downgrade_operators == [
+            'ALTER TABLE "category" DROP COLUMN "name"',
+            'ALTER TABLE "user" DROP CONSTRAINT "uid_user_usernam_9987ab"',
         ]
     else:
         assert Migrate.upgrade_operators == [
