@@ -50,7 +50,4 @@ testall: deps test_sqlite test_postgres test_mysql
 build: deps
 	@poetry build
 
-publish: deps
-	@poetry publish --build
-
 ci: check testall

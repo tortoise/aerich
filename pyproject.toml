@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aerich"
-version = "0.2.2"
+version = "0.2.3"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ keywords = ["migrate", "Tortoise-ORM", "mysql"]
 packages = [
     { include = "aerich" }
 ]
-include = ["CHANGELOG.rst", "LICENSE", "README.md"]
+include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
