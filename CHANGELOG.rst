@@ -7,6 +7,7 @@ ChangeLog
 0.2.3
 -----
 - Fix tortoise ssl config.
+- PostgreSQL add/drop index/unique.
 
 0.2.2
 -----
