@@ -149,12 +149,6 @@ $ aerich heads
 1_202029051520102929_drop_column.json
 ```
 
-## Limitations
-
-- Not support `rename column` now.
-- `Sqlite` and `Postgres` may not work as expected because I don\'t
-  use those in my work.
-
 ## Support this project
 
 - Just give a star!
