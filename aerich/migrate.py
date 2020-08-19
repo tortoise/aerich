@@ -87,7 +87,7 @@ class Migrate:
 
     @classmethod
     async def generate_version(cls, name=None):
-        now = datetime.now().strftime("%Y%M%D%H%M%S").replace("/", "")
+        now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
         last_version_num = await cls._get_last_version_num()
         if last_version_num is None:
             return f"0_{now}_init.json"
