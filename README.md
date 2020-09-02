@@ -5,8 +5,6 @@
 [![image](https://github.com/long2ice/aerich/workflows/pypi/badge.svg)](https://github.com/long2ice/aerich/actions?query=workflow:pypi)
 [![image](https://github.com/long2ice/aerich/workflows/test/badge.svg)](https://github.com/long2ice/aerich/actions?query=workflow:test)
 
-<a href="https://tracking.gitads.io/?repo=aerich"><img src="https://images.gitads.io/aerich" alt="GitAds"/></a>
-
 ## Introduction
 
 Tortoise-ORM is the best asyncio ORM now, but it lacks a database
