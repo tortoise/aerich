@@ -31,24 +31,29 @@ def reset_migrate():
     Migrate._downgrade_m2m = []
 
 
-@pytest.fixture(scope="session")
-def loop():
-    loop = asyncio.get_event_loop()
-    return loop
+@pytest.yield_fixture(scope="session")
+def event_loop():
+    policy = asyncio.get_event_loop_policy()
+    res = policy.new_event_loop()
+    asyncio.set_event_loop(res)
+    res._close = res.close
+    res.close = lambda: None
+
+    yield res
+
+    res._close()
 
 
 @pytest.fixture(scope="session", autouse=True)
-def initialize_tests(loop, request):
+async def initialize_tests(event_loop, request):
     tortoise_orm["connections"]["diff_models"] = "sqlite://:memory:"
     tortoise_orm["apps"]["diff_models"] = {
         "models": ["tests.diff_models"],
         "default_connection": "diff_models",
     }
 
-    loop.run_until_complete(Tortoise.init(config=tortoise_orm, _create_db=True))
-    loop.run_until_complete(
-        generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
-    )
+    await Tortoise.init(config=tortoise_orm, _create_db=True)
+    await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
 
     client = Tortoise.get_connection("default")
     if client.schema_generator is MySQLSchemaGenerator:
@@ -58,4 +63,4 @@ def initialize_tests(loop, request):
     elif client.schema_generator is AsyncpgSchemaGenerator:
         Migrate.ddl = PostgresDDL(client)
 
-    request.addfinalizer(lambda: loop.run_until_complete(Tortoise._drop_databases()))
+    request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))
