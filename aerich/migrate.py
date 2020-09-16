@@ -166,7 +166,7 @@ class Migrate:
             ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
             mode = "w" if i == 0 else "a"
             with open(old_model_file, mode, encoding="utf-8") as f:
-                f.write(ret)
+                f.write(f"{ret}\n")
 
     @classmethod
     def _get_migrate_config(cls, config: dict, app: str, location: str):
