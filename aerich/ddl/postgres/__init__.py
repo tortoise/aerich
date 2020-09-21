@@ -73,3 +73,6 @@ class PostgresDDL(BaseDDL):
             column=field_object.model_field_name,
             comment="'{}'".format(field_object.description) if field_object.description else "NULL",
         )
+    def rename_column(self, model: "Type[Model]", old_column_name, field_object: Field):
+        #todo: finish this.
+        pass

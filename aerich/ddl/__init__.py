@@ -19,6 +19,7 @@ class BaseDDL:
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
     _M2M_TABLE_TEMPLATE = 'CREATE TABLE "{table_name}" ("{backward_key}" {backward_type} NOT NULL REFERENCES "{backward_table}" ("{backward_field}") ON DELETE CASCADE,"{forward_key}" {forward_type} NOT NULL REFERENCES "{forward_table}" ("{forward_field}") ON DELETE CASCADE){extra}{comment};'
     _MODIFY_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" MODIFY COLUMN {column}'
+    _RENAME_COLUMN_TEMPLATE = 'ALTER  TABLE "{table_name}" CHANGE "{old_column_name}" {column}'
 
     def __init__(self, client: "BaseDBAsyncClient"):
         self.client = client
@@ -188,3 +189,25 @@ class BaseDDL:
 
     def set_comment(self, model: "Type[Model]", field_object: Field):
         pass
+
+    def rename_column(self, model: "Type[Model]", old_column_name, field_object: Field):
+        db_table = model._meta.db_table
+        return self._RENAME_COLUMN_TEMPLATE.format(
+            old_column_name=old_column_name,
+            table_name=db_table,
+            column=self.schema_generator._create_string(
+                db_column=field_object.model_field_name,
+                field_type=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE"),
+                nullable="NOT NULL" if not field_object.null else "",
+                unique="",
+                comment=self.schema_generator._column_comment_generator(
+                    table=db_table,
+                    column=field_object.model_field_name,
+                    comment=field_object.description,
+                )
+                if field_object.description
+                else "",
+                is_primary_key=field_object.pk,
+                default=self._get_default(model, field_object),
+            ),
+        )

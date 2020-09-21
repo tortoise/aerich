@@ -201,3 +201,7 @@ def test_drop_fk():
         assert ret == 'ALTER TABLE "category" DROP CONSTRAINT "fk_category_user_e2e3874c"'
     else:
         assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_e2e3874c"'
+
+def test_rename_column():
+    #todo: finish this.
+    pass
