@@ -1,6 +1,4 @@
-class ConfigurationError(Exception):
+class NotSupportError(Exception):
     """
-    config error
+    raise when features not support
     """
-
-    pass

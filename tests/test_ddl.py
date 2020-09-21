@@ -1,6 +1,9 @@
+import pytest
+
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
+from aerich.exceptions import NotSupportError
 from aerich.migrate import Migrate
 from tests.models import Category, User
 
@@ -63,27 +66,26 @@ def test_add_column():
 
 
 def test_modify_column():
-    ret = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
-    if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)'
-    else:
-        assert ret == 'ALTER TABLE "category" MODIFY COLUMN "name" VARCHAR(200) NOT NULL'
+    if isinstance(Migrate.ddl, SqliteDDL):
+        with pytest.raises(NotSupportError):
+            ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
+            ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
 
-    ret = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
+    else:
+        ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
+        ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret0 == 'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)'
+
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
-            ret
+            ret1
             == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
         )
     elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
-    else:
-        assert (
-            ret
-            == 'ALTER TABLE "user" MODIFY COLUMN "is_active" INT NOT NULL  DEFAULT 1 /* Is Active */'
-        )
+        assert ret1 == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
 
 
 def test_alter_column_default():
@@ -131,10 +133,12 @@ def test_set_comment():
 
 
 def test_drop_column():
-    ret = Migrate.ddl.drop_column(Category, "name")
+    if isinstance(Migrate.ddl, SqliteDDL):
+        with pytest.raises(NotSupportError):
+            ret = Migrate.ddl.drop_column(Category, "name")
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP COLUMN `name`"
-    else:
+    elif isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" DROP COLUMN "name"'
 
 
