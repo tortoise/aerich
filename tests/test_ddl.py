@@ -136,6 +136,8 @@ def test_drop_column():
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
             ret = Migrate.ddl.drop_column(Category, "name")
+    else:
+        ret = Migrate.ddl.drop_column(Category, "name")
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP COLUMN `name`"
     elif isinstance(Migrate.ddl, PostgresDDL):

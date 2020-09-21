@@ -16,6 +16,8 @@ def test_migrate():
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
             Migrate.diff_models(models, diff_models, False)
+    else:
+        Migrate.diff_models(models, diff_models, False)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert Migrate.upgrade_operators == [
             "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL",
