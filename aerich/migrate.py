@@ -239,7 +239,7 @@ class Migrate:
     def remove_model(cls, model: Type[Model]):
         return cls.ddl.drop_table(model)
 
-    @classmethod
+        @classmethod
     def diff_model(cls, old_model: Type[Model], new_model: Type[Model], upgrade=True):
         """
         diff single model
@@ -259,16 +259,14 @@ class Migrate:
 
         old_keys = old_fields_map.keys()
         new_keys = new_fields_map.keys()
+        new_model_changed: Optional[Dict[str, Field]] = {}
         for new_key in new_keys:
             new_field = new_fields_map.get(new_key)
             if cls._exclude_field(new_field, upgrade):
                 continue
             if new_key not in old_keys:
-                cls._add_operator(
-                    cls._add_field(new_model, new_field),
-                    upgrade,
-                    isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
-                )
+                new_model_changed[new_key]=new_field
+
             else:
                 old_field = old_fields_map.get(new_key)
                 new_field_dict = new_field.describe(serializable=True)
@@ -293,7 +291,7 @@ class Migrate:
                             )
                     cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
-                    old_field.unique and not new_field.unique
+                        old_field.unique and not new_field.unique
                 ):
                     cls._add_operator(
                         cls._remove_index(
@@ -303,7 +301,7 @@ class Migrate:
                         cls._is_fk_m2m(old_field),
                     )
                 elif (new_field.index and not old_field.index) or (
-                    new_field.unique and not old_field.unique
+                        new_field.unique and not old_field.unique
                 ):
                     cls._add_operator(
                         cls._add_index(new_model, (new_field.model_field_name,), new_field.unique),
@@ -314,13 +312,27 @@ class Migrate:
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
-                cls._add_operator(
-                    cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
-                )
+                for nk, nf in new_model_changed.items():
+                    if nf.describe(serializable=True) == field.describe(serializable=True):
+                        cls._add_operator(
+                            cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                        )
+                        new_model_changed.pop(nk)
+                        break
+                else:
+                    cls._add_operator(
+                        cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
+                    )
+        for nk,nf in new_model_changed.items():
+            cls._add_operator(
+                cls._add_field(new_model, nf),
+                upgrade,
+                isinstance(nf, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+            )
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
-                cls._add_operator(cls._add_index(new_model, new_index,), upgrade)
+                cls._add_operator(cls._add_index(new_model, new_index, ), upgrade)
         for old_index in old_indexes:
             if old_index not in new_indexes:
                 cls._add_operator(cls._remove_index(old_model, old_index), upgrade)
@@ -332,6 +344,7 @@ class Migrate:
         for old_unique in old_unique_together:
             if old_unique not in new_unique_together:
                 cls._add_operator(cls._remove_index(old_model, old_unique, unique=True), upgrade)
+
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
