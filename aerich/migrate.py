@@ -239,7 +239,7 @@ class Migrate:
     def remove_model(cls, model: Type[Model]):
         return cls.ddl.drop_table(model)
 
-        @classmethod
+    @classmethod
     def diff_model(cls, old_model: Type[Model], new_model: Type[Model], upgrade=True):
         """
         diff single model

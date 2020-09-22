@@ -95,13 +95,18 @@ def test_rename_column():
     else:
         ret0 = Migrate.ddl.rename_column(Category, 'old_name', Category._meta.fields_map.get("name"))
         ret1 = Migrate.ddl.rename_column(User, 'old_is_active', User._meta.fields_map.get("is_active"))
+
     if isinstance(Migrate.ddl, MysqlDDL):
+        print("xxx:",ret0)
         assert ret0 == 'ALTER  TABLE `category` CHANGE `old_name` `name` VARCHAR(200) NOT NULL'
     elif isinstance(Migrate.ddl, PostgresDDL):
+        print("xxx:",ret0)
         assert ret0 == 'ALTER TABLE "category" RENAME old_name TO name'
     if isinstance(Migrate.ddl, MysqlDDL):
+        print("xxx:",ret0)
         assert ret1 == "ALTER TABLE `user` CHANGE `old_is_active` `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
     elif isinstance(Migrate.ddl, PostgresDDL):
+        print("xxx:",ret0)
         assert ret1 == 'ALTER TABLE "user" RENAME old_is_active TO is_active'
 
         
@@ -218,7 +223,3 @@ def test_drop_fk():
         assert ret == 'ALTER TABLE "category" DROP CONSTRAINT "fk_category_user_e2e3874c"'
     else:
         assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_e2e3874c"'
-
-def test_rename_column():
-    #todo: finish this.
-    pass
