@@ -17,7 +17,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.utils import get_app_connection
+from aerich.utils import get_app_connection,ask_rename_column
 
 
 class Migrate:
@@ -308,17 +308,27 @@ class Migrate:
                         upgrade,
                         cls._is_fk_m2m(new_field),
                     )
-
+        # rename column
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
                 for nk, nf in new_model_changed.items():
-                    if nf.describe(serializable=True) == field.describe(serializable=True):
-                        cls._add_operator(
-                            cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
-                        )
-                        new_model_changed.pop(nk)
-                        break
+                    new_describe=nf.describe(serializable=True)
+                    new_name=new_describe.pop("name")
+                    new_describe.pop("db_column")
+                    old_describe=field.describe(serializable=True)
+                    old_name=old_describe.pop("name")
+                    old_describe.pop("db_column")
+                    if old_describe==new_describe:
+                        flag=ask_rename_column(old_name,new_name)
+                        if flag:
+                            cls._add_operator(
+                                cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                            )
+                            new_model_changed.pop(nk)
+                            break
+                        else:
+                            pass
                 else:
                     cls._add_operator(
                         cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
