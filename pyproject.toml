@@ -38,7 +38,6 @@ dbdrivers = ["aiomysql", "asyncpg"]
 
 [tool.poetry.scripts]
 aerich = "aerich.cli:main"
-aerich2 = "aerich.cli2:main"
 
 [build-system]
 requires = ["poetry>=0.12"]
