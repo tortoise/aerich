@@ -1,8 +1,7 @@
 import importlib
-
-from asyncclick import BadOptionUsage, Context
+from typer import Context
 from tortoise import BaseDBAsyncClient, Tortoise
-
+import typer
 
 def get_app_connection_name(config, app) -> str:
     """
@@ -37,17 +36,13 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     try:
         config_module = importlib.import_module(config_path)
     except (ModuleNotFoundError, AttributeError):
-        raise BadOptionUsage(
-            ctx=ctx, message=f'No config named "{config_path}"', option_name="--config"
-        )
+        typer.echo(f'No config named "{config_path}"')
+        raise typer.Exit()
 
     config = getattr(config_module, tortoise_config, None)
     if not config:
-        raise BadOptionUsage(
-            option_name="--config",
-            message=f'Can\'t get "{tortoise_config}" from module "{config_module}"',
-            ctx=ctx,
-        )
+        typer.echo(f'Can\'t get "{tortoise_config}" from module "{config_module}"',)
+        raise typer.Exit()
     return config
 
 def ask_rename_column(old_name:str,new_name:str)->bool:
