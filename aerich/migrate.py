@@ -28,6 +28,7 @@ class Migrate:
     _upgrade_m2m: List[str] = []
     _downgrade_m2m: List[str] = []
     _aerich = Aerich.__name__
+    _column_reflex:Dict[str,str]={}
 
     ddl: BaseDDL
     migrate_config: dict
@@ -269,7 +270,6 @@ class Migrate:
                 continue
             if new_key not in old_keys:
                 new_model_changed[new_key]=new_field
-
             else:
                 old_field = old_fields_map.get(new_key)
                 new_field_dict = new_field.describe(serializable=True)
@@ -315,27 +315,43 @@ class Migrate:
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
-                for nk, nf in new_model_changed.items():
-                    new_describe=nf.describe(serializable=True)
-                    new_name=new_describe.pop("name")
-                    new_describe.pop("db_column")
-                    old_describe=field.describe(serializable=True)
-                    old_name=old_describe.pop("name")
-                    old_describe.pop("db_column")
-                    if old_describe==new_describe:
-                        flag=ask_rename_column(old_name,new_name)
-                        if flag:
-                            cls._add_operator(
-                                cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
-                            )
-                            new_model_changed.pop(nk)
-                            break
-                        else:
-                            pass
+                # search same info column
+                old_describe = field.describe(serializable=True)
+                old_name = old_describe.pop("name")
+                old_describe.pop("db_column")
+                if upgrade:
+                    for nk, nf in new_model_changed.items():
+                        new_describe=nf.describe(serializable=True)
+                        new_name=new_describe.pop("name")
+                        new_describe.pop("db_column")
+                        if old_describe==new_describe:
+                            flag=ask_rename_column(old_name,new_name)
+                            if flag:
+                                cls._add_operator(
+                                    cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                                )
+                                new_model_changed.pop(nk)
+                                cls._column_reflex[new_name]=old_name
+                                break
+                            else:
+                                pass
+                    else:
+                        cls._add_operator(
+                            cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
+                        )
                 else:
-                    cls._add_operator(
-                        cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
-                    )
+                    if cls._column_reflex.get(old_name):
+                        new_name=cls._column_reflex[old_name]
+                        nf=new_model_changed[new_name]
+                        cls._add_operator(
+                            cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                        )
+                        new_model_changed.pop(new_name)
+                        cls._column_reflex.pop(old_name)
+                    else:
+                        cls._add_operator(
+                            cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
+                        )
         for nk,nf in new_model_changed.items():
             cls._add_operator(
                 cls._add_field(new_model, nf),
