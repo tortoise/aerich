@@ -1,13 +1,15 @@
+import asyncio
 import functools
 import json
 import os
+import sys
 
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
 from aerich.models import Aerich
-from . import __version__
+# from . import __version__
 from tortoise import Tortoise, generate_schema_for_client
 import typer
 from configparser import ConfigParser
@@ -18,12 +20,14 @@ from aerich.utils import get_app_connection, get_app_connection_name, get_tortoi
 
 
 def close_db(func):
-    @functools.wraps(func)
     async def close_db_inner(*args, **kwargs):
         result = await func(*args, **kwargs)
         await Tortoise.close_connections()
         return result
-    return close_db_inner
+    @functools.wraps(func)
+    def close_db_inner2(*args,**kwargs):
+        asyncio.run(close_db_inner(*args,**kwargs))
+    return close_db_inner2
 
 
 app = typer.Typer()
@@ -72,6 +76,7 @@ async def migrate(ctx: typer.Context, name: str = typer.Option("update", help="M
 
 # todo: @click.version_option(__version__, "-V", "--version")
 @app.callback()
+@close_db
 async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config", "-c", help="Config file.", ),
               app: str = typer.Option(None, help="Tortoise-ORM app name."),
               name: str = typer.Option("aerich", "--name", "-n",
@@ -80,6 +85,7 @@ async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config",
     ctx.obj["config_file"] = config
     ctx.obj["name"] = name
     invoked_subcommand = ctx.invoked_subcommand
+    sys.path.insert(0, ".")
     if invoked_subcommand != "init":
         if not os.path.exists(config):
             typer.secho("You must exec init first", )
