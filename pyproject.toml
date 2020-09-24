@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aerich"
-version = "0.2.3"
+version = "0.2.4"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 license = "Apache-2.0"
@@ -43,3 +43,7 @@ aerich = "aerich.cli:main"
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
+
+[tool.poetry.scripts]
+aerich = "aerich.cli:main"
+aerich_dev = "aerich.cli2:main"
