@@ -8,7 +8,7 @@ from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
-from aerich.models import Aerich
+from .models import Aerich
 from tortoise import Tortoise, generate_schema_for_client
 import typer
 from configparser import ConfigParser
