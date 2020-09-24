@@ -25,14 +25,19 @@ def close_db(func):
         await Tortoise.close_connections()
         return result
     @functools.wraps(func)
-    def close_db_inner2(*args,**kwargs):
-        asyncio.run(close_db_inner(*args,**kwargs))
+    def close_db_inner2(*args, **kwargs):
+        return asyncio.run(close_db_inner(*args, **kwargs))
     return close_db_inner2
 
 
 app = typer.Typer()
 parser = ConfigParser()
-
+async def connect_tortoise(ctx:Context):
+    app = ctx.obj["app"]
+    config = ctx.obj["config"]
+    location = ctx.obj['location']
+    await Migrate.init_with_old_models(config, app, location)
+    return app,config,location
 
 @app.command()
 @close_db
@@ -64,9 +69,7 @@ async def migrate(ctx: typer.Context, name: str = typer.Option("update", help="M
     """
     Generate migrate changes file.
     """
-    config = ctx.obj["config"]
-    location = ctx.obj["location"]
-    app = ctx.obj["app"]
+    app,config,location=await connect_tortoise(ctx)
     ret = await Migrate.migrate(name)
     if not ret:
         return typer.secho("No changes detected", fg=typer.colors.YELLOW)
@@ -93,7 +96,6 @@ async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config",
         parser.read(config)
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
-
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]
         if "aerich.models" not in tortoise_config.get("apps").get(app).get("models"):
@@ -102,20 +104,19 @@ async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config",
         ctx.obj["config"] = tortoise_config
         ctx.obj["location"] = location
         ctx.obj["app"] = app
-        if invoked_subcommand != "init-db":
-            await Migrate.init_with_old_models(tortoise_config, app, location)
+
 
 
 @app.command()
 @close_db
-async def init_db(ctx: Context, safe: bool = typer.Option(True,
-                                                          help="When set to true, creates the table only when it does not already exist.", )
-                  ):
+async def init_db(
+    ctx: Context, safe: bool = typer.Option(
+        True, help="When set to true, creates the table only when it does not already exist.", )
+):
     """Generate schema and generate app migrate location."""
     config = ctx.obj["config"]
     location = ctx.obj["location"]
     app = ctx.obj["app"]
-
     dirname = os.path.join(location, app)
     if not os.path.isdir(dirname):
         os.mkdir(dirname)
@@ -141,10 +142,7 @@ async def init_db(ctx: Context, safe: bool = typer.Option(True,
 @close_db
 async def migrate(ctx: Context, name: str = typer.Option("update", help="Migrate name.")):
     """Generate migrate changes file."""
-    config = ctx.obj["config"]
-    location = ctx.obj["location"]
-    app = ctx.obj["app"]
-
+    app, config, location = await connect_tortoise(ctx)
     ret = await Migrate.migrate(name)
     if not ret:
         return typer.secho("No changes detected", fg=typer.colors.YELLOW)
@@ -156,8 +154,7 @@ async def migrate(ctx: Context, name: str = typer.Option("update", help="Migrate
 @close_db
 async def upgrade(ctx: Context):
     """Upgrade to latest version."""
-    config = ctx.obj["config"]
-    app = ctx.obj["app"]
+    app, config, location = await connect_tortoise(ctx)
     migrated = False
     for version in Migrate.get_all_version_files():
         try:
@@ -183,8 +180,7 @@ async def upgrade(ctx: Context):
 @close_db
 async def downgrade(ctx: Context):
     """Downgrade to previous version."""
-    app = ctx.obj["app"]
-    config = ctx.obj["config"]
+    app, config, location = await connect_tortoise(ctx)
     last_version = await Migrate.get_last_version()
     if not last_version:
         return typer.secho("No last version found", fg=typer.colors.YELLOW)
@@ -206,7 +202,7 @@ async def downgrade(ctx: Context):
 @close_db
 async def heads(ctx: Context):
     """Show current available heads in migrate location."""
-    app = ctx.obj["app"]
+    app,config,location=await connect_tortoise(ctx)
     versions = Migrate.get_all_version_files()
     is_heads = False
     for version in versions:
