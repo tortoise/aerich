@@ -46,7 +46,8 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 async def initialize_tests(event_loop, request):
-    tortoise_orm["connections"]["diff_models"] = "sqlite://:memory:"
+    # tortoise_orm["connections"]["diff_models"] = "sqlite://:memory:"
+    tortoise_orm["connections"]["diff_models"] = "mysql://aerich:aerich@127.0.0.1:3306/aerichTest"
     tortoise_orm["apps"]["diff_models"] = {
         "models": ["tests.diff_models"],
         "default_connection": "diff_models",

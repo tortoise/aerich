@@ -21,6 +21,7 @@ asyncclick = "*"
 pydantic = "*"
 aiomysql = {version = "*", optional = true}
 asyncpg = {version = "*", optional = true}
+typer = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
@@ -35,9 +36,10 @@ pytest-mock = "*"
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]
 
+[tool.poetry.scripts]
+aerich = "aerich.cli:main"
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
 
-[tool.poetry.scripts]
-aerich = "aerich.cli:main"
