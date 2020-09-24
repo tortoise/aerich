@@ -23,7 +23,6 @@ def close_db(func):
         result = await func(*args, **kwargs)
         await Tortoise.close_connections()
         return result
-
     return close_db_inner
 
 
