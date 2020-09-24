@@ -425,7 +425,9 @@ class Migrate:
     @classmethod
     def _modify_field(cls, model: Type[Model], field: Field):
         return cls.ddl.modify_column(model, field)
-
+    @classmethod
+    def _rename_field(cls,model:Type[Model],old_cloumn_name:str,field:Field):
+        return cls.ddl.rename_column(model,old_cloumn_name,field)
     @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):
         if isinstance(field, ForeignKeyFieldInstance):
