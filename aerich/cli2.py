@@ -9,15 +9,15 @@ from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
 from aerich.models import Aerich
-# from . import __version__
 from tortoise import Tortoise, generate_schema_for_client
 import typer
 from configparser import ConfigParser
 from typer import Context
 
 from aerich.migrate import Migrate
-from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
-
+from aerich.typer_utils import get_app_connection, get_app_connection_name, get_tortoise_config
+app = typer.Typer()
+parser = ConfigParser()
 
 def close_db(func):
     async def close_db_inner(*args, **kwargs):
@@ -30,8 +30,7 @@ def close_db(func):
     return close_db_inner2
 
 
-app = typer.Typer()
-parser = ConfigParser()
+
 async def connect_tortoise(ctx:Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]

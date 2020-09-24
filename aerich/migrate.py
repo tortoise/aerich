@@ -17,7 +17,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.utils import get_app_connection,ask_rename_column
+from aerich.typer_utils import get_app_connection,ask_rename_column
 
 
 class Migrate:
