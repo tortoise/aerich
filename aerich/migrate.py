@@ -291,7 +291,12 @@ class Migrate:
                             cls._add_operator(
                                 cls._set_comment(new_model, new_field), upgrade=upgrade
                             )
-                    cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
+                        if new_field.field_type != old_field.field_type:
+                            cls._add_operator(
+                                cls._modify_field(new_model, new_field), upgrade=upgrade
+                            )
+                    else:
+                        cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
                     old_field.unique and not new_field.unique
                 ):
