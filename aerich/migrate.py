@@ -3,8 +3,8 @@ import os
 import re
 from datetime import datetime
 from importlib import import_module
-from typing import Dict, List, Tuple, Type
-
+from typing import Dict, List, Tuple, Type, Optional
+import platform
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -117,7 +117,6 @@ class Migrate:
         apps = Tortoise.apps
         diff_models = apps.get(cls.diff_app)
         app_models = apps.get(cls.app)
-
         cls.diff_models(diff_models, app_models)
         cls.diff_models(app_models, diff_models, False)
 
@@ -178,7 +177,11 @@ class Migrate:
         :return:
         """
         path = os.path.join(location, app, cls.old_models)
-        path = path.replace(os.sep, ".").lstrip(".")
+        sys = platform.system()
+        if sys == "Windows":
+            path = path.replace(os.sep,".").lstrip(".").lstrip("/")
+        else:
+            path = path.replace(os.sep, ".").lstrip(".")
         config["apps"][cls.diff_app] = {
             "models": [path],
             "default_connection": config.get("apps").get(app).get("default_connection", "default"),
