@@ -9,6 +9,9 @@ class MysqlDDL(BaseDDL):
     _DROP_TABLE_TEMPLATE = "DROP TABLE IF EXISTS `{table_name}`"
     _ADD_COLUMN_TEMPLATE = "ALTER TABLE `{table_name}` ADD {column}"
     _DROP_COLUMN_TEMPLATE = "ALTER TABLE `{table_name}` DROP COLUMN `{column_name}`"
+    _RENAME_COLUMN_TEMPLATE = (
+        "ALTER TABLE `{table_name}` RENAME COLUMN `{old_column_name}` TO `{new_column_name}`"
+    )
     _ADD_INDEX_TEMPLATE = (
         "ALTER TABLE `{table_name}` ADD {unique} INDEX `{index_name}` ({column_names})"
     )

@@ -24,7 +24,7 @@ class Status(IntEnum):
 class User(Model):
     username = fields.CharField(max_length=20)
     password = fields.CharField(max_length=200)
-    last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
+    last_login_at = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
     avatar = fields.CharField(max_length=200, default="")

@@ -5,6 +5,7 @@ from datetime import datetime
 from importlib import import_module
 from typing import Dict, List, Tuple, Type
 
+import click
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -28,6 +29,8 @@ class Migrate:
     _upgrade_m2m: List[str] = []
     _downgrade_m2m: List[str] = []
     _aerich = Aerich.__name__
+    _rename_old = []
+    _rename_new = []
 
     ddl: BaseDDL
     migrate_config: dict
@@ -264,11 +267,37 @@ class Migrate:
             if cls._exclude_field(new_field, upgrade):
                 continue
             if new_key not in old_keys:
-                cls._add_operator(
-                    cls._add_field(new_model, new_field),
-                    upgrade,
-                    isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
-                )
+                new_field_dict = new_field.describe(serializable=True)
+                new_field_dict.pop("name")
+                new_field_dict.pop("db_column")
+                for diff_key in old_keys - new_keys:
+                    old_field = old_fields_map.get(diff_key)
+                    old_field_dict = old_field.describe(serializable=True)
+                    old_field_dict.pop("name")
+                    old_field_dict.pop("db_column")
+                    if old_field_dict == new_field_dict:
+                        if upgrade:
+                            is_rename = click.prompt(
+                                f"Rename {diff_key} to {new_key}",
+                                default=True,
+                                type=bool,
+                                show_choices=True,
+                            )
+                            cls._rename_new.append(new_key)
+                            cls._rename_old.append(diff_key)
+                        else:
+                            is_rename = diff_key in cls._rename_new
+                        if is_rename:
+                            cls._add_operator(
+                                cls._rename_field(new_model, old_field, new_field), upgrade,
+                            )
+                            break
+                else:
+                    cls._add_operator(
+                        cls._add_field(new_model, new_field),
+                        upgrade,
+                        isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                    )
             else:
                 old_field = old_fields_map.get(new_key)
                 new_field_dict = new_field.describe(serializable=True)
@@ -319,9 +348,12 @@ class Migrate:
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
-                cls._add_operator(
-                    cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
-                )
+                if (upgrade and old_key not in cls._rename_old) or (
+                    not upgrade and old_key not in cls._rename_new
+                ):
+                    cls._add_operator(
+                        cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
+                    )
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
@@ -412,6 +444,10 @@ class Migrate:
         if isinstance(field, ManyToManyFieldInstance):
             return cls.ddl.drop_m2m(field)
         return cls.ddl.drop_column(model, field.model_field_name)
+
+    @classmethod
+    def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
+        return cls.ddl.rename_column(model, old_field.model_field_name, new_field.model_field_name)
 
     @classmethod
     def _add_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):

@@ -6,6 +6,7 @@
 
 - Raise error with SQLite unsupported features.
 - Fix Postgres alter table. (#48)
+- Add `Rename` support.
 
 ### 0.2.3
 

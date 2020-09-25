@@ -1,4 +1,5 @@
 import pytest
+from pytest_mock import MockerFixture
 from tortoise import Tortoise
 
 from aerich.ddl.mysql import MysqlDDL
@@ -8,7 +9,8 @@ from aerich.exceptions import NotSupportError
 from aerich.migrate import Migrate
 
 
-def test_migrate():
+def test_migrate(mocker: MockerFixture):
+    mocker.patch("click.prompt", return_value=True)
     apps = Tortoise.apps
     models = apps.get("models")
     diff_models = apps.get("diff_models")
@@ -22,24 +24,29 @@ def test_migrate():
         assert Migrate.upgrade_operators == [
             "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL",
             "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
+            "ALTER TABLE `user` RENAME COLUMN `last_login_at` TO `last_login`",
         ]
         assert Migrate.downgrade_operators == [
             "ALTER TABLE `category` DROP COLUMN `name`",
             "ALTER TABLE `user` DROP INDEX `uid_user_usernam_9987ab`",
+            "ALTER TABLE `user` RENAME COLUMN `last_login` TO `last_login_at`",
         ]
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert Migrate.upgrade_operators == [
             'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
             'ALTER TABLE "user" ADD CONSTRAINT "uid_user_usernam_9987ab" UNIQUE ("username")',
+            'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
         ]
         assert Migrate.downgrade_operators == [
             'ALTER TABLE "category" DROP COLUMN "name"',
             'ALTER TABLE "user" DROP CONSTRAINT "uid_user_usernam_9987ab"',
+            'ALTER TABLE "user" RENAME COLUMN "last_login" TO "last_login_at"',
         ]
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == [
             'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
             'ALTER TABLE "user" ADD UNIQUE INDEX "uid_user_usernam_9987ab" ("username")',
+            'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
         ]
         assert Migrate.downgrade_operators == []
 
