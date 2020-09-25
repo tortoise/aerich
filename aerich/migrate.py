@@ -333,7 +333,7 @@ class Migrate:
                         if new_describe.get("db_column"):
                             new_describe.pop("db_column")
                         if old_describe == new_describe:
-                            if not nf.pk and ask_rename_column(old_name, new_name):  # ignore pk
+                            if not nf.pk and ask_rename_column(old_name,new_name,new_model.__name__):# ignore pk
                                 cls._add_operator(
                                     cls._rename_field(new_model, field.model_field_name, nf),
                                     upgrade,
