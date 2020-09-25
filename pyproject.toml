@@ -36,8 +36,6 @@ pytest-mock = "*"
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]
 
-[tool.poetry.scripts]
-aerich = "aerich.cli:main"
 
 [build-system]
 requires = ["poetry>=0.12"]
