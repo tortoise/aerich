@@ -1,7 +1,9 @@
 import importlib
-from typer import Context
-from tortoise import BaseDBAsyncClient, Tortoise
+
 import typer
+from tortoise import BaseDBAsyncClient, Tortoise
+from typer import Context
+
 
 def get_app_connection_name(config, app) -> str:
     """
@@ -36,12 +38,13 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
         raise typer.Exit()
     return config
 
-def ask_rename_column(old_name:str,new_name:str)->bool:
+
+def ask_rename_column(old_name: str, new_name: str) -> bool:
     while True:
         flag = input(f"Do you rename {old_name} to {new_name}?(y/n)")
         if flag.lower() == "y":
             return True
-        elif flag.lower()=="n":
+        elif flag.lower() == "n":
             return False
         else:
             print("Please input y or n.")

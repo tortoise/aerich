@@ -3,47 +3,57 @@ import functools
 import json
 import os
 import sys
+from configparser import ConfigParser
 
+import typer
+from tortoise import Tortoise, generate_schema_for_client
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
-
-from .models import Aerich
-from tortoise import Tortoise, generate_schema_for_client
-import typer
-from configparser import ConfigParser
 from typer import Context
 
 from aerich.migrate import Migrate
 from aerich.typer_utils import get_app_connection, get_app_connection_name, get_tortoise_config
+
+from .models import Aerich
+
 app = typer.Typer()
 parser = ConfigParser()
+
 
 def close_db(func):
     async def close_db_inner(*args, **kwargs):
         result = await func(*args, **kwargs)
         await Tortoise.close_connections()
         return result
+
     @functools.wraps(func)
     def close_db_inner2(*args, **kwargs):
         return asyncio.run(close_db_inner(*args, **kwargs))
+
     return close_db_inner2
 
 
-
-async def connect_tortoise(ctx:Context):
+async def connect_tortoise(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
-    location = ctx.obj['location']
+    location = ctx.obj["location"]
     await Migrate.init_with_old_models(config, app, location)
-    return app,config,location
+    return app, config, location
+
 
 @app.command()
 @close_db
-async def init(ctx: typer.Context, tortoise_orm: str = typer.Option(..., "--tortoise-orm", "-t",
-                                                                    help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.", ),
-               location: str = typer.Option("./migrations", help="Migrate store location."),
-               ):
+async def init(
+    ctx: typer.Context,
+    tortoise_orm: str = typer.Option(
+        ...,
+        "--tortoise-orm",
+        "-t",
+        help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
+    ),
+    location: str = typer.Option("./migrations", help="Migrate store location."),
+):
     """
     Init config file and generate root migrate location.
     """
@@ -68,7 +78,7 @@ async def migrate(ctx: typer.Context, name: str = typer.Option("update", help="M
     """
     Generate migrate changes file.
     """
-    app,config,location=await connect_tortoise(ctx)
+    app, config, location = await connect_tortoise(ctx)
     ret = await Migrate.migrate(name)
     if not ret:
         return typer.secho("No changes detected", fg=typer.colors.YELLOW)
@@ -79,10 +89,14 @@ async def migrate(ctx: typer.Context, name: str = typer.Option("update", help="M
 # todo: @click.version_option(__version__, "-V", "--version")
 @app.callback()
 @close_db
-async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config", "-c", help="Config file.", ),
-              app: str = typer.Option(None, help="Tortoise-ORM app name."),
-              name: str = typer.Option("aerich", "--name", "-n",
-                                       help="Name of section in .ini file to use for aerich config.", )):
+async def cli(
+    ctx: Context,
+    config: str = typer.Option("aerich.ini", "--config", "-c", help="Config file.",),
+    app: str = typer.Option(None, help="Tortoise-ORM app name."),
+    name: str = typer.Option(
+        "aerich", "--name", "-n", help="Name of section in .ini file to use for aerich config.",
+    ),
+):
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
     ctx.obj["name"] = name
@@ -90,7 +104,7 @@ async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config",
     sys.path.insert(0, ".")
     if invoked_subcommand != "init":
         if not os.path.exists(config):
-            typer.secho("You must exec init first", )
+            typer.secho("You must exec init first",)
             raise typer.Exit()
         parser.read(config)
         location = parser[name]["location"]
@@ -105,12 +119,13 @@ async def cli(ctx: Context, config: str = typer.Option("aerich.ini", "--config",
         ctx.obj["app"] = app
 
 
-
 @app.command()
 @close_db
 async def init_db(
-    ctx: Context, safe: bool = typer.Option(
-        True, help="When set to true, creates the table only when it does not already exist.", )
+    ctx: Context,
+    safe: bool = typer.Option(
+        True, help="When set to true, creates the table only when it does not already exist.",
+    ),
 ):
     """Generate schema and generate app migrate location."""
     config = ctx.obj["config"]
@@ -201,7 +216,7 @@ async def downgrade(ctx: Context):
 @close_db
 async def heads(ctx: Context):
     """Show current available heads in migrate location."""
-    app,config,location=await connect_tortoise(ctx)
+    app, config, location = await connect_tortoise(ctx)
     versions = Migrate.get_all_version_files()
     is_heads = False
     for version in versions:
@@ -223,5 +238,5 @@ async def history(ctx: Context):
         typer.secho("No history,try migrate", fg=typer.colors.GREEN)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app()

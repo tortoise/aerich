@@ -1,10 +1,11 @@
 import json
 import os
+import platform
 import re
 from datetime import datetime
 from importlib import import_module
-from typing import Dict, List, Tuple, Type, Optional
-import platform
+from typing import Dict, List, Optional, Tuple, Type
+
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -17,7 +18,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.typer_utils import get_app_connection,ask_rename_column
+from aerich.typer_utils import ask_rename_column, get_app_connection
 
 
 class Migrate:
@@ -28,7 +29,7 @@ class Migrate:
     _upgrade_m2m: List[str] = []
     _downgrade_m2m: List[str] = []
     _aerich = Aerich.__name__
-    _column_reflex:Dict[str,str]={}
+    _column_reflex: Dict[str, str] = {}
 
     ddl: BaseDDL
     migrate_config: dict
@@ -180,7 +181,7 @@ class Migrate:
         path = os.path.join(location, app, cls.old_models)
         sys = platform.system()
         if sys == "Windows":
-            path = path.replace(os.sep,".").lstrip(".").lstrip("/")
+            path = path.replace(os.sep, ".").lstrip(".").lstrip("/")
         else:
             path = path.replace(os.sep, ".").lstrip(".")
         config["apps"][cls.diff_app] = {
@@ -269,7 +270,7 @@ class Migrate:
             if cls._exclude_field(new_field, upgrade):
                 continue
             if new_key not in old_keys:
-                new_model_changed[new_key]=new_field
+                new_model_changed[new_key] = new_field
             else:
                 old_field = old_fields_map.get(new_key)
                 new_field_dict = new_field.describe(serializable=True)
@@ -299,7 +300,7 @@ class Migrate:
                     else:
                         cls._add_operator(cls._modify_field(new_model, new_field), upgrade=upgrade)
                 if (old_field.index and not new_field.index) or (
-                        old_field.unique and not new_field.unique
+                    old_field.unique and not new_field.unique
                 ):
                     cls._add_operator(
                         cls._remove_index(
@@ -309,7 +310,7 @@ class Migrate:
                         cls._is_fk_m2m(old_field),
                     )
                 elif (new_field.index and not old_field.index) or (
-                        new_field.unique and not old_field.unique
+                    new_field.unique and not old_field.unique
                 ):
                     cls._add_operator(
                         cls._add_index(new_model, (new_field.model_field_name,), new_field.unique),
@@ -327,17 +328,19 @@ class Migrate:
                     old_describe.pop("db_column")
                 if upgrade:
                     for nk, nf in new_model_changed.items():
-                        new_describe=nf.describe(serializable=True)
-                        new_name=new_describe.pop("name")
+                        new_describe = nf.describe(serializable=True)
+                        new_name = new_describe.pop("name")
                         if new_describe.get("db_column"):
                             new_describe.pop("db_column")
-                        if old_describe==new_describe:
-                            if not nf.pk and ask_rename_column(old_name,new_name):# ignore pk
+                        if old_describe == new_describe:
+                            if not nf.pk and ask_rename_column(old_name, new_name):  # ignore pk
                                 cls._add_operator(
-                                    cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                                    cls._rename_field(new_model, field.model_field_name, nf),
+                                    upgrade,
+                                    cls._is_fk_m2m(nf),
                                 )
                                 new_model_changed.pop(nk)
-                                cls._column_reflex[new_name]=old_name
+                                cls._column_reflex[new_name] = old_name
                                 break
                             else:
                                 pass
@@ -347,10 +350,12 @@ class Migrate:
                         )
                 else:
                     if cls._column_reflex.get(old_name):
-                        new_name=cls._column_reflex[old_name]
-                        nf=new_model_changed[new_name]
+                        new_name = cls._column_reflex[old_name]
+                        nf = new_model_changed[new_name]
                         cls._add_operator(
-                            cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
+                            cls._rename_field(new_model, field.model_field_name, nf),
+                            upgrade,
+                            cls._is_fk_m2m(nf),
                         )
                         new_model_changed.pop(new_name)
                         cls._column_reflex.pop(old_name)
@@ -358,7 +363,7 @@ class Migrate:
                         cls._add_operator(
                             cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
                         )
-        for nk,nf in new_model_changed.items():
+        for nk, nf in new_model_changed.items():
             cls._add_operator(
                 cls._add_field(new_model, nf),
                 upgrade,
@@ -367,7 +372,7 @@ class Migrate:
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
-                cls._add_operator(cls._add_index(new_model, new_index, ), upgrade)
+                cls._add_operator(cls._add_index(new_model, new_index,), upgrade)
         for old_index in old_indexes:
             if old_index not in new_indexes:
                 cls._add_operator(cls._remove_index(old_model, old_index), upgrade)
@@ -379,7 +384,6 @@ class Migrate:
         for old_unique in old_unique_together:
             if old_unique not in new_unique_together:
                 cls._add_operator(cls._remove_index(old_model, old_unique, unique=True), upgrade)
-
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
@@ -447,9 +451,11 @@ class Migrate:
     @classmethod
     def _modify_field(cls, model: Type[Model], field: Field):
         return cls.ddl.modify_column(model, field)
+
     @classmethod
-    def _rename_field(cls,model:Type[Model],old_cloumn_name:str,field:Field):
-        return cls.ddl.rename_column(model,old_cloumn_name,field)
+    def _rename_field(cls, model: Type[Model], old_cloumn_name: str, field: Field):
+        return cls.ddl.rename_column(model, old_cloumn_name, field)
+
     @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):
         if isinstance(field, ForeignKeyFieldInstance):

@@ -18,7 +18,8 @@ from aerich.utils import get_app_connection, get_app_connection_name, get_tortoi
 from . import __version__
 from .models import Aerich
 
-#todo: use typer replace asyncclick
+
+# todo: use typer replace asyncclick
 class Color(str, Enum):
     green = "green"
     red = "red"
