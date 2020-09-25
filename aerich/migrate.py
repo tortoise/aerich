@@ -323,7 +323,8 @@ class Migrate:
                 # search same info column
                 old_describe = field.describe(serializable=True)
                 old_name = old_describe.pop("name")
-                old_describe.pop("db_column")
+                if old_describe.get("db_column"):
+                    old_describe.pop("db_column")
                 if upgrade:
                     for nk, nf in new_model_changed.items():
                         new_describe=nf.describe(serializable=True)
