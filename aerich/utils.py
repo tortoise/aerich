@@ -1,6 +1,6 @@
 import importlib
 
-from asyncclick import BadOptionUsage, Context
+from click import BadOptionUsage, Context
 from tortoise import BaseDBAsyncClient, Tortoise
 
 
