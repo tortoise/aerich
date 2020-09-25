@@ -329,10 +329,10 @@ class Migrate:
                     for nk, nf in new_model_changed.items():
                         new_describe=nf.describe(serializable=True)
                         new_name=new_describe.pop("name")
-                        new_describe.pop("db_column")
+                        if new_describe.get("db_column"):
+                            new_describe.pop("db_column")
                         if old_describe==new_describe:
-                            flag=ask_rename_column(old_name,new_name)
-                            if flag:
+                            if not nf.pk and ask_rename_column(old_name,new_name):# ignore pk
                                 cls._add_operator(
                                     cls._rename_field(new_model, field.model_field_name, nf), upgrade, cls._is_fk_m2m(nf),
                                 )
