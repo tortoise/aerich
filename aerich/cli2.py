@@ -72,20 +72,6 @@ async def init(
     typer.secho(f"Success generate config file {config_file}", fg=typer.colors.GREEN)
 
 
-@app.command()
-@close_db
-async def migrate(ctx: typer.Context, name: str = typer.Option("update", help="Migrate name.")):
-    """
-    Generate migrate changes file.
-    """
-    app, config, location = await connect_tortoise(ctx)
-    ret = await Migrate.migrate(name)
-    if not ret:
-        return typer.secho("No changes detected", fg=typer.colors.YELLOW)
-    Migrate.write_old_models(config, app, location)
-    typer.secho(f"Success migrate {ret}", fg=typer.colors.GREEN)
-
-
 # todo: @click.version_option(__version__, "-V", "--version")
 @app.callback()
 @close_db

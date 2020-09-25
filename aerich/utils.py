@@ -1,7 +1,6 @@
 import importlib
 
 from asyncclick import BadOptionUsage, Context
-from tortoise import BaseDBAsyncClient, Tortoise
 
 
 def get_app_connection_name(config, app) -> str:
