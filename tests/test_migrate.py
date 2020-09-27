@@ -25,12 +25,12 @@ def test_migrate(mocker: MockerFixture):
         assert Migrate.upgrade_operators == [
             "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL",
             "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
-            "ALTER TABLE `user` CHANGE `last_login_at` `last_login` DATETIME(6) NOT NULL COMMENT 'Last Login'",
+            "ALTER TABLE `user` CHANGE `last_login_at` `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
         ]
         assert Migrate.downgrade_operators == [
             "ALTER TABLE `category` DROP COLUMN `name`",
             "ALTER TABLE `user` DROP INDEX `uid_user_usernam_9987ab`",
-            "ALTER TABLE `user` CHANGE `last_login` `last_login_at` DATETIME(6) NOT NULL COMMENT 'Last Login'",
+            "ALTER TABLE `user` CHANGE `last_login` `last_login_at` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
         ]
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert Migrate.upgrade_operators == [
