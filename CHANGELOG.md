@@ -2,6 +2,10 @@
 
 ## 0.2
 
+### 0.2.5
+
+- Fix windows support. (#46)
+
 ### 0.2.4
 
 - Raise error with SQLite unsupported features.
