@@ -22,7 +22,7 @@ class PostgresDDL(BaseDDL):
     _SET_COMMENT_TEMPLATE = 'COMMENT ON COLUMN "{table_name}"."{column}" IS {comment}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT "{fk_name}"'
     _RENAME_COLUMN_TEMPLATE = (
-        'ALTER TABLE "{table_name}" RENAME {old_column_name} TO {new_column_name}'
+        'ALTER TABLE "{table_name}" RENAME COLUMN "{old_column_name}" TO "{new_column_name}"'
     )
 
     def alter_column_default(self, model: "Type[Model]", field_object: Field):
@@ -78,9 +78,8 @@ class PostgresDDL(BaseDDL):
         )
 
     def rename_column(self, model: "Type[Model]", old_column_name: str, field_object: Field):
-        db_table = model._meta.db_table
         return self._RENAME_COLUMN_TEMPLATE.format(
-            table_name=db_table,
+            table_name=model._meta.db_table,
             old_column_name=old_column_name,
             new_column_name=field_object.model_field_name,
         )
