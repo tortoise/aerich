@@ -21,7 +21,6 @@ click = "*"
 pydantic = "*"
 aiomysql = {version = "*", optional = true}
 asyncpg = {version = "*", optional = true}
-typer = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
