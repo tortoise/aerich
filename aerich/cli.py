@@ -12,12 +12,11 @@ from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
+from aerich import __version__
+from aerich.enums import Color
 from aerich.migrate import Migrate
+from aerich.models import Aerich
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
-
-from . import __version__
-from .enums import Color
-from .models import Aerich
 
 parser = ConfigParser()
 
@@ -67,18 +66,17 @@ async def cli(ctx: Context, config, app, name):
         ctx.obj["location"] = location
         ctx.obj["app"] = app
 
-        if invoked_subcommand != "init-db":
-            await Migrate.init_with_old_models(tortoise_config, app, location)
-
 
 @cli.command(help="Generate migrate changes file.")
 @click.option("--name", default="update", show_default=True, help="Migrate name.")
 @click.pass_context
 @coro
 async def migrate(ctx: Context, name):
+
     config = ctx.obj["config"]
     location = ctx.obj["location"]
     app = ctx.obj["app"]
+    await Migrate.init_with_old_models(config, app, location)
     ret = await Migrate.migrate(name)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
@@ -92,6 +90,8 @@ async def migrate(ctx: Context, name):
 async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
+    location = ctx.obj["location"]
+    await Migrate.init_with_old_models(config, app, location)
     migrated = False
     for version in Migrate.get_all_version_files():
         try:
@@ -119,6 +119,8 @@ async def upgrade(ctx: Context):
 async def downgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
+    location = ctx.obj["location"]
+    await Migrate.init_with_old_models(config, app, location)
     last_version = await Migrate.get_last_version()
     if not last_version:
         return click.secho("No last version found", fg=Color.yellow)
@@ -141,6 +143,9 @@ async def downgrade(ctx: Context):
 @coro
 async def heads(ctx: Context):
     app = ctx.obj["app"]
+    config = ctx.obj["config"]
+    location = ctx.obj["location"]
+    await Migrate.init_with_old_models(config, app, location)
     versions = Migrate.get_all_version_files()
     is_heads = False
     for version in versions:
@@ -155,6 +160,10 @@ async def heads(ctx: Context):
 @click.pass_context
 @coro
 async def history(ctx: Context):
+    app = ctx.obj["app"]
+    config = ctx.obj["config"]
+    location = ctx.obj["location"]
+    await Migrate.init_with_old_models(config, app, location)
     versions = Migrate.get_all_version_files()
     for version in versions:
         click.secho(version, fg=Color.green)
@@ -239,3 +248,7 @@ async def init_db(ctx: Context, safe):
 def main():
     sys.path.insert(0, ".")
     cli()
+
+
+if __name__ == "__main__":
+    main()

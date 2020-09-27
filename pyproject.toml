@@ -44,4 +44,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry.scripts]
 aerich = "aerich.cli:main"
-aerich_dev = "aerich.cli2:main"
+
+[[tool.poetry.source]]
+name="tuna"
+url="https://pypi.tuna.tsinghua.edu.cn/simple"

@@ -39,5 +39,5 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     return config
 
 
-def ask_rename_column(old_name:str,new_name:str,model_name:str)->bool:
+def ask_rename_column(old_name: str, new_name: str, model_name: str) -> bool:
     return typer.confirm(f"Do you want change  {old_name} to {new_name} in {model_name}?")
