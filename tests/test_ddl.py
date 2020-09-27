@@ -88,14 +88,21 @@ def test_modify_column():
         assert ret1 == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
 
 
+def test_raises():
+    with pytest.raises(Exception):
+        raise Exception("test_raises")
+
+
+def test_raises2():
+    with pytest.raises(NotSupportError):
+        raise NotSupportError("...")
+
+
 def test_rename_column():
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
             ret0 = Migrate.ddl.rename_column(
-                Category, "old_name", Category._meta.fields_map.get("name")
-            )
-            ret1 = Migrate.ddl.rename_column(
-                User, "old_is_active", User._meta.fields_map.get("is_active")
+                Category, "name", Category._meta.fields_map.get("name")
             )
     else:
         ret0 = Migrate.ddl.rename_column(
@@ -104,17 +111,17 @@ def test_rename_column():
         ret1 = Migrate.ddl.rename_column(
             User, "old_is_active", User._meta.fields_map.get("is_active")
         )
-    if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret0 == "ALTER  TABLE `category` CHANGE `old_name` `name` VARCHAR(200) NOT NULL"
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret0 == 'ALTER TABLE "category" RENAME old_name TO name'
-    if isinstance(Migrate.ddl, MysqlDDL):
-        assert (
-            ret1
-            == "ALTER TABLE `user` CHANGE `old_is_active` `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
-        )
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret1 == 'ALTER TABLE "user" RENAME old_is_active TO is_active'
+        if isinstance(Migrate.ddl, MysqlDDL):
+            assert ret0 == "ALTER  TABLE `category` CHANGE `old_name` `name` VARCHAR(200) NOT NULL"
+        elif isinstance(Migrate.ddl, PostgresDDL):
+            assert ret0 == 'ALTER TABLE "category" RENAME old_name TO name'
+        if isinstance(Migrate.ddl, MysqlDDL):
+            assert (
+                ret1
+                == "ALTER TABLE `user` CHANGE `old_is_active` `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
+            )
+        elif isinstance(Migrate.ddl, PostgresDDL):
+            assert ret1 == 'ALTER TABLE "user" RENAME old_is_active TO is_active'
 
 
 def test_alter_column_default():

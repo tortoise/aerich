@@ -34,7 +34,7 @@ check: deps
 	bandit -x tests -r $(checkfiles)
 
 test: deps
-	$(py_warn) TEST_DB=sqlite://:memory: py.test
+	$(py_warn)	TEST_DB=sqlite://:memory: py.test
 
 test_sqlite:
 	$(py_warn) TEST_DB=sqlite://:memory: py.test

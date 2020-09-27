@@ -14,7 +14,6 @@ def test_migrate(mocker: MockerFixture):
     apps = Tortoise.apps
     models = apps.get("models")
     diff_models = apps.get("diff_models")
-    Migrate.diff_models(diff_models, models)
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
             Migrate.diff_models(models, diff_models, False)
@@ -43,11 +42,6 @@ def test_migrate(mocker: MockerFixture):
             'ALTER TABLE "user" RENAME COLUMN "last_login" TO "last_login_at"',
         ]
     elif isinstance(Migrate.ddl, SqliteDDL):
-        assert Migrate.upgrade_operators == [
-            'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
-            'ALTER TABLE "user" ADD UNIQUE INDEX "uid_user_usernam_9987ab" ("username")',
-            'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
-        ]
         assert Migrate.downgrade_operators == []
 
 

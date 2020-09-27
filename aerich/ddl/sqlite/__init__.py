@@ -18,5 +18,5 @@ class SqliteDDL(BaseDDL):
     def modify_column(self, model: "Type[Model]", field_object: Field):
         raise NotSupportError("Modify column is not support in SQLite.")
 
-    def rename_column(self, model: "Type[Model]", old_column_name, field_object: Field):
+    def rename_column(self, model: "Type[Model]", old_column_name: str, field_object: Field):
         raise NotSupportError("Rename column is not support in SQLite.")
