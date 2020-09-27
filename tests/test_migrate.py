@@ -19,7 +19,7 @@ def test_migrate(mocker: MockerFixture):
             Migrate.diff_models(models, diff_models, True)
             Migrate.diff_models(models, diff_models, False)
     else:
-        Migrate.diff_models(models, diff_models, True)
+        Migrate.diff_models(diff_models, models)
         Migrate.diff_models(models, diff_models, False)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert Migrate.upgrade_operators == [

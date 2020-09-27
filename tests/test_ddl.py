@@ -88,16 +88,6 @@ def test_modify_column():
         assert ret1 == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL'
 
 
-def test_raises():
-    with pytest.raises(Exception):
-        raise Exception("test_raises")
-
-
-def test_raises2():
-    with pytest.raises(NotSupportError):
-        raise NotSupportError("...")
-
-
 def test_rename_column():
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
