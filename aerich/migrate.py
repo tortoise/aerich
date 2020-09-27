@@ -283,7 +283,7 @@ class Migrate:
                     if old_field_dict == new_field_dict:
                         if upgrade:
                             is_rename = click.prompt(
-                                f"Rename {diff_key} to {new_key}",
+                                f"Rename {new_model.__name__}'s column {diff_key} to {new_key} ?",
                                 default=True,
                                 type=bool,
                                 show_choices=True,
@@ -452,7 +452,7 @@ class Migrate:
 
     @classmethod
     def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
-        return cls.ddl.rename_column(model, old_field.model_field_name, new_field.model_field_name)
+        return cls.ddl.rename_column(model, old_field.model_field_name, new_field)
 
     @classmethod
     def _add_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
