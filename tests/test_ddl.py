@@ -102,7 +102,7 @@ def test_rename_column():
             User, "old_is_active", User._meta.fields_map.get("is_active")
         )
         if isinstance(Migrate.ddl, MysqlDDL):
-            assert ret0 == "ALTER  TABLE `category` CHANGE `old_name` `name` VARCHAR(200) NOT NULL"
+            assert ret0 == "ALTER TABLE `category` CHANGE `old_name` `name` VARCHAR(200) NOT NULL"
         elif isinstance(Migrate.ddl, PostgresDDL):
             assert ret0 == 'ALTER TABLE "category" RENAME COLUMN "old_name" TO "name"'
         if isinstance(Migrate.ddl, MysqlDDL):
