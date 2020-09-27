@@ -109,7 +109,9 @@ Success migrate 1_202029051520102929_drop_column.json
 ```
 
 Format of migrate filename is
-`{version_num}_{datetime}_{name|update}.json`
+`{version_num}_{datetime}_{name|update}.json`.
+
+And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can choice `True` to rename column without column drop, or choice `False` to drop column then create.
 
 ### Upgrade to latest version
 

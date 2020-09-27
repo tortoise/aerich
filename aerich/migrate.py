@@ -4,8 +4,9 @@ import platform
 import re
 from datetime import datetime
 from importlib import import_module
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, List, Tuple, Type
 
+import click
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -18,7 +19,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.typer_utils import ask_rename_column, get_app_connection
+from aerich.utils import get_app_connection
 
 
 class Migrate:
@@ -29,7 +30,8 @@ class Migrate:
     _upgrade_m2m: List[str] = []
     _downgrade_m2m: List[str] = []
     _aerich = Aerich.__name__
-    _column_reflex: Dict[str, str] = {}
+    _rename_old = []
+    _rename_new = []
 
     ddl: BaseDDL
     migrate_config: dict
@@ -119,6 +121,7 @@ class Migrate:
         apps = Tortoise.apps
         diff_models = apps.get(cls.diff_app)
         app_models = apps.get(cls.app)
+
         cls.diff_models(diff_models, app_models)
         cls.diff_models(app_models, diff_models, False)
 
@@ -264,13 +267,42 @@ class Migrate:
 
         old_keys = old_fields_map.keys()
         new_keys = new_fields_map.keys()
-        new_model_changed: Optional[Dict[str, Field]] = {}
         for new_key in new_keys:
             new_field = new_fields_map.get(new_key)
             if cls._exclude_field(new_field, upgrade):
                 continue
             if new_key not in old_keys:
-                new_model_changed[new_key] = new_field
+                new_field_dict = new_field.describe(serializable=True)
+                new_field_dict.pop("name")
+                new_field_dict.pop("db_column")
+                for diff_key in old_keys - new_keys:
+                    old_field = old_fields_map.get(diff_key)
+                    old_field_dict = old_field.describe(serializable=True)
+                    old_field_dict.pop("name")
+                    old_field_dict.pop("db_column")
+                    if old_field_dict == new_field_dict:
+                        if upgrade:
+                            is_rename = click.prompt(
+                                f"Rename {diff_key} to {new_key}",
+                                default=True,
+                                type=bool,
+                                show_choices=True,
+                            )
+                            cls._rename_new.append(new_key)
+                            cls._rename_old.append(diff_key)
+                        else:
+                            is_rename = diff_key in cls._rename_new
+                        if is_rename:
+                            cls._add_operator(
+                                cls._rename_field(new_model, old_field, new_field), upgrade,
+                            )
+                            break
+                else:
+                    cls._add_operator(
+                        cls._add_field(new_model, new_field),
+                        upgrade,
+                        isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                    )
             else:
                 old_field = old_fields_map.get(new_key)
                 new_field_dict = new_field.describe(serializable=True)
@@ -317,58 +349,16 @@ class Migrate:
                         upgrade,
                         cls._is_fk_m2m(new_field),
                     )
-        # rename column
+
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
             if old_key not in new_keys and not cls._exclude_field(field, upgrade):
-                # search same info column
-                old_describe = field.describe(serializable=True)
-                old_name = old_describe.pop("name")
-                if old_describe.get("db_column"):
-                    old_describe.pop("db_column")
-                if upgrade:
-                    for nk, nf in new_model_changed.items():
-                        new_describe = nf.describe(serializable=True)
-                        new_name = new_describe.pop("name")
-                        if new_describe.get("db_column"):
-                            new_describe.pop("db_column")
-                        if old_describe == new_describe:
-                            if not nf.pk and ask_rename_column(old_name,new_name,new_model.__name__):# ignore pk
-                                cls._add_operator(
-                                    cls._rename_field(new_model, field.model_field_name, nf),
-                                    upgrade,
-                                    cls._is_fk_m2m(nf),
-                                )
-                                new_model_changed.pop(nk)
-                                cls._column_reflex[new_name] = old_name
-                                break
-                            else:
-                                pass
-                    else:
-                        cls._add_operator(
-                            cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
-                        )
-                else:
-                    if cls._column_reflex.get(old_name):
-                        new_name = cls._column_reflex[old_name]
-                        nf = new_model_changed[new_name]
-                        cls._add_operator(
-                            cls._rename_field(new_model, field.model_field_name, nf),
-                            upgrade,
-                            cls._is_fk_m2m(nf),
-                        )
-                        new_model_changed.pop(new_name)
-                        cls._column_reflex.pop(old_name)
-                    else:
-                        cls._add_operator(
-                            cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
-                        )
-        for nk, nf in new_model_changed.items():
-            cls._add_operator(
-                cls._add_field(new_model, nf),
-                upgrade,
-                isinstance(nf, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
-            )
+                if (upgrade and old_key not in cls._rename_old) or (
+                    not upgrade and old_key not in cls._rename_new
+                ):
+                    cls._add_operator(
+                        cls._remove_field(old_model, field), upgrade, cls._is_fk_m2m(field),
+                    )
 
         for new_index in new_indexes:
             if new_index not in old_indexes:
@@ -453,16 +443,16 @@ class Migrate:
         return cls.ddl.modify_column(model, field)
 
     @classmethod
-    def _rename_field(cls, model: Type[Model], old_cloumn_name: str, field: Field):
-        return cls.ddl.rename_column(model, old_cloumn_name, field)
-
-    @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):
         if isinstance(field, ForeignKeyFieldInstance):
             return cls.ddl.drop_fk(model, field)
         if isinstance(field, ManyToManyFieldInstance):
             return cls.ddl.drop_m2m(field)
         return cls.ddl.drop_column(model, field.model_field_name)
+
+    @classmethod
+    def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
+        return cls.ddl.rename_column(model, old_field.model_field_name, new_field.model_field_name)
 
     @classmethod
     def _add_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):

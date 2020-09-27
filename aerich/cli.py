@@ -1,12 +1,12 @@
-import functools
+import asyncio
 import json
 import os
 import sys
 from configparser import ConfigParser
-from enum import Enum
+from functools import wraps
 
-import asyncclick as click
-from asyncclick import Context, UsageError
+import click
+from click import Context, UsageError
 from tortoise import Tortoise, generate_schema_for_client
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
@@ -16,27 +16,18 @@ from aerich.migrate import Migrate
 from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
 
 from . import __version__
+from .enums import Color
 from .models import Aerich
-
-
-# todo: use typer replace asyncclick
-class Color(str, Enum):
-    green = "green"
-    red = "red"
-    yellow = "yellow"
-
 
 parser = ConfigParser()
 
 
-def close_db(func):
-    @functools.wraps(func)
-    async def close_db_inner(*args, **kwargs):
-        result = await func(*args, **kwargs)
-        await Tortoise.close_connections()
-        return result
+def coro(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
 
-    return close_db_inner
+    return wrapper
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -53,6 +44,7 @@ def close_db(func):
     help="Name of section in .ini file to use for aerich config.",
 )
 @click.pass_context
+@coro
 async def cli(ctx: Context, config, app, name):
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
@@ -82,12 +74,11 @@ async def cli(ctx: Context, config, app, name):
 @cli.command(help="Generate migrate changes file.")
 @click.option("--name", default="update", show_default=True, help="Migrate name.")
 @click.pass_context
-@close_db
+@coro
 async def migrate(ctx: Context, name):
     config = ctx.obj["config"]
     location = ctx.obj["location"]
     app = ctx.obj["app"]
-
     ret = await Migrate.migrate(name)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
@@ -97,7 +88,7 @@ async def migrate(ctx: Context, name):
 
 @cli.command(help="Upgrade to latest version.")
 @click.pass_context
-@close_db
+@coro
 async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
@@ -124,7 +115,7 @@ async def upgrade(ctx: Context):
 
 @cli.command(help="Downgrade to previous version.")
 @click.pass_context
-@close_db
+@coro
 async def downgrade(ctx: Context):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
@@ -147,7 +138,7 @@ async def downgrade(ctx: Context):
 
 @cli.command(help="Show current available heads in migrate location.")
 @click.pass_context
-@close_db
+@coro
 async def heads(ctx: Context):
     app = ctx.obj["app"]
     versions = Migrate.get_all_version_files()
@@ -162,7 +153,7 @@ async def heads(ctx: Context):
 
 @cli.command(help="List all migrate items.")
 @click.pass_context
-@close_db
+@coro
 async def history(ctx: Context):
     versions = Migrate.get_all_version_files()
     for version in versions:
@@ -182,6 +173,7 @@ async def history(ctx: Context):
     "--location", default="./migrations", show_default=True, help="Migrate store location."
 )
 @click.pass_context
+@coro
 async def init(
     ctx: Context, tortoise_orm, location,
 ):
@@ -213,7 +205,7 @@ async def init(
     show_default=True,
 )
 @click.pass_context
-@close_db
+@coro
 async def init_db(ctx: Context, safe):
     config = ctx.obj["config"]
     location = ctx.obj["location"]
@@ -246,4 +238,4 @@ async def init_db(ctx: Context, safe):
 
 def main():
     sys.path.insert(0, ".")
-    cli(_anyio_backend="asyncio")
+    cli()

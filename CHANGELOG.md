@@ -2,10 +2,15 @@
 
 ## 0.2
 
+### 0.2.5
+
+- Fix windows support. (#46)
+
 ### 0.2.4
 
 - Raise error with SQLite unsupported features.
 - Fix Postgres alter table. (#48)
+- Add `Rename` support.
 
 ### 0.2.3
 
