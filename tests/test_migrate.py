@@ -31,17 +31,19 @@ def test_migrate(mocker: MockerFixture):
             "ALTER TABLE `user` RENAME COLUMN `last_login` TO `last_login_at`",
         ]
     elif isinstance(Migrate.ddl, PostgresDDL):
-        assert Migrate.upgrade_operators == [
-            'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
-            'ALTER TABLE "user" ADD CONSTRAINT "uid_user_usernam_9987ab" UNIQUE ("username")',
-            'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
-        ]
+        assert Migrate.upgrade_operators==[]
+        # assert Migrate.upgrade_operators == [
+        #     'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
+        #     'ALTER TABLE "user" ADD CONSTRAINT "uid_user_usernam_9987ab" UNIQUE ("username")',
+        #     'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
+        # ]
         assert Migrate.downgrade_operators == [
             'ALTER TABLE "category" DROP COLUMN "name"',
             'ALTER TABLE "user" DROP CONSTRAINT "uid_user_usernam_9987ab"',
             'ALTER TABLE "user" RENAME COLUMN "last_login" TO "last_login_at"',
         ]
     elif isinstance(Migrate.ddl, SqliteDDL):
+        assert Migrate.upgrade_operators == []
         assert Migrate.downgrade_operators == []
 
 
