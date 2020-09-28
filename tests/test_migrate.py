@@ -20,8 +20,10 @@ def test_migrate(mocker: MockerFixture):
             Migrate.diff_models(models, diff_models, False)
     else:
         Migrate.diff_models(models, diff_models, False)
+    Migrate._merge_operators()
     if isinstance(Migrate.ddl, MysqlDDL):
         assert Migrate.upgrade_operators == [
+            "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_user_5b58673d`",
             "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL",
             "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
             "ALTER TABLE `user` RENAME COLUMN `last_login_at` TO `last_login`",
@@ -30,9 +32,12 @@ def test_migrate(mocker: MockerFixture):
             "ALTER TABLE `category` DROP COLUMN `name`",
             "ALTER TABLE `user` DROP INDEX `uid_user_usernam_9987ab`",
             "ALTER TABLE `user` RENAME COLUMN `last_login` TO `last_login_at`",
+            "ALTER TABLE `email` ADD CONSTRAINT `fk_email_user_5b58673d` FOREIGN KEY "
+            "(`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
         ]
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert Migrate.upgrade_operators == [
+            'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
             'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
             'ALTER TABLE "user" ADD CONSTRAINT "uid_user_usernam_9987ab" UNIQUE ("username")',
             'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',
@@ -41,9 +46,11 @@ def test_migrate(mocker: MockerFixture):
             'ALTER TABLE "category" DROP COLUMN "name"',
             'ALTER TABLE "user" DROP CONSTRAINT "uid_user_usernam_9987ab"',
             'ALTER TABLE "user" RENAME COLUMN "last_login" TO "last_login_at"',
+            'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
         ]
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == [
+            'ALTER TABLE "email" DROP FOREIGN KEY "fk_email_user_5b58673d"',
             'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL',
             'ALTER TABLE "user" ADD UNIQUE INDEX "uid_user_usernam_9987ab" ("username")',
             'ALTER TABLE "user" RENAME COLUMN "last_login_at" TO "last_login"',

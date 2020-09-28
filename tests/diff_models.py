@@ -31,6 +31,12 @@ class User(Model):
     intro = fields.TextField(default="")
 
 
+class Email(Model):
+    email = fields.CharField(max_length=200)
+    is_primary = fields.BooleanField(default=False)
+    user = fields.ForeignKeyField("diff_models.User", db_constraint=True)
+
+
 class Category(Model):
     slug = fields.CharField(max_length=200)
     user = fields.ForeignKeyField("diff_models.User", description="User")

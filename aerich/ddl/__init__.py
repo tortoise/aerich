@@ -2,7 +2,7 @@ from typing import List, Type
 
 from tortoise import BaseDBAsyncClient, ForeignKeyFieldInstance, ManyToManyFieldInstance, Model
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
-from tortoise.fields import Field, JSONField, TextField, UUIDField
+from tortoise.fields import CASCADE, Field, JSONField, TextField, UUIDField
 
 
 class BaseDDL:
@@ -20,7 +20,7 @@ class BaseDDL:
     _DROP_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" DROP INDEX "{index_name}"'
     _ADD_FK_TEMPLATE = 'ALTER TABLE "{table_name}" ADD CONSTRAINT "{fk_name}" FOREIGN KEY ("{db_column}") REFERENCES "{table}" ("{field}") ON DELETE {on_delete}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
-    _M2M_TABLE_TEMPLATE = 'CREATE TABLE "{table_name}" ("{backward_key}" {backward_type} NOT NULL REFERENCES "{backward_table}" ("{backward_field}") ON DELETE CASCADE,"{forward_key}" {forward_type} NOT NULL REFERENCES "{forward_table}" ("{forward_field}") ON DELETE CASCADE){extra}{comment};'
+    _M2M_TABLE_TEMPLATE = 'CREATE TABLE "{table_name}" ("{backward_key}" {backward_type} NOT NULL REFERENCES "{backward_table}" ("{backward_field}") ON DELETE CASCADE,"{forward_key}" {forward_type} NOT NULL REFERENCES "{forward_table}" ("{forward_field}") ON DELETE {on_delete}){extra}{comment};'
     _MODIFY_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" MODIFY COLUMN {column}'
 
     def __init__(self, client: "BaseDBAsyncClient"):
@@ -44,6 +44,7 @@ class BaseDDL:
             backward_type=model._meta.pk.get_for_dialect(self.DIALECT, "SQL_TYPE"),
             forward_key=field.forward_key,
             forward_type=field.related_model._meta.pk.get_for_dialect(self.DIALECT, "SQL_TYPE"),
+            on_delete=CASCADE,
             extra=self.schema_generator._table_generate_extra(table=field.through),
             comment=self.schema_generator._table_comment_generator(
                 table=field.through, comment=field.description

@@ -5,6 +5,7 @@
 ### 0.2.5
 
 - Fix windows support. (#46)
+- Support `db_constraint` in fk, m2m should manual define table with fk. (#52)
 
 ### 0.2.4
 

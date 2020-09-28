@@ -132,7 +132,7 @@ class Migrate:
         return await cls._generate_diff_sql(name)
 
     @classmethod
-    def _add_operator(cls, operator: str, upgrade=True, fk=False):
+    def _add_operator(cls, operator: str, upgrade=True, fk_m2m=False):
         """
         add operator,differentiate fk because fk is order limit
         :param operator:
@@ -141,12 +141,12 @@ class Migrate:
         :return:
         """
         if upgrade:
-            if fk:
+            if fk_m2m:
                 cls._upgrade_fk_m2m_index_operators.append(operator)
             else:
                 cls.upgrade_operators.append(operator)
         else:
-            if fk:
+            if fk_m2m:
                 cls._downgrade_fk_m2m_index_operators.append(operator)
             else:
                 cls.downgrade_operators.append(operator)
@@ -268,13 +268,13 @@ class Migrate:
                 continue
             if new_key not in old_keys:
                 new_field_dict = new_field.describe(serializable=True)
-                new_field_dict.pop("name")
-                new_field_dict.pop("db_column")
+                new_field_dict.pop("name", None)
+                new_field_dict.pop("db_column", None)
                 for diff_key in old_keys - new_keys:
                     old_field = old_fields_map.get(diff_key)
                     old_field_dict = old_field.describe(serializable=True)
-                    old_field_dict.pop("name")
-                    old_field_dict.pop("db_column")
+                    old_field_dict.pop("name", None)
+                    old_field_dict.pop("db_column", None)
                     if old_field_dict == new_field_dict:
                         if upgrade:
                             is_rename = click.prompt(
@@ -294,9 +294,7 @@ class Migrate:
                             break
                 else:
                     cls._add_operator(
-                        cls._add_field(new_model, new_field),
-                        upgrade,
-                        isinstance(new_field, (ForeignKeyFieldInstance, ManyToManyFieldInstance)),
+                        cls._add_field(new_model, new_field), upgrade, cls._is_fk_m2m(new_field),
                     )
             else:
                 old_field = old_fields_map.get(new_key)
@@ -344,6 +342,15 @@ class Migrate:
                         upgrade,
                         cls._is_fk_m2m(new_field),
                     )
+                if isinstance(new_field, ForeignKeyFieldInstance):
+                    if old_field.db_constraint and not new_field.db_constraint:
+                        cls._add_operator(
+                            cls._drop_fk(new_model, new_field), upgrade, True,
+                        )
+                    if new_field.db_constraint and not old_field.db_constraint:
+                        cls._add_operator(
+                            cls._add_fk(new_model, new_field), upgrade, True,
+                        )
 
         for old_key in old_keys:
             field = old_fields_map.get(old_key)
@@ -436,6 +443,10 @@ class Migrate:
     @classmethod
     def _modify_field(cls, model: Type[Model], field: Field):
         return cls.ddl.modify_column(model, field)
+
+    @classmethod
+    def _drop_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
+        return cls.ddl.drop_fk(model, field)
 
     @classmethod
     def _remove_field(cls, model: Type[Model], field: Field):
