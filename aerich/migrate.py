@@ -278,7 +278,7 @@ class Migrate:
                     if old_field_dict == new_field_dict:
                         if upgrade:
                             is_rename = click.prompt(
-                                f"Rename {diff_key} to {new_key}",
+                                f"Rename {diff_key} to {new_key}?",
                                 default=True,
                                 type=bool,
                                 show_choices=True,
