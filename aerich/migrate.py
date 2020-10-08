@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 from importlib import import_module
+from io import StringIO
 from typing import Dict, List, Tuple, Type
 
 import click
@@ -41,8 +42,8 @@ class Migrate:
     dialect: str
 
     @classmethod
-    def get_old_model_file(cls):
-        return cls.old_models + ".py"
+    def get_old_model_file(cls, app: str, location: str):
+        return os.path.join(location, app, cls.old_models + ".py")
 
     @classmethod
     def get_all_version_files(cls) -> List[str]:
@@ -56,9 +57,21 @@ class Migrate:
         return await Aerich.filter(app=cls.app).first()
 
     @classmethod
-    async def init_with_old_models(cls, config: dict, app: str, location: str):
-        migrate_config = cls._get_migrate_config(config, app, location)
+    def remove_old_model_file(cls, app: str, location: str):
+        try:
+            os.unlink(cls.get_old_model_file(app, location))
+        except FileNotFoundError:
+            pass
 
+    @classmethod
+    async def init_with_old_models(cls, config: dict, app: str, location: str):
+        await Tortoise.init(config=config)
+        last_version = await cls.get_last_version()
+        content = last_version.content
+        with open(cls.get_old_model_file(app, location), "w") as f:
+            f.write(content)
+
+        migrate_config = cls._get_migrate_config(config, app, location)
         cls.app = app
         cls.migrate_config = migrate_config
         cls.migrate_location = os.path.join(location, app)
@@ -152,26 +165,6 @@ class Migrate:
                 cls.downgrade_operators.append(operator)
 
     @classmethod
-    def cp_models(
-        cls, app: str, model_files: List[str], old_model_file,
-    ):
-        """
-        cp currents models to old_model_files
-        :param app:
-        :param model_files:
-        :param old_model_file:
-        :return:
-        """
-        pattern = rf"(\n)?('|\")({app})(.\w+)('|\")"
-        for i, model_file in enumerate(model_files):
-            with open(model_file, "r", encoding="utf-8") as f:
-                content = f.read()
-            ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
-            mode = "w" if i == 0 else "a"
-            with open(old_model_file, mode, encoding="utf-8") as f:
-                f.write(f"{ret}\n")
-
-    @classmethod
     def _get_migrate_config(cls, config: dict, app: str, location: str):
         """
         generate tmp config with old models
@@ -189,7 +182,7 @@ class Migrate:
         return config
 
     @classmethod
-    def write_old_models(cls, config: dict, app: str, location: str):
+    def get_models_content(cls, config: dict, app: str, location: str):
         """
         write new models to old models
         :param config:
@@ -197,14 +190,18 @@ class Migrate:
         :param location:
         :return:
         """
-        cls.app = app
-
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:
             old_model_files.append(import_module(model).__file__)
-
-        cls.cp_models(app, old_model_files, os.path.join(location, app, cls.get_old_model_file()))
+        pattern = rf"(\n)?('|\")({app})(.\w+)('|\")"
+        str_io = StringIO()
+        for i, model_file in enumerate(old_model_files):
+            with open(model_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            ret = re.sub(pattern, rf"\2{cls.diff_app}\4\5", content)
+            str_io.write(f"{ret}\n")
+        return str_io.getvalue()
 
     @classmethod
     def diff_models(
