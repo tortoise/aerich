@@ -7,12 +7,8 @@
 
 ## Introduction
 
-Tortoise-ORM is the best asyncio ORM now, but it lacks a database
-migrations tool like alembic for SQLAlchemy, or Django ORM with it\'s
-own migrations tool.
-
-This project aim to be a best migrations tool for Tortoise-ORM and which
-written by one of contributors of Tortoise-ORM.
+Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s
+own migrations solution.
 
 ## Install
 
@@ -25,7 +21,7 @@ Just install from pypi:
 ## Quick Start
 
 ```shell
-$ aerich -h
+> aerich -h
 
 Usage: aerich [OPTIONS] COMMAND [ARGS]...
 
@@ -66,7 +62,7 @@ TORTOISE_ORM = {
 ### Initialization
 
 ```shell
-$ aerich init -h
+> aerich init -h
 
 Usage: aerich init [OPTIONS]
 
@@ -82,7 +78,7 @@ Options:
 Init config file and location:
 
 ```shell
-$ aerich init -t tests.backends.mysql.TORTOISE_ORM
+> aerich init -t tests.backends.mysql.TORTOISE_ORM
 
 Success create migrate location ./migrations
 Success generate config file aerich.ini
@@ -91,7 +87,7 @@ Success generate config file aerich.ini
 ### Init db
 
 ```shell
-$ aerich init-db
+> aerich init-db
 
 Success create app migrate location ./migrations/models
 Success generate schema for app "models"
@@ -103,7 +99,7 @@ If your Tortoise-ORM app is not default `models`, you must specify
 ### Update models and make migrate
 
 ```shell
-$ aerich migrate --name drop_column
+> aerich migrate --name drop_column
 
 Success migrate 1_202029051520102929_drop_column.json
 ```
@@ -118,7 +114,7 @@ If you use `MySQL`, only MySQL8.0+ support `rename..to` syntax.
 ### Upgrade to latest version
 
 ```shell
-$ aerich upgrade
+> aerich upgrade
 
 Success upgrade 1_202029051520102929_drop_column.json
 ```
@@ -128,7 +124,7 @@ Now your db is migrated to latest.
 ### Downgrade to specified version
 
 ```shell
-$ aerich init -h
+> aerich init -h
 
 Usage: aerich downgrade [OPTIONS]
 
@@ -140,7 +136,7 @@ Options:
 ```
 
 ```shell
-$ aerich downgrade
+> aerich downgrade
 
 Success downgrade 1_202029051520102929_drop_column.json
 ```
@@ -150,7 +146,7 @@ Now your db rollback to specified version.
 ### Show history
 
 ```shell
-$ aerich history
+> aerich history
 
 1_202029051520102929_drop_column.json
 ```
@@ -158,7 +154,7 @@ $ aerich history
 ### Show heads to be migrated
 
 ```shell
-$ aerich heads
+> aerich heads
 
 1_202029051520102929_drop_column.json
 ```
