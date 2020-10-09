@@ -35,7 +35,7 @@ Options:
   -h, --help         Show this message and exit.
 
 Commands:
-  downgrade  Downgrade to previous version.
+  downgrade  Downgrade to specified version.
   heads      Show current available heads in migrate location.
   history    List all migrate items.
   init       Init config file and generate root migrate location.
