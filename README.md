@@ -125,7 +125,19 @@ Success upgrade 1_202029051520102929_drop_column.json
 
 Now your db is migrated to latest.
 
-### Downgrade to previous version
+### Downgrade to specified version
+
+```shell
+$ aerich init -h
+
+Usage: aerich downgrade [OPTIONS]
+
+  Downgrade to specified version.
+
+Options:
+  -v, --version INTEGER  Specified version, default to last.  [default: -1]
+  -h, --help             Show this message and exit.
+```
 
 ```shell
 $ aerich downgrade
@@ -133,7 +145,7 @@ $ aerich downgrade
 Success downgrade 1_202029051520102929_drop_column.json
 ```
 
-Now your db rollback to previous version.
+Now your db rollback to specified version.
 
 ### Show history
 

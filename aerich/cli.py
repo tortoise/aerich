@@ -79,10 +79,6 @@ async def cli(ctx: Context, config, app, name):
 @click.pass_context
 @coro
 async def migrate(ctx: Context, name):
-    config = ctx.obj["config"]
-    location = ctx.obj["location"]
-    app = ctx.obj["app"]
-
     ret = await Migrate.migrate(name)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
@@ -90,16 +86,9 @@ async def migrate(ctx: Context, name):
 
 
 @cli.command(help="Upgrade to specified version.")
-@click.option(
-    "--version",
-    default=-1,
-    type=int,
-    show_default=True,
-    help="Specified version, default to latest.",
-)
 @click.pass_context
 @coro
-async def upgrade(ctx: Context, version: int):
+async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
     location = ctx.obj["location"]
@@ -124,15 +113,18 @@ async def upgrade(ctx: Context, version: int):
                 )
             click.secho(f"Success upgrade {version_file}", fg=Color.green)
             migrated = True
-        if version != -1 and version_file.startswith(str(version)):
-            break
     if not migrated:
         click.secho("No migrate items", fg=Color.yellow)
 
 
 @cli.command(help="Downgrade to specified version.")
 @click.option(
-    "--version", default=-1, type=int, show_default=True, help="Specified version, default to last."
+    "-v",
+    "--version",
+    default=-1,
+    type=int,
+    show_default=True,
+    help="Specified version, default to last.",
 )
 @click.pass_context
 @coro
@@ -142,22 +134,27 @@ async def downgrade(ctx: Context, version: int):
     if version == -1:
         specified_version = await Migrate.get_last_version()
     else:
-        specified_version = await Aerich.filter(app=app, pk=version + 1).first()
+        specified_version = await Aerich.filter(app=app, version__startswith=f"{version}_").first()
     if not specified_version:
         return click.secho("No specified version found", fg=Color.yellow)
-    file = specified_version.version
-    async with in_transaction(get_app_connection_name(config, app)) as conn:
-        file_path = os.path.join(Migrate.migrate_location, file)
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = json.load(f)
-            downgrade_query_list = content.get("downgrade")
-            if not downgrade_query_list:
-                return click.secho("No downgrade item found", fg=Color.yellow)
-            for downgrade_query in downgrade_query_list:
-                await conn.execute_query(downgrade_query)
-            await specified_version.delete()
-        os.unlink(file_path)
-        return click.secho(f"Success downgrade {file}", fg=Color.green)
+    if version == -1:
+        versions = [specified_version]
+    else:
+        versions = await Aerich.filter(app=app, pk__gte=specified_version.pk)
+    for version in versions:
+        file = version.version
+        async with in_transaction(get_app_connection_name(config, app)) as conn:
+            file_path = os.path.join(Migrate.migrate_location, file)
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = json.load(f)
+                downgrade_query_list = content.get("downgrade")
+                if not downgrade_query_list:
+                    return click.secho("No downgrade item found", fg=Color.yellow)
+                for downgrade_query in downgrade_query_list:
+                    await conn.execute_query(downgrade_query)
+                await version.delete()
+            os.unlink(file_path)
+            click.secho(f"Success downgrade {file}", fg=Color.green)
 
 
 @cli.command(help="Show current available heads in migrate location.")

@@ -115,6 +115,10 @@ class Migrate:
     @classmethod
     async def _generate_diff_sql(cls, name):
         version = await cls.generate_version(name)
+        # delete if same version exists
+        for version_file in cls.get_all_version_files():
+            if version_file.startswith(version.split("_")[0]):
+                os.unlink(os.path.join(cls.migrate_location, version_file))
         content = {
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,

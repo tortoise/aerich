@@ -1,5 +1,17 @@
 # ChangeLog
 
+## 0.3
+
+### 0.3.0
+
+- Refactoring migrate logic, and this version is not compatible with previous version.
+- Now there don't need `old_models.py` and it store in database.
+- Upgrade steps:
+  1. Upgrade aerich version.
+  2. Drop aerich model in db and recreate with new struct.
+  3. Delete `migrations/{app}` folder and rerun `aerich init-db`.
+  4. Update model and `aerich migrate` normally.
+
 ## 0.2
 
 ### 0.2.5
