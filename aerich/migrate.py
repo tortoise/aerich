@@ -67,9 +67,10 @@ class Migrate:
     async def init_with_old_models(cls, config: dict, app: str, location: str):
         await Tortoise.init(config=config)
         last_version = await cls.get_last_version()
-        content = last_version.content
-        with open(cls.get_old_model_file(app, location), "w") as f:
-            f.write(content)
+        if last_version:
+            content = last_version.content
+            with open(cls.get_old_model_file(app, location), "w") as f:
+                f.write(content)
 
         migrate_config = cls._get_migrate_config(config, app, location)
         cls.app = app
