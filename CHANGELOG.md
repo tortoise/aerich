@@ -5,6 +5,7 @@
 ### 0.3.1
 
 - Fix first version error.
+- Fix init error. (#61)
 
 ### 0.3.0
 
