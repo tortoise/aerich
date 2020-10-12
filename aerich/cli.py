@@ -28,7 +28,9 @@ def coro(f):
         loop = asyncio.get_event_loop()
         ctx = args[0]
         loop.run_until_complete(f(*args, **kwargs))
-        Migrate.remove_old_model_file(ctx.obj["app"], ctx.obj["location"])
+        app = ctx.obj.get("app")
+        if app:
+            Migrate.remove_old_model_file(app, ctx.obj["location"])
 
     return wrapper
 
