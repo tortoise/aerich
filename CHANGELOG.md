@@ -2,6 +2,10 @@
 
 ## 0.3
 
+### 0.3.2
+
+- Fix migrate to new database error. (#62)
+
 ### 0.3.1
 
 - Fix first version error.

@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from importlib import import_module
 from io import StringIO
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import click
 from tortoise import (
@@ -15,6 +15,7 @@ from tortoise import (
     Model,
     Tortoise,
 )
+from tortoise.exceptions import OperationalError
 from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
@@ -53,8 +54,11 @@ class Migrate:
         )
 
     @classmethod
-    async def get_last_version(cls) -> Aerich:
-        return await Aerich.filter(app=cls.app).first()
+    async def get_last_version(cls) -> Optional[Aerich]:
+        try:
+            return await Aerich.filter(app=cls.app).first()
+        except OperationalError:
+            pass
 
     @classmethod
     def remove_old_model_file(cls, app: str, location: str):
@@ -67,17 +71,16 @@ class Migrate:
     async def init_with_old_models(cls, config: dict, app: str, location: str):
         await Tortoise.init(config=config)
         last_version = await cls.get_last_version()
+        cls.app = app
+        cls.migrate_location = os.path.join(location, app)
         if last_version:
             content = last_version.content
             with open(cls.get_old_model_file(app, location), "w") as f:
                 f.write(content)
 
-        migrate_config = cls._get_migrate_config(config, app, location)
-        cls.app = app
-        cls.migrate_config = migrate_config
-        cls.migrate_location = os.path.join(location, app)
-
-        await Tortoise.init(config=migrate_config)
+            migrate_config = cls._get_migrate_config(config, app, location)
+            cls.migrate_config = migrate_config
+            await Tortoise.init(config=migrate_config)
 
         connection = get_app_connection(config, app)
         cls.dialect = connection.schema_generator.DIALECT
