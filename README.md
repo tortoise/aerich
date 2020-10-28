@@ -10,7 +10,7 @@
 Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s
 own migrations solution.
 
-**If you upgrade aerich from <= 0.2.5 to >= 0.3.0, see [changelog](https://github.com/tortoise/aerich/blob/dev/CHANGELOG.md) for upgrade steps.**
+**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**
 
 ## Install
 
