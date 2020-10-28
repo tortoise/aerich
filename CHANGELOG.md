@@ -2,6 +2,10 @@
 
 ## 0.3
 
+### 0.3.3
+
+- Support multiple databases. (#68)
+
 ### 0.3.2
 
 - Fix migrate to new database error. (#62)

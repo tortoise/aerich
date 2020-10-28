@@ -161,10 +161,24 @@ Now your db rollback to specified version.
 1_202029051520102929_drop_column.json
 ```
 
-## Support this project
+### Multiple databases
 
-- Just give a star!
-- Donation.
+```python
+tortoise_orm = {
+    "connections": {
+        "default": expand_db_url(db_url, True),
+        "second": expand_db_url(db_url_second, True),
+    },
+    "apps": {
+        "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
+        "models_second": {"models": ["tests.models_second"], "default_connection": "second",},
+    },
+}
+```
+
+You need only specify `aerich.models` in one app, and must specify `--app` when run `aerich migrate` and so on.
+
+## Support this project
 
 | AliPay                                                                                 | WeChatPay                                                                                 | PayPal                                                           |
 | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
