@@ -5,6 +5,7 @@
 ### 0.3.3
 
 - Support multiple databases. (#68)
+- Compatible with models file in directory. (#70)
 
 ### 0.3.2
 

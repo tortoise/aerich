@@ -25,7 +25,7 @@ asyncpg = {version = "*", optional = true}
 [tool.poetry.dev-dependencies]
 flake8 = "*"
 isort = "*"
-black = "^19.10b0"
+black = "*"
 pytest = "*"
 pytest-xdist = "*"
 pytest-asyncio = "*"

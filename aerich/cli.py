@@ -38,7 +38,11 @@ def coro(f):
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
 @click.option(
-    "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
+    "-c",
+    "--config",
+    default="aerich.ini",
+    show_default=True,
+    help="Config file.",
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.option(
@@ -115,11 +119,6 @@ async def upgrade(ctx: Context):
             migrated = True
     if not migrated:
         click.secho("No migrate items", fg=Color.yellow)
-
-
-def abort_if_false(ctx, param, value):
-    if not value:
-        ctx.abort()
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -199,12 +198,17 @@ async def history(ctx: Context):
     help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
 )
 @click.option(
-    "--location", default="./migrations", show_default=True, help="Migrate store location.",
+    "--location",
+    default="./migrations",
+    show_default=True,
+    help="Migrate store location.",
 )
 @click.pass_context
 @coro
 async def init(
-    ctx: Context, tortoise_orm, location,
+    ctx: Context,
+    tortoise_orm,
+    location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
@@ -255,7 +259,9 @@ async def init_db(ctx: Context, safe):
 
     version = await Migrate.generate_version()
     await Aerich.create(
-        version=version, app=app, content=Migrate.get_models_content(config, app, location),
+        version=version,
+        app=app,
+        content=Migrate.get_models_content(config, app, location),
     )
     with open(os.path.join(dirname, version), "w", encoding="utf-8") as f:
         content = {
@@ -268,3 +274,7 @@ async def init_db(ctx: Context, safe):
 def main():
     sys.path.insert(0, ".")
     cli()
+
+
+if __name__ == "__main__":
+    main()
