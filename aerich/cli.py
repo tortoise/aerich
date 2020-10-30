@@ -117,6 +117,11 @@ async def upgrade(ctx: Context):
         click.secho("No migrate items", fg=Color.yellow)
 
 
+def abort_if_false(ctx, param, value):
+    if not value:
+        ctx.abort()
+
+
 @cli.command(help="Downgrade to specified version.")
 @click.option(
     "-v",
@@ -127,6 +132,9 @@ async def upgrade(ctx: Context):
     help="Specified version, default to last.",
 )
 @click.pass_context
+@click.confirmation_option(
+    prompt="Downgrade is dangerous, which maybe lose your data, are you sure?",
+)
 @coro
 async def downgrade(ctx: Context, version: int):
     app = ctx.obj["app"]
@@ -191,7 +199,7 @@ async def history(ctx: Context):
     help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
 )
 @click.option(
-    "--location", default="./migrations", show_default=True, help="Migrate store location."
+    "--location", default="./migrations", show_default=True, help="Migrate store location.",
 )
 @click.pass_context
 @coro
@@ -247,7 +255,7 @@ async def init_db(ctx: Context, safe):
 
     version = await Migrate.generate_version()
     await Aerich.create(
-        version=version, app=app, content=Migrate.get_models_content(config, app, location)
+        version=version, app=app, content=Migrate.get_models_content(config, app, location),
     )
     with open(os.path.join(dirname, version), "w", encoding="utf-8") as f:
         content = {
