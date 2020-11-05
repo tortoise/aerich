@@ -22,7 +22,7 @@ up:
 	@poetry update
 
 deps:
-	@poetry install -E dbdrivers --no-root
+	@poetry install -E dbdrivers
 
 style: deps
 	isort -src $(checkfiles)
