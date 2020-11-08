@@ -4,6 +4,7 @@
 
 ### 0.3.3
 
+- Fix encoding error. (#75)
 - Support multiple databases. (#68)
 - Compatible with models file in directory. (#70)
 

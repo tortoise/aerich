@@ -76,7 +76,7 @@ class Migrate:
         cls.migrate_location = os.path.join(location, app)
         if last_version:
             content = last_version.content
-            with open(cls.get_old_model_file(app, location), "w") as f:
+            with open(cls.get_old_model_file(app, location), "w", encoding="utf-8") as f:
                 f.write(content)
 
             migrate_config = cls._get_migrate_config(config, app, location)
