@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import sys
 from configparser import ConfigParser
@@ -13,7 +12,13 @@ from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
 from aerich.migrate import Migrate
-from aerich.utils import get_app_connection, get_app_connection_name, get_tortoise_config
+from aerich.utils import (
+    get_app_connection,
+    get_app_connection_name,
+    get_tortoise_config,
+    get_version_content_from_file,
+    write_version_file,
+)
 
 from . import __version__
 from .enums import Color
@@ -105,11 +110,11 @@ async def upgrade(ctx: Context):
         if not exists:
             async with in_transaction(get_app_connection_name(config, app)) as conn:
                 file_path = os.path.join(Migrate.migrate_location, version_file)
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = json.load(f)
-                    upgrade_query_list = content.get("upgrade")
-                    for upgrade_query in upgrade_query_list:
-                        await conn.execute_script(upgrade_query)
+                content = get_version_content_from_file(file_path)
+                upgrade_query_list = content.get("upgrade")
+                print(upgrade_query_list)
+                for upgrade_query in upgrade_query_list:
+                    await conn.execute_script(upgrade_query)
                 await Aerich.create(
                     version=version_file,
                     app=app,
@@ -152,14 +157,13 @@ async def downgrade(ctx: Context, version: int):
         file = version.version
         async with in_transaction(get_app_connection_name(config, app)) as conn:
             file_path = os.path.join(Migrate.migrate_location, file)
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = json.load(f)
-                downgrade_query_list = content.get("downgrade")
-                if not downgrade_query_list:
-                    return click.secho("No downgrade item found", fg=Color.yellow)
-                for downgrade_query in downgrade_query_list:
-                    await conn.execute_query(downgrade_query)
-                await version.delete()
+            content = get_version_content_from_file(file_path)
+            downgrade_query_list = content.get("downgrade")
+            if not downgrade_query_list:
+                return click.secho("No downgrade items found", fg=Color.yellow)
+            for downgrade_query in downgrade_query_list:
+                await conn.execute_query(downgrade_query)
+            await version.delete()
             os.unlink(file_path)
             click.secho(f"Success downgrade {file}", fg=Color.green)
 
@@ -263,11 +267,10 @@ async def init_db(ctx: Context, safe):
         app=app,
         content=Migrate.get_models_content(config, app, location),
     )
-    with open(os.path.join(dirname, version), "w", encoding="utf-8") as f:
-        content = {
-            "upgrade": [schema],
-        }
-        json.dump(content, f, ensure_ascii=False, indent=2)
+    content = {
+        "upgrade": [schema],
+    }
+    write_version_file(os.path.join(dirname, version), content)
     return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
 
 

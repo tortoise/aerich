@@ -62,18 +62,18 @@ def test_sort_all_version_files(mocker):
     mocker.patch(
         "os.listdir",
         return_value=[
-            "1_datetime_update.json",
-            "11_datetime_update.json",
-            "10_datetime_update.json",
-            "2_datetime_update.json",
+            "1_datetime_update.sql",
+            "11_datetime_update.sql",
+            "10_datetime_update.sql",
+            "2_datetime_update.sql",
         ],
     )
 
     Migrate.migrate_location = "."
 
     assert Migrate.get_all_version_files() == [
-        "1_datetime_update.json",
-        "2_datetime_update.json",
-        "10_datetime_update.json",
-        "11_datetime_update.json",
+        "1_datetime_update.sql",
+        "2_datetime_update.sql",
+        "10_datetime_update.sql",
+        "11_datetime_update.sql",
     ]

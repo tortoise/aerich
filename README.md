@@ -103,11 +103,11 @@ If your Tortoise-ORM app is not default `models`, you must specify
 ```shell
 > aerich migrate --name drop_column
 
-Success migrate 1_202029051520102929_drop_column.json
+Success migrate 1_202029051520102929_drop_column.sql
 ```
 
 Format of migrate filename is
-`{version_num}_{datetime}_{name|update}.json`.
+`{version_num}_{datetime}_{name|update}.sql`.
 
 And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can choice `True` to rename column without column drop, or choice `False` to drop column then create.
 
@@ -118,7 +118,7 @@ If you use `MySQL`, only MySQL8.0+ support `rename..to` syntax.
 ```shell
 > aerich upgrade
 
-Success upgrade 1_202029051520102929_drop_column.json
+Success upgrade 1_202029051520102929_drop_column.sql
 ```
 
 Now your db is migrated to latest.
@@ -140,7 +140,7 @@ Options:
 ```shell
 > aerich downgrade
 
-Success downgrade 1_202029051520102929_drop_column.json
+Success downgrade 1_202029051520102929_drop_column.sql
 ```
 
 Now your db rollback to specified version.
@@ -150,7 +150,7 @@ Now your db rollback to specified version.
 ```shell
 > aerich history
 
-1_202029051520102929_drop_column.json
+1_202029051520102929_drop_column.sql
 ```
 
 ### Show heads to be migrated
@@ -158,7 +158,7 @@ Now your db rollback to specified version.
 ```shell
 > aerich heads
 
-1_202029051520102929_drop_column.json
+1_202029051520102929_drop_column.sql
 ```
 
 ### Multiple databases

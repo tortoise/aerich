@@ -1,5 +1,4 @@
 import inspect
-import json
 import os
 import re
 from datetime import datetime
@@ -21,7 +20,7 @@ from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.utils import get_app_connection
+from aerich.utils import get_app_connection, write_version_file
 
 
 class Migrate:
@@ -50,7 +49,7 @@ class Migrate:
     @classmethod
     def get_all_version_files(cls) -> List[str]:
         return sorted(
-            filter(lambda x: x.endswith("json"), os.listdir(cls.migrate_location)),
+            filter(lambda x: x.endswith("sql"), os.listdir(cls.migrate_location)),
             key=lambda x: int(x.split("_")[0]),
         )
 
@@ -111,8 +110,8 @@ class Migrate:
         now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
         last_version_num = await cls._get_last_version_num()
         if last_version_num is None:
-            return f"0_{now}_init.json"
-        version = f"{last_version_num + 1}_{now}_{name}.json"
+            return f"0_{now}_init.sql"
+        version = f"{last_version_num + 1}_{now}_{name}.sql"
         if len(version) > MAX_VERSION_LENGTH:
             raise ValueError(f"Version name exceeds maximum length ({MAX_VERSION_LENGTH})")
         return version
@@ -128,8 +127,7 @@ class Migrate:
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
         }
-        with open(os.path.join(cls.migrate_location, version), "w", encoding="utf-8") as f:
-            json.dump(content, f, indent=2, ensure_ascii=False)
+        write_version_file(os.path.join(cls.migrate_location, version), content)
         return version
 
     @classmethod

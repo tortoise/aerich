@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 0.4
+
+### 0.4.0
+
+- Use `.sql` instead of `.json` to store version file.
+
 ## 0.3
 
 ### 0.3.3
