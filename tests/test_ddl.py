@@ -42,7 +42,7 @@ def test_create_table():
     "id" SERIAL NOT NULL PRIMARY KEY,
     "slug" VARCHAR(200) NOT NULL,
     "name" VARCHAR(200) NOT NULL,
-    "created_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
     "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
 COMMENT ON COLUMN "category"."user_id" IS 'User';"""
