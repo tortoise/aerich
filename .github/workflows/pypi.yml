@@ -11,7 +11,7 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - uses: dschep/install-poetry-action@v1.3
+      - uses: abatilo/actions-poetry@v2.0.0
       - name: Build dists
         run: make build
       - name: Pypi Publish
