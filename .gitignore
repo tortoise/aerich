@@ -145,3 +145,4 @@ migrations
 aerich.ini
 src
 .vscode
+.DS_Store
