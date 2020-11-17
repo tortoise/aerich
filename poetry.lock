@@ -575,7 +575,7 @@ dbdrivers = ["aiomysql", "asyncpg"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "fb4af0739735ad1230da97320edab72d41278ffa78005116f8119705b998aa10"
+content-hash = "ff0825922451c3ebd311666956adc8987677dc66fe5321565213cd3568ebd9ae"
 
 [metadata.files]
 aiomysql = [
