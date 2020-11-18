@@ -65,7 +65,7 @@ class Migrate:
     def remove_old_model_file(cls, app: str, location: str):
         try:
             os.unlink(cls.get_old_model_file(app, location))
-        except FileNotFoundError:
+        except (OSError, FileNotFoundError):
             pass
 
     @classmethod
