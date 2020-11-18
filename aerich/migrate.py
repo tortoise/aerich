@@ -66,6 +66,9 @@ class Migrate:
             os.unlink(cls.get_old_model_file(app, location))
         except FileNotFoundError:
             pass
+        except OSError:
+            print(f"Warning: Unable to remove old_models file `{location}` for app {app}.")
+        
 
     @classmethod
     async def init_with_old_models(cls, config: dict, app: str, location: str):
