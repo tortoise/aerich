@@ -135,12 +135,20 @@ async def upgrade(ctx: Context):
     show_default=True,
     help="Specified version, default to last.",
 )
+@click.option(
+    "-d",
+    "--delete",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Delete version files at the same time.",
+)
 @click.pass_context
 @click.confirmation_option(
     prompt="Downgrade is dangerous, which maybe lose your data, are you sure?",
 )
 @coro
-async def downgrade(ctx: Context, version: int):
+async def downgrade(ctx: Context, version: int, delete: bool):
     app = ctx.obj["app"]
     config = ctx.obj["config"]
     if version == -1:
@@ -164,7 +172,8 @@ async def downgrade(ctx: Context, version: int):
             for downgrade_query in downgrade_query_list:
                 await conn.execute_query(downgrade_query)
             await version.delete()
-            os.unlink(file_path)
+            if delete:
+                os.unlink(file_path)
             click.secho(f"Success downgrade {file}", fg=Color.green)
 
 

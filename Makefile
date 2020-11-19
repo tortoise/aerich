@@ -3,8 +3,10 @@ black_opts = -l 100 -t py38
 py_warn = PYTHONDEVMODE=1
 MYSQL_HOST ?= "127.0.0.1"
 MYSQL_PORT ?= 3306
+MYSQL_PASS ?= "123456"
 POSTGRES_HOST ?= "127.0.0.1"
 POSTGRES_PORT ?= 5432
+POSTGRES_PAS ?= "123456"
 
 help:
 	@echo "Aerich development makefile"

@@ -22,6 +22,9 @@ class BaseDDL:
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
     _M2M_TABLE_TEMPLATE = 'CREATE TABLE "{table_name}" ("{backward_key}" {backward_type} NOT NULL REFERENCES "{backward_table}" ("{backward_field}") ON DELETE CASCADE,"{forward_key}" {forward_type} NOT NULL REFERENCES "{forward_table}" ("{forward_field}") ON DELETE {on_delete}){extra}{comment};'
     _MODIFY_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" MODIFY COLUMN {column}'
+    _CHANGE_COLUMN_TEMPLATE = (
+        'ALTER TABLE "{table_name}" CHANGE {old_column_name} {new_column_name} {new_column_type}'
+    )
 
     def __init__(self, client: "BaseDBAsyncClient"):
         self.client = client
@@ -134,6 +137,16 @@ class BaseDDL:
             table_name=model._meta.db_table,
             old_column_name=old_column_name,
             new_column_name=new_column_name,
+        )
+
+    def change_column(
+        self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
+    ):
+        return self._CHANGE_COLUMN_TEMPLATE.format(
+            table_name=model._meta.db_table,
+            old_column_name=old_column_name,
+            new_column_name=new_column_name,
+            new_column_type=new_column_type,
         )
 
     def add_index(self, model: "Type[Model]", field_names: List[str], unique=False):

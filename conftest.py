@@ -67,5 +67,5 @@ async def initialize_tests(event_loop, request):
         Migrate.ddl = SqliteDDL(client)
     elif client.schema_generator is AsyncpgSchemaGenerator:
         Migrate.ddl = PostgresDDL(client)
-
+    Migrate.dialect = Migrate.ddl.DIALECT
     request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))

@@ -134,6 +134,10 @@ Usage: aerich downgrade [OPTIONS]
 
 Options:
   -v, --version INTEGER  Specified version, default to last.  [default: -1]
+  -d, --delete           Delete version files at the same time.  [default:
+                         False]
+
+  --yes                  Confirm the action without prompting.
   -h, --help             Show this message and exit.
 ```
 

@@ -5,6 +5,7 @@
 ### 0.4.0
 
 - Use `.sql` instead of `.json` to store version file.
+- Add `rename` column support MySQL5.
 
 ## 0.3
 
