@@ -262,7 +262,9 @@ async def init_db(ctx: Context, safe):
         os.mkdir(dirname)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
     else:
-        return click.secho(f"Inited {app} already", fg=Color.yellow)
+        return click.secho(
+            f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
+        )
 
     await Tortoise.init(config=config)
     connection = get_app_connection(config, app)

@@ -6,7 +6,7 @@ MYSQL_PORT ?= 3306
 MYSQL_PASS ?= "123456"
 POSTGRES_HOST ?= "127.0.0.1"
 POSTGRES_PORT ?= 5432
-POSTGRES_PAS ?= "123456"
+POSTGRES_PASS ?= "123456"
 
 help:
 	@echo "Aerich development makefile"

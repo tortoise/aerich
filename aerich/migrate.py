@@ -312,7 +312,11 @@ class Migrate:
                         else:
                             is_rename = diff_key in cls._rename_new
                         if is_rename:
-                            if cls.dialect == "mysql" and cls._db_version.major == 5:
+                            if (
+                                cls.dialect == "mysql"
+                                and cls._db_version
+                                and cls._db_version.major == 5
+                            ):
                                 cls._add_operator(
                                     cls._change_field(new_model, old_field, new_field),
                                     upgrade,
