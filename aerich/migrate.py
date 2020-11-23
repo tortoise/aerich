@@ -347,7 +347,9 @@ class Migrate:
                             cls._add_operator(
                                 cls._alter_null(new_model, new_field), upgrade=upgrade
                             )
-                        if new_field.default != old_field.default:
+                        if new_field.default != old_field.default and not callable(
+                            new_field.default
+                        ):
                             cls._add_operator(
                                 cls._alter_default(new_model, new_field), upgrade=upgrade
                             )
