@@ -111,8 +111,6 @@ Format of migrate filename is
 
 And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can choice `True` to rename column without column drop, or choice `False` to drop column then create.
 
-If you use `MySQL`, only MySQL8.0+ support `rename..to` syntax.
-
 ### Upgrade to latest version
 
 ```shell
