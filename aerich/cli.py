@@ -33,6 +33,7 @@ def coro(f):
         loop = asyncio.get_event_loop()
         ctx = args[0]
         loop.run_until_complete(f(*args, **kwargs))
+        loop.run_until_complete(Tortoise.close_connections())
         app = ctx.obj.get("app")
         if app:
             Migrate.remove_old_model_file(app, ctx.obj["location"])
@@ -282,7 +283,7 @@ async def init_db(ctx: Context, safe):
         "upgrade": [schema],
     }
     write_version_file(os.path.join(dirname, version), content)
-    return click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
+    click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
 
 
 def main():

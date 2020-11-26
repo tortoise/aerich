@@ -7,6 +7,7 @@
 - Use `.sql` instead of `.json` to store version file.
 - Add `rename` column support MySQL5.
 - Remove callable detection for defaults. (#87)
+- Fix `sqlite` stuck. (#90)
 
 ## 0.3
 
