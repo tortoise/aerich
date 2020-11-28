@@ -94,6 +94,7 @@ class Migrate:
             await Tortoise.init(config=migrate_config)
 
         connection = get_app_connection(config, app)
+        cls.dialect = connection.schema_generator.DIALECT
         if cls.dialect == "mysql":
             from aerich.ddl.mysql import MysqlDDL
 
@@ -106,7 +107,6 @@ class Migrate:
             from aerich.ddl.postgres import PostgresDDL
 
             cls.ddl = PostgresDDL(connection)
-        cls.dialect = cls.ddl.DIALECT
         await cls._get_db_version(connection)
 
     @classmethod

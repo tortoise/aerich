@@ -33,7 +33,6 @@ def coro(f):
         loop = asyncio.get_event_loop()
         ctx = args[0]
         loop.run_until_complete(f(*args, **kwargs))
-        loop.run_until_complete(Tortoise.close_connections())
         app = ctx.obj.get("app")
         if app:
             Migrate.remove_old_model_file(app, ctx.obj["location"])
@@ -113,7 +112,6 @@ async def upgrade(ctx: Context):
                 file_path = os.path.join(Migrate.migrate_location, version_file)
                 content = get_version_content_from_file(file_path)
                 upgrade_query_list = content.get("upgrade")
-                print(upgrade_query_list)
                 for upgrade_query in upgrade_query_list:
                     await conn.execute_script(upgrade_query)
                 await Aerich.create(
