@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from importlib import import_module
 from io import StringIO
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 import click
@@ -48,7 +49,7 @@ class Migrate:
 
     @classmethod
     def get_old_model_file(cls, app: str, location: str):
-        return os.path.join(location, app, cls.old_models + ".py")
+        return Path(location, app, cls.old_models + ".py")
 
     @classmethod
     def get_all_version_files(cls) -> List[str]:
@@ -83,7 +84,7 @@ class Migrate:
         await Tortoise.init(config=config)
         last_version = await cls.get_last_version()
         cls.app = app
-        cls.migrate_location = os.path.join(location, app)
+        cls.migrate_location = Path(location, app)
         if last_version:
             content = last_version.content
             with open(cls.get_old_model_file(app, location), "w", encoding="utf-8") as f:
@@ -134,12 +135,12 @@ class Migrate:
         # delete if same version exists
         for version_file in cls.get_all_version_files():
             if version_file.startswith(version.split("_")[0]):
-                os.unlink(os.path.join(cls.migrate_location, version_file))
+                os.unlink(Path(cls.migrate_location, version_file))
         content = {
             "upgrade": cls.upgrade_operators,
             "downgrade": cls.downgrade_operators,
         }
-        write_version_file(os.path.join(cls.migrate_location, version), content)
+        write_version_file(Path(cls.migrate_location, version), content)
         return version
 
     @classmethod
@@ -192,8 +193,7 @@ class Migrate:
         :param location:
         :return:
         """
-        path = os.path.join(location, app, cls.old_models)
-        path = path.replace(os.sep, ".").lstrip(".")
+        path = Path(location, app, cls.old_models).as_posix().replace("/", ".")
         config["apps"][cls.diff_app] = {
             "models": [path],
             "default_connection": config.get("apps").get(app).get("default_connection", "default"),
