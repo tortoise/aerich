@@ -2,6 +2,14 @@
 
 ## 0.4
 
+### 0.4.2
+
+- Use `pathlib` for path resolving. (#89)
+
+### 0.4.1
+
+- Bug fix. (#91 #93)
+
 ### 0.4.0
 
 - Use `.sql` instead of `.json` to store version file.
