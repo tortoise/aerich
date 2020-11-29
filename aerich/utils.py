@@ -3,6 +3,7 @@ from typing import Dict
 
 from click import BadOptionUsage, Context
 from tortoise import BaseDBAsyncClient, Tortoise
+import sys
 
 
 def get_app_connection_name(config, app) -> str:
@@ -37,7 +38,8 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     tortoise_config = splits[-1]
     try:
         config_module = importlib.import_module(config_path)
-    except (ModuleNotFoundError, AttributeError):
+    except (ModuleNotFoundError, AttributeError) as e:
+        sys.stderr.write(f"Import TORTOISE_ORM Error: {e}\n")
         raise BadOptionUsage(
             ctx=ctx, message=f'No config named "{config_path}"', option_name="--config"
         )
