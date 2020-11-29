@@ -3,6 +3,7 @@ import os
 import sys
 from configparser import ConfigParser
 from functools import wraps
+from pathlib import Path
 
 import click
 from click import Context, UsageError
@@ -66,7 +67,7 @@ async def cli(ctx: Context, config, app, name):
 
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
-        if not os.path.exists(config):
+        if not Path(config).exists():
             raise UsageError("You must exec init first", ctx=ctx)
         parser.read(config)
 
@@ -109,7 +110,7 @@ async def upgrade(ctx: Context):
             exists = False
         if not exists:
             async with in_transaction(get_app_connection_name(config, app)) as conn:
-                file_path = os.path.join(Migrate.migrate_location, version_file)
+                file_path = Path(Migrate.migrate_location, version_file)
                 content = get_version_content_from_file(file_path)
                 upgrade_query_list = content.get("upgrade")
                 for upgrade_query in upgrade_query_list:
@@ -163,7 +164,7 @@ async def downgrade(ctx: Context, version: int, delete: bool):
     for version in versions:
         file = version.version
         async with in_transaction(get_app_connection_name(config, app)) as conn:
-            file_path = os.path.join(Migrate.migrate_location, file)
+            file_path = Path(Migrate.migrate_location, file)
             content = get_version_content_from_file(file_path)
             downgrade_query_list = content.get("downgrade")
             if not downgrade_query_list:
@@ -224,7 +225,7 @@ async def init(
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]
-    if os.path.exists(config_file):
+    if Path(config_file).exists():
         return click.secho("You have inited", fg=Color.yellow)
 
     parser.add_section(name)
@@ -234,7 +235,7 @@ async def init(
     with open(config_file, "w", encoding="utf-8") as f:
         parser.write(f)
 
-    if not os.path.isdir(location):
+    if not Path(location).is_dir():
         os.mkdir(location)
 
     click.secho(f"Success create migrate location {location}", fg=Color.green)
@@ -256,8 +257,8 @@ async def init_db(ctx: Context, safe):
     location = ctx.obj["location"]
     app = ctx.obj["app"]
 
-    dirname = os.path.join(location, app)
-    if not os.path.isdir(dirname):
+    dirname = Path(location, app)
+    if not dirname.is_dir():
         os.mkdir(dirname)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
     else:
@@ -280,7 +281,7 @@ async def init_db(ctx: Context, safe):
     content = {
         "upgrade": [schema],
     }
-    write_version_file(os.path.join(dirname, version), content)
+    write_version_file(Path(dirname, version), content)
     click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
 
 
