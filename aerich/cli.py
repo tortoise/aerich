@@ -81,6 +81,8 @@ async def cli(ctx: Context, config, app, name):
         ctx.obj["app"] = app
         Migrate.app = app
         if invoked_subcommand != "init-db":
+            if not Path(location, app).exists():
+                raise UsageError("You must exec init-db first", ctx=ctx)
             await Migrate.init_with_old_models(tortoise_config, app, location)
 
 
@@ -123,7 +125,7 @@ async def upgrade(ctx: Context):
             click.secho(f"Success upgrade {version_file}", fg=Color.green)
             migrated = True
     if not migrated:
-        click.secho("No migrate items", fg=Color.yellow)
+        click.secho("No items to be migrated", fg=Color.yellow)
 
 
 @cli.command(help="Downgrade to specified version.")

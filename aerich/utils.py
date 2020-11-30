@@ -65,10 +65,13 @@ def get_version_content_from_file(version_file: str) -> Dict:
     with open(version_file, "r", encoding="utf-8") as f:
         content = f.read()
         first = content.index(_UPGRADE)
-        second = content.index(_DOWNGRADE)
+        try:
+            second = content.index(_DOWNGRADE)
+        except ValueError:
+            second = len(content) - 1
         upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
         downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
-        ret = {"upgrade": upgrade_content.split("\n"), "downgrade": downgrade_content.split("\n")}
+        ret = {"upgrade": upgrade_content.split(";\n"), "downgrade": downgrade_content.split(";\n")}
         return ret
 
 
@@ -85,7 +88,10 @@ def write_version_file(version_file: str, content: Dict):
         if len(upgrade) > 1:
             f.write(";\n".join(upgrade) + ";\n")
         else:
-            f.write(f"{upgrade[0]};\n")
+            f.write(f"{upgrade[0]}")
+            if not upgrade[0].endswith(";"):
+                f.write(";")
+            f.write("\n")
         downgrade = content.get("downgrade")
         if downgrade:
             f.write(_DOWNGRADE)

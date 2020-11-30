@@ -5,6 +5,7 @@
 ### 0.4.2
 
 - Use `pathlib` for path resolving. (#89)
+- Fix upgrade in new db. (#96)
 
 ### 0.4.1
 
