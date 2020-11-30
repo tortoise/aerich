@@ -71,7 +71,10 @@ def get_version_content_from_file(version_file: str) -> Dict:
             second = len(content) - 1
         upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
         downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
-        ret = {"upgrade": upgrade_content.split(";\n"), "downgrade": downgrade_content.split(";\n")}
+        ret = {
+            "upgrade": list(filter(lambda x: x or False, upgrade_content.split(";\n"))),
+            "downgrade": list(filter(lambda x: x or False, downgrade_content.split(";\n"))),
+        }
         return ret
 
 

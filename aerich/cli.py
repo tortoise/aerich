@@ -125,7 +125,7 @@ async def upgrade(ctx: Context):
             click.secho(f"Success upgrade {version_file}", fg=Color.green)
             migrated = True
     if not migrated:
-        click.secho("No items to be migrated", fg=Color.yellow)
+        click.secho("No upgrade items found", fg=Color.yellow)
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -170,7 +170,8 @@ async def downgrade(ctx: Context, version: int, delete: bool):
             content = get_version_content_from_file(file_path)
             downgrade_query_list = content.get("downgrade")
             if not downgrade_query_list:
-                return click.secho("No downgrade items found", fg=Color.yellow)
+                click.secho("No downgrade items found", fg=Color.yellow)
+                return
             for downgrade_query in downgrade_query_list:
                 await conn.execute_query(downgrade_query)
             await version.delete()
