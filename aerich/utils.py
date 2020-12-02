@@ -5,14 +5,20 @@ from click import BadOptionUsage, Context
 from tortoise import BaseDBAsyncClient, Tortoise
 
 
-def get_app_connection_name(config, app) -> str:
+def get_app_connection_name(config, app_name: str) -> str:
     """
     get connection name
     :param config:
-    :param app:
+    :param app_name:
     :return:
     """
-    return config.get("apps").get(app).get("default_connection", "default")
+    app = config.get("apps").get(app_name)
+    if app:
+        return app.get("default_connection", "default")
+    raise BadOptionUsage(
+        option_name="--app",
+        message=f'Can\'t get app named "{app_name}"',
+    )
 
 
 def get_app_connection(config, app) -> BaseDBAsyncClient:

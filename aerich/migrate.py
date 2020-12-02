@@ -5,11 +5,9 @@ from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type
 
 import click
-from packaging import version
-from packaging.version import LegacyVersion, Version
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -45,7 +43,7 @@ class Migrate:
     app: str
     migrate_location: str
     dialect: str
-    _db_version: Union[LegacyVersion, Version] = None
+    _db_version: Optional[str] = None
 
     @classmethod
     def get_old_model_file(cls, app: str, location: str):
@@ -77,7 +75,7 @@ class Migrate:
         if cls.dialect == "mysql":
             sql = "select version() as version"
             ret = await connection.execute_query(sql)
-            cls._db_version = version.parse(ret[1][0].get("version"))
+            cls._db_version = ret[1][0].get("version")
 
     @classmethod
     async def init_with_old_models(cls, config: dict, app: str, location: str):
@@ -315,7 +313,7 @@ class Migrate:
                             if (
                                 cls.dialect == "mysql"
                                 and cls._db_version
-                                and cls._db_version.major == 5
+                                and cls._db_version.startswith("5.")
                             ):
                                 cls._add_operator(
                                     cls._change_field(new_model, old_field, new_field),
