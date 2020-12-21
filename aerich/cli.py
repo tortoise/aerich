@@ -156,9 +156,7 @@ async def downgrade(ctx: Context, version: int, delete: bool):
     if version == -1:
         specified_version = await Migrate.get_last_version()
     else:
-        specified_version = await Aerich.filter(
-            app=app, version__startswith=f"{version}_"
-        ).first()
+        specified_version = await Aerich.filter(app=app, version__startswith=f"{version}_").first()
     if not specified_version:
         return click.secho("No specified version found", fg=Color.yellow)
     if version == -1:
