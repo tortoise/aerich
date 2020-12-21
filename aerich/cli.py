@@ -156,7 +156,9 @@ async def downgrade(ctx: Context, version: int, delete: bool):
     if version == -1:
         specified_version = await Migrate.get_last_version()
     else:
-        specified_version = await Aerich.filter(app=app, version__startswith=f"{version}_").first()
+        specified_version = await Aerich.filter(
+            app=app, version__startswith=f"{version}_"
+        ).first()
     if not specified_version:
         return click.secho("No specified version found", fg=Color.yellow)
     if version == -1:
@@ -238,8 +240,7 @@ async def init(
     with open(config_file, "w", encoding="utf-8") as f:
         parser.write(f)
 
-    if not Path(location).is_dir():
-        os.mkdir(location)
+    Path(location).mkdir(parents=True, exist_ok=True)
 
     click.secho(f"Success create migrate location {location}", fg=Color.green)
     click.secho(f"Success generate config file {config_file}", fg=Color.green)
@@ -261,10 +262,10 @@ async def init_db(ctx: Context, safe):
     app = ctx.obj["app"]
 
     dirname = Path(location, app)
-    if not dirname.is_dir():
-        os.mkdir(dirname)
+    try:
+        dirname.mkdir(parents=True)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
-    else:
+    except FileExistsError:
         return click.secho(
             f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
         )
