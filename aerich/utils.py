@@ -58,8 +58,8 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     return config
 
 
-_UPGRADE = "##### upgrade #####\n"
-_DOWNGRADE = "##### downgrade #####\n"
+_UPGRADE = "-- upgrade --\n"
+_DOWNGRADE = "-- downgrade --\n"
 
 
 def get_version_content_from_file(version_file: str) -> Dict:
