@@ -2,6 +2,11 @@
 
 ## 0.4
 
+### 0.4.3
+
+- Replace migrations separator to sql standard comment.
+- Add `inspectdb` command.
+
 ### 0.4.2
 
 - Use `pathlib` for path resolving. (#89)
@@ -41,10 +46,10 @@
 - Refactoring migrate logic, and this version is not compatible with previous version.
 - Now there don't need `old_models.py` and it store in database.
 - Upgrade steps:
-  1. Upgrade aerich version.
-  2. Drop aerich table in database.
-  3. Delete `migrations/{app}` folder and rerun `aerich init-db`.
-  4. Update model and `aerich migrate` normally.
+    1. Upgrade aerich version.
+    2. Drop aerich table in database.
+    3. Delete `migrations/{app}` folder and rerun `aerich init-db`.
+    4. Update model and `aerich migrate` normally.
 
 ## 0.2
 
