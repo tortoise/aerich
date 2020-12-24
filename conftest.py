@@ -36,7 +36,7 @@ def reset_migrate():
     Migrate._downgrade_m2m = []
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def event_loop():
     policy = asyncio.get_event_loop_policy()
     res = policy.new_event_loop()

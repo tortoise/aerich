@@ -4,6 +4,7 @@ import sys
 from configparser import ConfigParser
 from functools import wraps
 from pathlib import Path
+from typing import List
 
 import click
 from click import Context, UsageError
@@ -12,6 +13,7 @@ from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
+from aerich.inspectdb import InspectDb
 from aerich.migrate import Migrate
 from aerich.utils import (
     get_app_connection,
@@ -286,6 +288,25 @@ async def init_db(ctx: Context, safe):
     }
     write_version_file(Path(dirname, version), content)
     click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
+
+
+@cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
+@click.option(
+    "-t",
+    "--table",
+    help="Which tables to inspect.",
+    multiple=True,
+    required=False,
+)
+@click.pass_context
+@coro
+async def inspectdb(ctx: Context, table: List[str]):
+    config = ctx.obj["config"]
+    app = ctx.obj["app"]
+    connection = get_app_connection(config, app)
+
+    inspect = InspectDb(connection, table)
+    await inspect.inspect()
 
 
 def main():
