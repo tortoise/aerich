@@ -7,8 +7,8 @@
 
 ## Introduction
 
-Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s
-own migrations solution.
+Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s own
+migrations solution.
 
 **Important: You can only use absolutely import in your `models.py` to make `aerich` work.**
 
@@ -40,14 +40,14 @@ Commands:
   history    List all migrate items.
   init       Init config file and generate root migrate location.
   init-db    Generate schema and generate app migrate location.
+  inspectdb  Introspects the database tables to standard output as...
   migrate    Generate migrate changes file.
   upgrade    Upgrade to latest version.
 ```
 
 ## Usage
 
-You need add `aerich.models` to your `Tortoise-ORM` config first,
-example:
+You need add `aerich.models` to your `Tortoise-ORM` config first, example:
 
 ```python
 TORTOISE_ORM = {
@@ -109,7 +109,8 @@ Success migrate 1_202029051520102929_drop_column.sql
 Format of migrate filename is
 `{version_num}_{datetime}_{name|update}.sql`.
 
-And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can choice `True` to rename column without column drop, or choice `False` to drop column then create.
+And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can
+choice `True` to rename column without column drop, or choice `False` to drop column then create.
 
 ### Upgrade to latest version
 
@@ -163,6 +164,33 @@ Now your db rollback to specified version.
 1_202029051520102929_drop_column.sql
 ```
 
+### Inspect db tables to TortoiseORM model
+
+```shell
+Usage: aerich inspectdb [OPTIONS]
+
+  Introspects the database tables to standard output as TortoiseORM model.
+
+Options:
+  -t, --table TEXT  Which tables to inspect.
+  -h, --help        Show this message and exit.
+```
+
+Inspect all tables and print to console:
+
+```shell
+aerich --app models inspectdb -t user 
+```
+
+Inspect a specified table in default app and redirect to `models.py`:
+
+```shell
+aerich inspectdb -t user > models.py
+```
+
+Note that this command is restricted, which is not supported in some solutions, such as `IntEnumField`
+and `ForeignKeyField` and so on.
+
 ### Multiple databases
 
 ```python
@@ -173,7 +201,7 @@ tortoise_orm = {
     },
     "apps": {
         "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
-        "models_second": {"models": ["tests.models_second"], "default_connection": "second",},
+        "models_second": {"models": ["tests.models_second"], "default_connection": "second", },
     },
 }
 ```
