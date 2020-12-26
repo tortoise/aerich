@@ -5,6 +5,7 @@ from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
+from types import ModuleType
 from typing import Dict, List, Optional, Tuple, Type
 
 import click
@@ -210,7 +211,10 @@ class Migrate:
         old_model_files = []
         models = config.get("apps").get(app).get("models")
         for model in models:
-            module = import_module(model)
+            if isinstance(model, ModuleType):
+                module = model
+            else:
+                module = import_module(model)
             possible_models = [getattr(module, attr_name) for attr_name in dir(module)]
             for attr in filter(
                 lambda x: inspect.isclass(x) and issubclass(x, Model) and x is not Model,
