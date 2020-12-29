@@ -4,7 +4,7 @@
 
 ### 0.4.4
 
-- Fixed unnecessary import. (#113)
+- Fix unnecessary import. (#113)
 
 ### 0.4.3
 
