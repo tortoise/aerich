@@ -2,6 +2,10 @@
 
 ## 0.4
 
+### 0.4.4
+
+- Fixed unnecessary import. (#113)
+
 ### 0.4.3
 
 - Replace migrations separator to sql standard comment.

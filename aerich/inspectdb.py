@@ -3,7 +3,6 @@ from typing import List, Optional
 
 from ddlparse import DdlParse
 from tortoise import BaseDBAsyncClient
-from tortoise.backends.mysql.client import MySQLSchemaGenerator
 
 
 class InspectDb:
@@ -24,7 +23,7 @@ class InspectDb:
         self.DIALECT = conn.schema_generator.DIALECT
 
     async def show_create_tables(self):
-        if self.DIALECT == MySQLSchemaGenerator.DIALECT:
+        if self.DIALECT == "mysql":
             if not self.tables:
                 sql_tables = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{self.conn.database}';"  # nosec: B608
                 ret = await self.conn.execute_query(sql_tables)
