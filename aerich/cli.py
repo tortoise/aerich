@@ -39,6 +39,7 @@ def coro(f):
         app = ctx.obj.get("app")
         if app:
             Migrate.remove_old_model_file(app, ctx.obj["location"])
+        loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper
 
