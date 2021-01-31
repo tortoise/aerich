@@ -140,7 +140,7 @@ class BaseDDL:
         )
 
     def change_column(
-        self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
+            self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
     ):
         return self._CHANGE_COLUMN_TEMPLATE.format(
             table_name=model._meta.db_table,
@@ -167,26 +167,23 @@ class BaseDDL:
             table_name=model._meta.db_table,
         )
 
-    def add_fk(self, model: "Type[Model]", field: ForeignKeyFieldInstance):
+    def add_fk(self, model: "Type[Model]", field: dict):
         db_table = model._meta.db_table
-        to_field_name = field.to_field_instance.source_field
-        if not to_field_name:
-            to_field_name = field.to_field_instance.model_field_name
 
-        db_column = field.source_field or field.model_field_name + "_id"
+        db_column = field.get('db_column')
         fk_name = self.schema_generator._generate_fk_name(
             from_table=db_table,
             from_field=db_column,
             to_table=field.related_model._meta.db_table,
-            to_field=to_field_name,
+            to_field=db_column,
         )
         return self._ADD_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=fk_name,
             db_column=db_column,
             table=field.related_model._meta.db_table,
-            field=to_field_name,
-            on_delete=field.on_delete,
+            field=db_column,
+            on_delete=field.get('on_delete'),
         )
 
     def drop_fk(self, model: "Type[Model]", field: ForeignKeyFieldInstance):

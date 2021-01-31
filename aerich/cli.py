@@ -18,6 +18,7 @@ from aerich.migrate import Migrate
 from aerich.utils import (
     get_app_connection,
     get_app_connection_name,
+    get_models_describe,
     get_tortoise_config,
     get_version_content_from_file,
     write_version_file,
@@ -34,11 +35,7 @@ def coro(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
-        ctx = args[0]
         loop.run_until_complete(f(*args, **kwargs))
-        app = ctx.obj.get("app")
-        if app:
-            Migrate.remove_old_model_file(app, ctx.obj["location"])
         loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper
@@ -86,7 +83,7 @@ async def cli(ctx: Context, config, app, name):
         if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
                 raise UsageError("You must exec init-db first", ctx=ctx)
-            await Migrate.init_with_old_models(tortoise_config, app, location)
+            await Migrate.init(tortoise_config, app, location)
 
 
 @cli.command(help="Generate migrate changes file.")
@@ -106,7 +103,6 @@ async def migrate(ctx: Context, name):
 async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
-    location = ctx.obj["location"]
     migrated = False
     for version_file in Migrate.get_all_version_files():
         try:
@@ -123,7 +119,7 @@ async def upgrade(ctx: Context):
                 await Aerich.create(
                     version=version_file,
                     app=app,
-                    content=Migrate.get_models_content(config, app, location),
+                    content=get_models_describe(app),
                 )
             click.secho(f"Success upgrade {version_file}", fg=Color.green)
             migrated = True
@@ -281,7 +277,7 @@ async def init_db(ctx: Context, safe):
     await Aerich.create(
         version=version,
         app=app,
-        content=Migrate.get_models_content(config, app, location),
+        content=get_models_describe(app),
     )
     content = {
         "upgrade": [schema],

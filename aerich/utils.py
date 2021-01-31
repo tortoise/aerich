@@ -108,3 +108,16 @@ def write_version_file(version_file: str, content: Dict):
                 f.write(";\n".join(downgrade) + ";\n")
             else:
                 f.write(f"{downgrade[0]};\n")
+
+
+def get_models_describe(app: str) -> Dict:
+    """
+    get app models describe
+    :param app:
+    :return:
+    """
+    ret = {}
+    for model in Tortoise.apps.get(app).values():
+        describe = model.describe()
+        ret[describe.get("name")] = describe
+    return ret
