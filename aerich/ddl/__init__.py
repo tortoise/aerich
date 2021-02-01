@@ -84,25 +84,27 @@ class BaseDDL:
             default = ""
         return default
 
-    def add_column(self, model: "Type[Model]", field_object: Field):
+    def add_column(self, model: "Type[Model]", field_describe: dict, is_pk: bool = False):
         db_table = model._meta.db_table
-
+        description = field_describe.get("description")
+        db_column = field_describe.get("db_column")
+        db_field_types = field_describe.get("db_field_types")
         return self._ADD_COLUMN_TEMPLATE.format(
             table_name=db_table,
             column=self.schema_generator._create_string(
-                db_column=field_object.model_field_name,
-                field_type=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE"),
-                nullable="NOT NULL" if not field_object.null else "",
-                unique="UNIQUE" if field_object.unique else "",
+                db_column=db_column,
+                field_type=db_field_types.get(self.DIALECT, db_field_types.get("")),
+                nullable="NOT NULL" if not field_describe.get("nullable") else "",
+                unique="UNIQUE" if field_describe.get("unique") else "",
                 comment=self.schema_generator._column_comment_generator(
                     table=db_table,
-                    column=field_object.model_field_name,
-                    comment=field_object.description,
+                    column=db_column,
+                    comment=field_describe.get("description"),
                 )
-                if field_object.description
+                if description
                 else "",
-                is_primary_key=field_object.pk,
-                default=self._get_default(model, field_object),
+                is_primary_key=is_pk,
+                default=field_describe.get("default"),
             ),
         )
 
@@ -140,7 +142,7 @@ class BaseDDL:
         )
 
     def change_column(
-            self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
+        self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
     ):
         return self._CHANGE_COLUMN_TEMPLATE.format(
             table_name=model._meta.db_table,
@@ -170,7 +172,7 @@ class BaseDDL:
     def add_fk(self, model: "Type[Model]", field: dict):
         db_table = model._meta.db_table
 
-        db_column = field.get('db_column')
+        db_column = field.get("db_column")
         fk_name = self.schema_generator._generate_fk_name(
             from_table=db_table,
             from_field=db_column,
@@ -183,7 +185,7 @@ class BaseDDL:
             db_column=db_column,
             table=field.related_model._meta.db_table,
             field=db_column,
-            on_delete=field.get('on_delete'),
+            on_delete=field.get("on_delete"),
         )
 
     def drop_fk(self, model: "Type[Model]", field: ForeignKeyFieldInstance):
