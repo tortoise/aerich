@@ -28,12 +28,12 @@ class User(Model):
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
     avatar = fields.CharField(max_length=200, default="")
+    intro = fields.TextField(default="")
 
 
 class Email(Model):
     email = fields.CharField(max_length=200)
     is_primary = fields.BooleanField(default=False)
-    user = fields.ForeignKeyField("models.User", db_constraint=False)
 
 
 class Category(Model):

@@ -59,17 +59,16 @@ class BaseDDL:
     def drop_m2m(self, field: ManyToManyFieldInstance):
         return self._DROP_TABLE_TEMPLATE.format(table_name=field.through)
 
-    def _get_default(self, model: "Type[Model]", field_object: Field):
+    def _get_default(self, model: "Type[Model]", field_describe: dict):
         db_table = model._meta.db_table
-        default = field_object.default
-        db_column = field_object.model_field_name
-        auto_now_add = getattr(field_object, "auto_now_add", False)
-        auto_now = getattr(field_object, "auto_now", False)
+        default = field_describe.get('default')
+        db_column = field_describe.get('db_column')
+        auto_now_add = field_describe.get("auto_now_add", False)
+        auto_now = field_describe.get( "auto_now", False)
         if default is not None or auto_now_add:
-            if callable(default) or isinstance(field_object, (UUIDField, TextField, JSONField)):
+            if field_describe.get('field_type')in ['UUIDField', 'TextField', 'JSONField']:
                 default = ""
             else:
-                default = field_object.to_db_value(default, model)
                 try:
                     default = self.schema_generator._column_default_generator(
                         db_table,
@@ -104,13 +103,13 @@ class BaseDDL:
                 if description
                 else "",
                 is_primary_key=is_pk,
-                default=field_describe.get("default"),
+                default=self._get_default(model,field_describe),
             ),
         )
 
-    def drop_column(self, model: "Type[Model]", column_name: str):
+    def drop_column(self, model: "Type[Model]", field_describe: dict):
         return self._DROP_COLUMN_TEMPLATE.format(
-            table_name=model._meta.db_table, column_name=column_name
+            table_name=model._meta.db_table, column_name=field_describe.get('db_column')
         )
 
     def modify_column(self, model: "Type[Model]", field_object: Field):
@@ -142,7 +141,7 @@ class BaseDDL:
         )
 
     def change_column(
-        self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
+            self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
     ):
         return self._CHANGE_COLUMN_TEMPLATE.format(
             table_name=model._meta.db_table,
@@ -169,37 +168,34 @@ class BaseDDL:
             table_name=model._meta.db_table,
         )
 
-    def add_fk(self, model: "Type[Model]", field: dict):
+    def add_fk(self, model: "Type[Model]", field_describe: dict, field_describe_target: dict):
         db_table = model._meta.db_table
 
-        db_column = field.get("db_column")
+        db_column = field_describe.get("raw_field")
         fk_name = self.schema_generator._generate_fk_name(
             from_table=db_table,
             from_field=db_column,
-            to_table=field.related_model._meta.db_table,
+            to_table=field_describe.get('name'),
             to_field=db_column,
         )
         return self._ADD_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=fk_name,
             db_column=db_column,
-            table=field.related_model._meta.db_table,
+            table=field_describe.get('name'),
             field=db_column,
-            on_delete=field.get("on_delete"),
+            on_delete=field_describe.get('on_delete'),
         )
 
-    def drop_fk(self, model: "Type[Model]", field: ForeignKeyFieldInstance):
-        to_field_name = field.to_field_instance.source_field
-        if not to_field_name:
-            to_field_name = field.to_field_instance.model_field_name
+    def drop_fk(self, model: "Type[Model]", field_describe: dict, field_describe_target: dict):
         db_table = model._meta.db_table
         return self._DROP_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=self.schema_generator._generate_fk_name(
                 from_table=db_table,
-                from_field=field.source_field or field.model_field_name + "_id",
-                to_table=field.related_model._meta.db_table,
-                to_field=to_field_name,
+                from_field=field_describe.get('raw_field'),
+                to_table=field_describe.get('name'),
+                to_field=field_describe_target.get('db_column'),
             ),
         )
 

@@ -16,13 +16,12 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tortoise-orm = "*"
+tortoise-orm = "^0.16.21"
 click = "*"
 pydantic = "*"
-aiomysql = {version = "*", optional = true}
-asyncpg = {version = "*", optional = true}
+aiomysql = { version = "*", optional = true }
+asyncpg = { version = "*", optional = true }
 ddlparse = "*"
-dictdiffer = "*"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"

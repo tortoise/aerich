@@ -36,7 +36,6 @@ def coro(f):
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(f(*args, **kwargs))
-        loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper
 
@@ -221,9 +220,9 @@ async def history(ctx: Context):
 @click.pass_context
 @coro
 async def init(
-    ctx: Context,
-    tortoise_orm,
-    location,
+        ctx: Context,
+        tortoise_orm,
+        location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]

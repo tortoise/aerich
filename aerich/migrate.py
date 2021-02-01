@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 
-from dictdiffer import diff
+import click
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -204,30 +204,49 @@ class Migrate:
         :param upgrade:
         :return:
         """
-        for change in diff(old_model_describe, new_model_describe):
-            action, field_type, fields = change
-            is_pk = field_type == "pk_field"
-            if action == "add":
-                for field in fields:
-                    _, field_describe = field
-                    cls._add_operator(
-                        cls._add_field(
-                            cls._get_model(new_model_describe.get("name").split(".")[1]),
-                            field_describe,
-                            is_pk,
-                        ),
-                        upgrade,
-                    )
-            elif action == "remove":
-                for field in fields:
-                    _, field_describe = field
-                    cls._add_operator(
-                        cls._remove_field(
-                            cls._get_model(new_model_describe.get("name").split(".")[1]),
-                            field_describe,
-                        ),
-                        upgrade,
-                    )
+
+        old_unique_together = old_model_describe.get('unique_together')
+        new_unique_together = new_model_describe.get('unique_together')
+
+        old_data_fields = old_model_describe.get('data_fields')
+        new_data_fields = new_model_describe.get('data_fields')
+
+        old_data_fields_name = list(map(lambda x: x.get('name'), old_data_fields))
+        new_data_fields_name = list(map(lambda x: x.get('name'), new_data_fields))
+
+        model = cls._get_model(new_model_describe.get('name').split('.')[1])
+        # add fields
+        for new_data_field_name in set(new_data_fields_name).difference(set(old_data_fields_name)):
+            cls._add_operator(
+                cls._add_field(model, next(filter(lambda x: x.get('name') == new_data_field_name, new_data_fields))),
+                upgrade)
+        # remove fields
+        for old_data_field_name in set(old_data_fields_name).difference(set(new_data_fields_name)):
+            cls._add_operator(
+                cls._remove_field(model, next(filter(lambda x: x.get('name') == old_data_field_name, old_data_fields))),
+                upgrade)
+
+        old_fk_fields = old_model_describe.get('fk_fields')
+        new_fk_fields = new_model_describe.get('fk_fields')
+
+        old_fk_fields_name = list(map(lambda x: x.get('name'), old_fk_fields))
+        new_fk_fields_name = list(map(lambda x: x.get('name'), new_fk_fields))
+
+        # add fk
+        for new_fk_field_name in set(new_fk_fields_name).difference(set(old_fk_fields_name)):
+            fk_field = next(filter(lambda x: x.get('name') == new_fk_field_name, new_fk_fields))
+            cls._add_operator(
+                cls._add_fk(model, fk_field,
+                            next(filter(lambda x: x.get('db_column') == fk_field.get('raw_field'), new_data_fields))),
+                upgrade)
+        # drop fk
+        for old_fk_field_name in set(old_fk_fields_name).difference(set(new_fk_fields_name)):
+            old_fk_field = next(filter(lambda x: x.get('name') == old_fk_field_name, old_fk_fields))
+            cls._add_operator(
+                cls._drop_fk(
+                    model, old_fk_field,
+                    next(filter(lambda x: x.get('db_column') == old_fk_field.get('raw_field'), old_data_fields))),
+                upgrade)
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
@@ -273,12 +292,8 @@ class Migrate:
         return isinstance(field, (BackwardFKRelation, BackwardOneToOneRelation))
 
     @classmethod
-    def _add_field(cls, model: Type[Model], field: dict, is_pk: bool = False):
-        if field.get("field_type") == "ForeignKeyFieldInstance":
-            return cls.ddl.add_fk(model, field)
-        if field.get("field_type") == "ManyToManyFieldInstance":
-            return cls.ddl.create_m2m_table(model, field)
-        return cls.ddl.add_column(model, field, is_pk)
+    def _add_field(cls, model: Type[Model], field_describe: dict, is_pk: bool = False):
+        return cls.ddl.add_column(model, field_describe, is_pk)
 
     @classmethod
     def _alter_default(cls, model: Type[Model], field: Field):
@@ -297,16 +312,12 @@ class Migrate:
         return cls.ddl.modify_column(model, field)
 
     @classmethod
-    def _drop_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
-        return cls.ddl.drop_fk(model, field)
+    def _drop_fk(cls, model: Type[Model], field_describe: dict, field_describe_target: dict):
+        return cls.ddl.drop_fk(model, field_describe, field_describe_target)
 
     @classmethod
-    def _remove_field(cls, model: Type[Model], field: Field):
-        if isinstance(field, ForeignKeyFieldInstance):
-            return cls.ddl.drop_fk(model, field)
-        if isinstance(field, ManyToManyFieldInstance):
-            return cls.ddl.drop_m2m(field)
-        return cls.ddl.drop_column(model, field.model_field_name)
+    def _remove_field(cls, model: Type[Model], field_describe: dict):
+        return cls.ddl.drop_column(model, field_describe)
 
     @classmethod
     def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
@@ -322,24 +333,14 @@ class Migrate:
         )
 
     @classmethod
-    def _add_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
+    def _add_fk(cls, model: Type[Model], field_describe: dict, field_describe_target: dict):
         """
         add fk
         :param model:
         :param field:
         :return:
         """
-        return cls.ddl.add_fk(model, field)
-
-    @classmethod
-    def _remove_fk(cls, model: Type[Model], field: ForeignKeyFieldInstance):
-        """
-        drop fk
-        :param model:
-        :param field:
-        :return:
-        """
-        return cls.ddl.drop_fk(model, field)
+        return cls.ddl.add_fk(model, field_describe, field_describe_target)
 
     @classmethod
     def _merge_operators(cls):

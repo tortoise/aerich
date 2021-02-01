@@ -58,7 +58,7 @@ def test_drop_table():
 
 
 def test_add_column():
-    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name"))
+    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL"
     else:
@@ -180,7 +180,7 @@ def test_drop_index():
 
 
 def test_add_fk():
-    ret = Migrate.ddl.add_fk(Category, Category._meta.fields_map.get("user"))
+    ret = Migrate.ddl.add_fk(Category, Category._meta.fields_map.get("user").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
             ret
