@@ -22,6 +22,7 @@ pydantic = "*"
 aiomysql = { version = "*", optional = true }
 asyncpg = { version = "*", optional = true }
 ddlparse = "*"
+dictdiffer = "*"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"

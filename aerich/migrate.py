@@ -2,8 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
-
-import click
+from dictdiffer import diff
 from tortoise import (
     BackwardFKRelation,
     BackwardOneToOneRelation,
@@ -191,7 +190,7 @@ class Migrate:
                 model = cls._get_model(new_model_describe.get("name").split(".")[1])
                 # add fields
                 for new_data_field_name in set(new_data_fields_name).difference(
-                    set(old_data_fields_name)
+                        set(old_data_fields_name)
                 ):
                     cls._add_operator(
                         cls._add_field(
@@ -206,7 +205,7 @@ class Migrate:
                     )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
-                    set(new_data_fields_name)
+                        set(new_data_fields_name)
                 ):
                     cls._add_operator(
                         cls._remove_field(
@@ -227,7 +226,7 @@ class Migrate:
 
                 # add fk
                 for new_fk_field_name in set(new_fk_fields_name).difference(
-                    set(old_fk_fields_name)
+                        set(old_fk_fields_name)
                 ):
                     fk_field = next(
                         filter(lambda x: x.get("name") == new_fk_field_name, new_fk_fields)
@@ -238,7 +237,7 @@ class Migrate:
                     )
                 # drop fk
                 for old_fk_field_name in set(old_fk_fields_name).difference(
-                    set(new_fk_fields_name)
+                        set(new_fk_fields_name)
                 ):
                     old_fk_field = next(
                         filter(lambda x: x.get("name") == old_fk_field_name, old_fk_fields)
@@ -257,7 +256,26 @@ class Migrate:
                     new_data_field = next(
                         filter(lambda x: x.get("name") == field_name, new_data_fields)
                     )
-
+                    changes = diff(old_data_field, new_data_field)
+                    for change in changes:
+                        _, option, old_new = change
+                        if option == 'indexed':
+                            # change index
+                            unique = new_data_field.get('unique')
+                            if old_new[0] is False and old_new[1] is True:
+                                cls._add_operator(
+                                    cls._add_index(
+                                        model, (field_name,), unique
+                                    ),
+                                    upgrade,
+                                )
+                            else:
+                                cls._add_operator(
+                                    cls._drop_index(
+                                        model, (field_name,), unique
+                                    ),
+                                    upgrade,
+                                )
         for old_model in old_models:
             if old_model not in new_models.keys():
                 cls._add_operator(cls.remove_model(cls._get_model(old_model)), upgrade)
@@ -285,7 +303,7 @@ class Migrate:
         return ret
 
     @classmethod
-    def _remove_index(cls, model: Type[Model], fields_name: Tuple[str], unique=False):
+    def _drop_index(cls, model: Type[Model], fields_name: Tuple[str], unique=False):
         fields_name = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, fields_name, unique)
 
@@ -363,7 +381,8 @@ class Migrate:
         """
         add fk
         :param model:
-        :param field:
+        :param field_describe:
+        :param reference_table_describe:
         :return:
         """
         return cls.ddl.add_fk(model, field_describe, reference_table_describe)
