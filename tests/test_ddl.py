@@ -180,7 +180,9 @@ def test_drop_index():
 
 
 def test_add_fk():
-    ret = Migrate.ddl.add_fk(Category, Category._meta.fields_map.get("user").describe(False))
+    ret = Migrate.ddl.add_fk(
+        Category, Category._meta.fields_map.get("user").describe(False), User.describe(False)
+    )
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
             ret
@@ -194,7 +196,9 @@ def test_add_fk():
 
 
 def test_drop_fk():
-    ret = Migrate.ddl.drop_fk(Category, Category._meta.fields_map.get("user"))
+    ret = Migrate.ddl.drop_fk(
+        Category, Category._meta.fields_map.get("user").describe(False), User.describe(False)
+    )
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`"
     elif isinstance(Migrate.ddl, PostgresDDL):

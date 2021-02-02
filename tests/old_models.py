@@ -24,7 +24,7 @@ class Status(IntEnum):
 class User(Model):
     username = fields.CharField(max_length=20)
     password = fields.CharField(max_length=200)
-    last_login_at = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
+    last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
     avatar = fields.CharField(max_length=200, default="")
@@ -34,17 +34,18 @@ class User(Model):
 class Email(Model):
     email = fields.CharField(max_length=200)
     is_primary = fields.BooleanField(default=False)
-    user = fields.ForeignKeyField("diff_models.User", db_constraint=True)
+    user = fields.ForeignKeyField("models.User", db_constraint=False)
 
 
 class Category(Model):
     slug = fields.CharField(max_length=200)
-    user = fields.ForeignKeyField("diff_models.User", description="User")
+    name = fields.CharField(max_length=200)
+    user = fields.ForeignKeyField("models.User", description="User")
     created_at = fields.DatetimeField(auto_now_add=True)
 
 
 class Product(Model):
-    categories = fields.ManyToManyField("diff_models.Category")
+    categories = fields.ManyToManyField("models.Category")
     name = fields.CharField(max_length=50)
     view_num = fields.IntField(description="View Num")
     sort = fields.IntField()

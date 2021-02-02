@@ -177,7 +177,86 @@ class Migrate:
             if new_model_str not in old_models.keys():
                 cls._add_operator(cls.add_model(cls._get_model(new_model_str)), upgrade)
             else:
-                cls.diff_model(old_models.get(new_model_str), new_model_describe, upgrade)
+                old_model_describe = old_models.get(new_model_str)
+
+                old_unique_together = old_model_describe.get("unique_together")
+                new_unique_together = new_model_describe.get("unique_together")
+
+                old_data_fields = old_model_describe.get("data_fields")
+                new_data_fields = new_model_describe.get("data_fields")
+
+                old_data_fields_name = list(map(lambda x: x.get("name"), old_data_fields))
+                new_data_fields_name = list(map(lambda x: x.get("name"), new_data_fields))
+
+                model = cls._get_model(new_model_describe.get("name").split(".")[1])
+                # add fields
+                for new_data_field_name in set(new_data_fields_name).difference(
+                    set(old_data_fields_name)
+                ):
+                    cls._add_operator(
+                        cls._add_field(
+                            model,
+                            next(
+                                filter(
+                                    lambda x: x.get("name") == new_data_field_name, new_data_fields
+                                )
+                            ),
+                        ),
+                        upgrade,
+                    )
+                # remove fields
+                for old_data_field_name in set(old_data_fields_name).difference(
+                    set(new_data_fields_name)
+                ):
+                    cls._add_operator(
+                        cls._remove_field(
+                            model,
+                            next(
+                                filter(
+                                    lambda x: x.get("name") == old_data_field_name, old_data_fields
+                                )
+                            ),
+                        ),
+                        upgrade,
+                    )
+                old_fk_fields = old_model_describe.get("fk_fields")
+                new_fk_fields = new_model_describe.get("fk_fields")
+
+                old_fk_fields_name = list(map(lambda x: x.get("name"), old_fk_fields))
+                new_fk_fields_name = list(map(lambda x: x.get("name"), new_fk_fields))
+
+                # add fk
+                for new_fk_field_name in set(new_fk_fields_name).difference(
+                    set(old_fk_fields_name)
+                ):
+                    fk_field = next(
+                        filter(lambda x: x.get("name") == new_fk_field_name, new_fk_fields)
+                    )
+                    cls._add_operator(
+                        cls._add_fk(model, fk_field, old_models.get(fk_field.get("python_type"))),
+                        upgrade,
+                    )
+                # drop fk
+                for old_fk_field_name in set(old_fk_fields_name).difference(
+                    set(new_fk_fields_name)
+                ):
+                    old_fk_field = next(
+                        filter(lambda x: x.get("name") == old_fk_field_name, old_fk_fields)
+                    )
+                    cls._add_operator(
+                        cls._drop_fk(
+                            model, old_fk_field, old_models.get(old_fk_field.get("python_type"))
+                        ),
+                        upgrade,
+                    )
+                # change fields
+                for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):
+                    old_data_field = next(
+                        filter(lambda x: x.get("name") == field_name, old_data_fields)
+                    )
+                    new_data_field = next(
+                        filter(lambda x: x.get("name") == field_name, new_data_fields)
+                    )
 
         for old_model in old_models:
             if old_model not in new_models.keys():
@@ -194,59 +273,6 @@ class Migrate:
     @classmethod
     def remove_model(cls, model: Type[Model]):
         return cls.ddl.drop_table(model)
-
-    @classmethod
-    def diff_model(cls, old_model_describe: dict, new_model_describe: dict, upgrade=True):
-        """
-        diff single model
-        :param old_model_describe:
-        :param new_model_describe:
-        :param upgrade:
-        :return:
-        """
-
-        old_unique_together = old_model_describe.get('unique_together')
-        new_unique_together = new_model_describe.get('unique_together')
-
-        old_data_fields = old_model_describe.get('data_fields')
-        new_data_fields = new_model_describe.get('data_fields')
-
-        old_data_fields_name = list(map(lambda x: x.get('name'), old_data_fields))
-        new_data_fields_name = list(map(lambda x: x.get('name'), new_data_fields))
-
-        model = cls._get_model(new_model_describe.get('name').split('.')[1])
-        # add fields
-        for new_data_field_name in set(new_data_fields_name).difference(set(old_data_fields_name)):
-            cls._add_operator(
-                cls._add_field(model, next(filter(lambda x: x.get('name') == new_data_field_name, new_data_fields))),
-                upgrade)
-        # remove fields
-        for old_data_field_name in set(old_data_fields_name).difference(set(new_data_fields_name)):
-            cls._add_operator(
-                cls._remove_field(model, next(filter(lambda x: x.get('name') == old_data_field_name, old_data_fields))),
-                upgrade)
-
-        old_fk_fields = old_model_describe.get('fk_fields')
-        new_fk_fields = new_model_describe.get('fk_fields')
-
-        old_fk_fields_name = list(map(lambda x: x.get('name'), old_fk_fields))
-        new_fk_fields_name = list(map(lambda x: x.get('name'), new_fk_fields))
-
-        # add fk
-        for new_fk_field_name in set(new_fk_fields_name).difference(set(old_fk_fields_name)):
-            fk_field = next(filter(lambda x: x.get('name') == new_fk_field_name, new_fk_fields))
-            cls._add_operator(
-                cls._add_fk(model, fk_field,
-                            next(filter(lambda x: x.get('db_column') == fk_field.get('raw_field'), new_data_fields))),
-                upgrade)
-        # drop fk
-        for old_fk_field_name in set(old_fk_fields_name).difference(set(new_fk_fields_name)):
-            old_fk_field = next(filter(lambda x: x.get('name') == old_fk_field_name, old_fk_fields))
-            cls._add_operator(
-                cls._drop_fk(
-                    model, old_fk_field,
-                    next(filter(lambda x: x.get('db_column') == old_fk_field.get('raw_field'), old_data_fields))),
-                upgrade)
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
@@ -312,8 +338,8 @@ class Migrate:
         return cls.ddl.modify_column(model, field)
 
     @classmethod
-    def _drop_fk(cls, model: Type[Model], field_describe: dict, field_describe_target: dict):
-        return cls.ddl.drop_fk(model, field_describe, field_describe_target)
+    def _drop_fk(cls, model: Type[Model], field_describe: dict, reference_table_describe: dict):
+        return cls.ddl.drop_fk(model, field_describe, reference_table_describe)
 
     @classmethod
     def _remove_field(cls, model: Type[Model], field_describe: dict):
@@ -333,14 +359,14 @@ class Migrate:
         )
 
     @classmethod
-    def _add_fk(cls, model: Type[Model], field_describe: dict, field_describe_target: dict):
+    def _add_fk(cls, model: Type[Model], field_describe: dict, reference_table_describe: dict):
         """
         add fk
         :param model:
         :param field:
         :return:
         """
-        return cls.ddl.add_fk(model, field_describe, field_describe_target)
+        return cls.ddl.add_fk(model, field_describe, reference_table_describe)
 
     @classmethod
     def _merge_operators(cls):

@@ -220,9 +220,9 @@ async def history(ctx: Context):
 @click.pass_context
 @coro
 async def init(
-        ctx: Context,
-        tortoise_orm,
-        location,
+    ctx: Context,
+    tortoise_orm,
+    location,
 ):
     config_file = ctx.obj["config_file"]
     name = ctx.obj["name"]

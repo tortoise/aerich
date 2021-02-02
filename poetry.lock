@@ -495,23 +495,30 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "tortoise-orm"
-version = "0.16.20"
+version = "0.16.21"
 description = "Easy async ORM for python, built with relations in mind"
 category = "main"
 optional = false
-python-versions = ">=3.7,<4.0"
+python-versions = "^3.7"
+develop = false
 
 [package.dependencies]
-aiosqlite = ">=0.16.0,<0.17.0"
-iso8601 = ">=0.1.13,<0.2.0"
-pypika = ">=0.44.0,<0.45.0"
-pytz = ">=2020.4,<2021.0"
+aiosqlite = "^0.16.0"
+iso8601 = "^0.1.13"
+pypika = "^0.44.0"
+pytz = "^2020.4"
 
 [package.extras]
-docs = ["pygments", "cloud-sptheme", "docutils", "sphinx"]
-aiomysql = ["aiomysql"]
+accel = ["ciso8601 (>=2.1.2,<3.0.0)", "uvloop (>=0.14.0,<0.15.0)", "python-rapidjson"]
 asyncpg = ["asyncpg"]
-accel = ["ciso8601 (>=2.1.2,<3.0.0)", "python-rapidjson", "uvloop (>=0.14.0,<0.15.0)"]
+aiomysql = ["aiomysql"]
+docs = ["sphinx", "cloud-sptheme", "pygments", "docutils"]
+
+[package.source]
+type = "git"
+url = "https://github.com/tortoise/tortoise-orm.git"
+reference = "develop"
+resolved_reference = "37bb36ef3a715b03d18c30452764b348eac21c21"
 
 [[package]]
 name = "typed-ast"
@@ -547,7 +554,7 @@ dbdrivers = ["aiomysql", "asyncpg"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "9adf7beba99d615c71a9148391386c9016cbafc7c11c5fc3ad81c8ec61026236"
+content-hash = "57603697a31bfe9829bf3706b607c62edb7a3c1b18f45db6752e2d2261f0db41"
 
 [metadata.files]
 aiomysql = [
@@ -828,10 +835,7 @@ toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
-tortoise-orm = [
-    {file = "tortoise-orm-0.16.20.tar.gz", hash = "sha256:a501eab941fcf2cea5bf58d2ac6cb3420457c307106985c06aa6282f1ac86687"},
-    {file = "tortoise_orm-0.16.20-py3-none-any.whl", hash = "sha256:de8802b2d03a3b6802e684d4afef9e86ae5ffed3b83ad096ef22723a066b54bb"},
-]
+tortoise-orm = []
 typed-ast = [
     {file = "typed_ast-1.4.2-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:7703620125e4fb79b64aa52427ec192822e9f45d37d4b6625ab37ef403e1df70"},
     {file = "typed_ast-1.4.2-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:c9aadc4924d4b5799112837b226160428524a9a45f830e0d0f184b19e4090487"},

@@ -61,12 +61,12 @@ class BaseDDL:
 
     def _get_default(self, model: "Type[Model]", field_describe: dict):
         db_table = model._meta.db_table
-        default = field_describe.get('default')
-        db_column = field_describe.get('db_column')
+        default = field_describe.get("default")
+        db_column = field_describe.get("db_column")
         auto_now_add = field_describe.get("auto_now_add", False)
-        auto_now = field_describe.get( "auto_now", False)
+        auto_now = field_describe.get("auto_now", False)
         if default is not None or auto_now_add:
-            if field_describe.get('field_type')in ['UUIDField', 'TextField', 'JSONField']:
+            if field_describe.get("field_type") in ["UUIDField", "TextField", "JSONField"]:
                 default = ""
             else:
                 try:
@@ -103,13 +103,13 @@ class BaseDDL:
                 if description
                 else "",
                 is_primary_key=is_pk,
-                default=self._get_default(model,field_describe),
+                default=self._get_default(model, field_describe),
             ),
         )
 
     def drop_column(self, model: "Type[Model]", field_describe: dict):
         return self._DROP_COLUMN_TEMPLATE.format(
-            table_name=model._meta.db_table, column_name=field_describe.get('db_column')
+            table_name=model._meta.db_table, column_name=field_describe.get("db_column")
         )
 
     def modify_column(self, model: "Type[Model]", field_object: Field):
@@ -141,7 +141,7 @@ class BaseDDL:
         )
 
     def change_column(
-            self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
+        self, model: "Type[Model]", old_column_name: str, new_column_name: str, new_column_type: str
     ):
         return self._CHANGE_COLUMN_TEMPLATE.format(
             table_name=model._meta.db_table,
@@ -168,34 +168,35 @@ class BaseDDL:
             table_name=model._meta.db_table,
         )
 
-    def add_fk(self, model: "Type[Model]", field_describe: dict, field_describe_target: dict):
+    def add_fk(self, model: "Type[Model]", field_describe: dict, reference_table_describe: dict):
         db_table = model._meta.db_table
 
         db_column = field_describe.get("raw_field")
+        reference_id = reference_table_describe.get("pk_field").get("db_column")
         fk_name = self.schema_generator._generate_fk_name(
             from_table=db_table,
             from_field=db_column,
-            to_table=field_describe.get('name'),
-            to_field=db_column,
+            to_table=reference_table_describe.get("table"),
+            to_field=reference_table_describe.get("pk_field").get("db_column"),
         )
         return self._ADD_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=fk_name,
             db_column=db_column,
-            table=field_describe.get('name'),
-            field=db_column,
-            on_delete=field_describe.get('on_delete'),
+            table=field_describe.get("name"),
+            field=reference_id,
+            on_delete=field_describe.get("on_delete"),
         )
 
-    def drop_fk(self, model: "Type[Model]", field_describe: dict, field_describe_target: dict):
+    def drop_fk(self, model: "Type[Model]", field_describe: dict, reference_table_describe: dict):
         db_table = model._meta.db_table
         return self._DROP_FK_TEMPLATE.format(
             table_name=db_table,
             fk_name=self.schema_generator._generate_fk_name(
                 from_table=db_table,
-                from_field=field_describe.get('raw_field'),
-                to_table=field_describe.get('name'),
-                to_field=field_describe_target.get('db_column'),
+                from_field=field_describe.get("raw_field"),
+                to_table=reference_table_describe.get("table"),
+                to_field=reference_table_describe.get("pk_field").get("db_column"),
             ),
         )
 

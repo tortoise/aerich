@@ -27,13 +27,13 @@ class User(Model):
     last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
-    avatar = fields.CharField(max_length=200, default="")
     intro = fields.TextField(default="")
 
 
 class Email(Model):
-    email = fields.CharField(max_length=200)
+    email = fields.CharField(max_length=200, index=True)
     is_primary = fields.BooleanField(default=False)
+    address = fields.CharField(max_length=200)
 
 
 class Category(Model):
@@ -60,3 +60,4 @@ class Config(Model):
     key = fields.CharField(max_length=20)
     value = fields.JSONField()
     status: Status = fields.IntEnumField(Status, default=Status.on)
+    user = fields.ForeignKeyField("models.User", description="User")
