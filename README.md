@@ -10,8 +10,9 @@
 Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s own
 migrations solution.
 
-**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**
+~~**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**~~
 
+From version `v0.5.0`, there is no such limitation now.
 ## Install
 
 Just install from pypi:
@@ -179,7 +180,7 @@ Options:
 Inspect all tables and print to console:
 
 ```shell
-aerich --app models inspectdb -t user 
+aerich --app models inspectdb
 ```
 
 Inspect a specified table in default app and redirect to `models.py`:
