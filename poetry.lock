@@ -532,7 +532,7 @@ docs = ["sphinx", "cloud-sptheme", "pygments", "docutils"]
 type = "git"
 url = "https://github.com/tortoise/tortoise-orm.git"
 reference = "develop"
-resolved_reference = "2739267e3dfcfea5e8e33347583de07d547837d6"
+resolved_reference = "a25c0fc76b5ef3822d55602fa4bea22b880984a0"
 
 [[package]]
 name = "typed-ast"
