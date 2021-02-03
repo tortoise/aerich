@@ -5,17 +5,8 @@ from typing import Dict, List, Optional, Tuple, Type
 
 import click
 from dictdiffer import diff
-from tortoise import (
-    BackwardFKRelation,
-    BackwardOneToOneRelation,
-    BaseDBAsyncClient,
-    ForeignKeyFieldInstance,
-    ManyToManyFieldInstance,
-    Model,
-    Tortoise,
-)
+from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import OperationalError
-from tortoise.fields import Field
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
@@ -359,10 +350,6 @@ class Migrate:
                 cls._add_operator(cls.remove_model(cls._get_model(old_model)), upgrade)
 
     @classmethod
-    def _is_fk_m2m(cls, field: Field):
-        return isinstance(field, (ForeignKeyFieldInstance, ManyToManyFieldInstance))
-
-    @classmethod
     def add_model(cls, model: Type[Model]):
         return cls.ddl.create_table(model)
 
@@ -389,29 +376,6 @@ class Migrate:
     def _add_index(cls, model: Type[Model], fields_name: Tuple[str], unique=False):
         fields_name = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.add_index(model, fields_name, unique)
-
-    @classmethod
-    def _exclude_field(cls, field: Field, upgrade=False):
-        """
-        exclude BackwardFKRelation and repeat m2m field
-        :param field:
-        :return:
-        """
-        if isinstance(field, ManyToManyFieldInstance):
-            through = field.through
-            if upgrade:
-                if through in cls._upgrade_m2m:
-                    return True
-                else:
-                    cls._upgrade_m2m.append(through)
-                    return False
-            else:
-                if through in cls._downgrade_m2m:
-                    return True
-                else:
-                    cls._downgrade_m2m.append(through)
-                    return False
-        return isinstance(field, (BackwardFKRelation, BackwardOneToOneRelation))
 
     @classmethod
     def _add_field(cls, model: Type[Model], field_describe: dict, is_pk: bool = False):

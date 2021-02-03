@@ -13,6 +13,7 @@ migrations solution.
 ~~**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**~~
 
 From version `v0.5.0`, there is no such limitation now.
+
 ## Install
 
 Just install from pypi:
@@ -111,7 +112,8 @@ Format of migrate filename is
 `{version_num}_{datetime}_{name|update}.sql`.
 
 And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can
-choice `True` to rename column without column drop, or choice `False` to drop column then create, note that the after maybe lose data.
+choice `True` to rename column without column drop, or choice `False` to drop column then create, note that the after
+maybe lose data.
 
 ### Upgrade to latest version
 
@@ -166,6 +168,8 @@ Now your db rollback to specified version.
 ```
 
 ### Inspect db tables to TortoiseORM model
+
+Currently, only support MySQL.
 
 ```shell
 Usage: aerich inspectdb [OPTIONS]
