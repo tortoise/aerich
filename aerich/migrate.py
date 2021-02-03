@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 
+import click
 from dictdiffer import diff
 from tortoise import (
     BackwardFKRelation,
@@ -183,6 +184,15 @@ class Migrate:
 
                 old_unique_together = old_model_describe.get("unique_together")
                 new_unique_together = new_model_describe.get("unique_together")
+                old_pk_field = old_model_describe.get("pk_field")
+                new_pk_field = new_model_describe.get("pk_field")
+                # pk field
+                changes = diff(old_pk_field, new_pk_field)
+                for action, option, change in changes:
+                    # current only support rename pk
+                    if action == "change" and option == "name":
+                        cls._add_operator(cls._rename_field(model, *change), upgrade)
+
                 # add unique_together
                 for index in set(new_unique_together).difference(set(old_unique_together)):
                     cls._add_operator(
@@ -202,25 +212,74 @@ class Migrate:
                 old_data_fields_name = list(map(lambda x: x.get("name"), old_data_fields))
                 new_data_fields_name = list(map(lambda x: x.get("name"), new_data_fields))
 
-                # add fields
+                # add fields or rename fields
                 for new_data_field_name in set(new_data_fields_name).difference(
                     set(old_data_fields_name)
                 ):
-                    cls._add_operator(
-                        cls._add_field(
-                            model,
-                            next(
-                                filter(
-                                    lambda x: x.get("name") == new_data_field_name, new_data_fields
-                                )
-                            ),
-                        ),
-                        upgrade,
+                    new_data_field = next(
+                        filter(lambda x: x.get("name") == new_data_field_name, new_data_fields)
                     )
+                    is_rename = False
+                    for old_data_field in old_data_fields:
+                        changes = list(diff(old_data_field, new_data_field))
+                        old_data_field_name = old_data_field.get("name")
+                        if len(changes) == 2:
+                            # rename field
+                            if changes[0] == (
+                                "change",
+                                "name",
+                                (old_data_field_name, new_data_field_name),
+                            ) and changes[1] == (
+                                "change",
+                                "db_column",
+                                (old_data_field.get("db_column"), new_data_field.get("db_column")),
+                            ):
+                                if upgrade:
+                                    is_rename = click.prompt(
+                                        f"Rename {old_data_field_name} to {new_data_field_name}?",
+                                        default=True,
+                                        type=bool,
+                                        show_choices=True,
+                                    )
+                                else:
+                                    is_rename = old_data_field_name in cls._rename_new
+                                if is_rename:
+                                    cls._rename_new.append(new_data_field_name)
+                                    cls._rename_old.append(old_data_field_name)
+                                    # only MySQL8+ has rename syntax
+                                    if (
+                                        cls.dialect == "mysql"
+                                        and cls._db_version
+                                        and cls._db_version.startswith("5.")
+                                    ):
+                                        cls._add_operator(
+                                            cls._change_field(
+                                                model, new_data_field, old_data_field
+                                            ),
+                                            upgrade,
+                                        )
+                                    else:
+                                        cls._add_operator(
+                                            cls._rename_field(model, *changes[1][2]),
+                                            upgrade,
+                                        )
+                    if not is_rename:
+                        cls._add_operator(
+                            cls._add_field(
+                                model,
+                                new_data_field,
+                            ),
+                            upgrade,
+                        )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
                     set(new_data_fields_name)
                 ):
+                    # don't remove field if is rename
+                    if (upgrade and old_data_field_name in cls._rename_old) or (
+                        not upgrade and old_data_field_name in cls._rename_new
+                    ):
+                        continue
                     cls._add_operator(
                         cls._remove_field(
                             model,
@@ -383,8 +442,8 @@ class Migrate:
         return cls.ddl.drop_column(model, column_name)
 
     @classmethod
-    def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
-        return cls.ddl.rename_column(model, old_field.model_field_name, new_field.model_field_name)
+    def _rename_field(cls, model: Type[Model], old_field_name: str, new_field_name: str):
+        return cls.ddl.rename_column(model, old_field_name, new_field_name)
 
     @classmethod
     def _change_field(cls, model: Type[Model], old_field_describe: dict, new_field_describe: dict):

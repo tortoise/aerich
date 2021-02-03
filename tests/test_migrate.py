@@ -1,4 +1,5 @@
 import pytest
+from pytest_mock import MockerFixture
 
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
@@ -731,9 +732,10 @@ old_models_describe = {
 }
 
 
-def test_migrate():
+def test_migrate(mocker: MockerFixture):
     """
     models.py diff with old_models.py
+    - change email pk: id -> email_id
     - add field: Email.address
     - add fk: Config.user
     - drop fk: Email.user
@@ -743,7 +745,10 @@ def test_migrate():
     - change column: length User.password
     - add unique_together: (name,type) of Product
     - alter default: Config.status
+    - rename column: Product.image -> Product.pic
     """
+    mocker.patch("click.prompt", side_effect=(False, True))
+
     models_describe = get_models_describe("models")
     Migrate.app = "models"
     if isinstance(Migrate.ddl, SqliteDDL):
@@ -762,6 +767,8 @@ def test_migrate():
                 "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
                 "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `user_id`",
+                "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
+                "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
                 "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_user_5b58673d`",
                 "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
                 "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_f14935` (`name`, `type`)",
@@ -779,6 +786,8 @@ def test_migrate():
                 "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
                 "ALTER TABLE `email` ADD `user_id` INT NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `address`",
+                "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
+                "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
                 "ALTER TABLE `email` ADD CONSTRAINT `fk_email_user_5b58673d` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
                 "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
                 "ALTER TABLE `product` DROP INDEX `uid_product_name_f14935`",
@@ -797,6 +806,8 @@ def test_migrate():
                 'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
                 'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
                 'ALTER TABLE "email" DROP COLUMN "user_id"',
+                'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
+                'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
                 'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
                 'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
                 'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
@@ -813,6 +824,8 @@ def test_migrate():
                 'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
                 'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "email" DROP COLUMN "address"',
+                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
+                'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
                 'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
                 'DROP INDEX "idx_email_email_4a1a33"',
                 'ALTER TABLE "product" DROP CONSTRAINT "uid_product_name_f14935"',

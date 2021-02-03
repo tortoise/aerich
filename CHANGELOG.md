@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 0.5
+
+### 0.5.0
+
+- Refactor core code, now has no limitation for everything.
+
 ## 0.4
 
 ### 0.4.4

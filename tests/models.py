@@ -31,6 +31,7 @@ class User(Model):
 
 
 class Email(Model):
+    email_id = fields.IntField(pk=True)
     email = fields.CharField(max_length=200, index=True)
     is_primary = fields.BooleanField(default=False)
     address = fields.CharField(max_length=200)
@@ -50,7 +51,7 @@ class Product(Model):
     sort = fields.IntField()
     is_reviewed = fields.BooleanField(description="Is Reviewed")
     type = fields.IntEnumField(ProductType, description="Product Type")
-    image = fields.CharField(max_length=200)
+    pic = fields.CharField(max_length=200)
     body = fields.TextField()
     created_at = fields.DatetimeField(auto_now_add=True)
 
