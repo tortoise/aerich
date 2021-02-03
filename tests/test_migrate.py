@@ -763,7 +763,7 @@ def test_migrate():
                 "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `user_id`",
                 "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_user_5b58673d`",
-                "ALTER TABLE `email` ADD  INDEX `idx_email_email_4a1a33` (`email`)",
+                "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
                 "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_f14935` (`name`, `type`)",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
@@ -790,34 +790,38 @@ def test_migrate():
         )
 
     elif isinstance(Migrate.ddl, PostgresDDL):
-        assert Migrate.upgrade_operators == [
-            'ALTER TABLE "config" ADD "user_id" INT NOT NULL  COMMENT \'User\'',
-            'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
-            'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
-            'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
-            'ALTER TABLE "email" DROP COLUMN "user_id"',
-            'ALTER TABLE "email" DROP FOREIGN KEY "fk_email_user_5b58673d"',
-            'ALTER TABLE "email" ADD  INDEX "idx_email_email_4a1a33" ("email")',
-            'ALTER TABLE "product" ADD UNIQUE INDEX "uid_product_name_f14935" ("name", "type")',
-            'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
-            'ALTER TABLE "user" DROP COLUMN "avatar"',
-            'ALTER TABLE "user" CHANGE password password VARCHAR(100)',
-            'ALTER TABLE "user" ADD UNIQUE INDEX "uid_user_usernam_9987ab" ("username")',
-        ]
-        assert Migrate.downgrade_operators == [
-            'ALTER TABLE "config" DROP COLUMN "user_id"',
-            'ALTER TABLE "config" DROP FOREIGN KEY "fk_config_user_17daa970"',
-            'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
-            'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
-            'ALTER TABLE "email" DROP COLUMN "address"',
-            'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
-            'ALTER TABLE "email" DROP INDEX "idx_email_email_4a1a33"',
-            'ALTER TABLE "product" DROP INDEX "uid_product_name_f14935"',
-            'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
-            'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
-            'ALTER TABLE "user" DROP INDEX "idx_user_usernam_9987ab"',
-            'ALTER TABLE "user" CHANGE password password VARCHAR(200)',
-        ]
+        assert sorted(Migrate.upgrade_operators) == sorted(
+            [
+                'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
+                'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+                'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
+                'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
+                'ALTER TABLE "email" DROP COLUMN "user_id"',
+                'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
+                'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
+                'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
+                'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
+                'ALTER TABLE "user" DROP COLUMN "avatar"',
+                'ALTER TABLE "user" CHANGE password password VARCHAR(100)',
+                'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
+            ]
+        )
+        assert sorted(Migrate.downgrade_operators) == sorted(
+            [
+                'ALTER TABLE "config" DROP COLUMN "user_id"',
+                'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
+                'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
+                'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
+                'ALTER TABLE "email" DROP COLUMN "address"',
+                'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+                'DROP INDEX "idx_email_email_4a1a33"',
+                'ALTER TABLE "product" DROP CONSTRAINT "uid_product_name_f14935"',
+                'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
+                'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
+                'DROP INDEX "idx_user_usernam_9987ab"',
+                'ALTER TABLE "user" CHANGE password password VARCHAR(200)',
+            ]
+        )
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == [
             'ALTER TABLE "config" ADD "user_id" INT NOT NULL  /* User */',

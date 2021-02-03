@@ -123,7 +123,9 @@ def test_alter_column_default():
 def test_alter_column_null():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.alter_column_null(Category, Category._meta.fields_map.get("name"))
+    ret = Migrate.ddl.alter_column_null(
+        Category, Category._meta.fields_map.get("name").describe(False)
+    )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL'
 
@@ -131,15 +133,11 @@ def test_alter_column_null():
 def test_set_comment():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name"))
-    if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name").describe(False))
+    assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
 
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("user"))
-    if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'COMMENT ON COLUMN "category"."user" IS \'User\''
-    else:
-        assert ret is None
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("user").describe(False))
+    assert ret == 'COMMENT ON COLUMN "category"."user_id" IS \'User\''
 
 
 def test_drop_column():
@@ -158,18 +156,15 @@ def test_add_index():
     index = Migrate.ddl.add_index(Category, ["name"])
     index_u = Migrate.ddl.add_index(Category, ["name"], True)
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert index == "ALTER TABLE `category` ADD  INDEX `idx_category_name_8b0cb9` (`name`)"
+        assert index == "ALTER TABLE `category` ADD INDEX `idx_category_name_8b0cb9` (`name`)"
         assert (
             index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
         )
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert index == 'CREATE INDEX "idx_category_name_8b0cb9" ON "category" ("name")'
-        assert (
-            index_u
-            == 'ALTER TABLE "category" ADD CONSTRAINT "uid_category_name_8b0cb9" UNIQUE ("name")'
-        )
+        assert index_u == 'CREATE UNIQUE INDEX "uid_category_name_8b0cb9" ON "category" ("name")'
     else:
-        assert index == 'ALTER TABLE "category" ADD  INDEX "idx_category_name_8b0cb9" ("name")'
+        assert index == 'ALTER TABLE "category" ADD INDEX "idx_category_name_8b0cb9" ("name")'
         assert (
             index_u == 'ALTER TABLE "category" ADD UNIQUE INDEX "uid_category_name_8b0cb9" ("name")'
         )

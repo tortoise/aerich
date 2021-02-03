@@ -17,7 +17,7 @@ class BaseDDL:
         'ALTER TABLE "{table_name}" RENAME COLUMN "{old_column_name}" TO "{new_column_name}"'
     )
     _ADD_INDEX_TEMPLATE = (
-        'ALTER TABLE "{table_name}" ADD {unique} INDEX "{index_name}" ({column_names})'
+        'ALTER TABLE "{table_name}" ADD {unique}INDEX "{index_name}" ({column_names})'
     )
     _DROP_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" DROP INDEX "{index_name}"'
     _ADD_FK_TEMPLATE = 'ALTER TABLE "{table_name}" ADD CONSTRAINT "{fk_name}" FOREIGN KEY ("{db_column}") REFERENCES "{table}" ("{field}") ON DELETE {on_delete}'
@@ -163,7 +163,7 @@ class BaseDDL:
 
     def add_index(self, model: "Type[Model]", field_names: List[str], unique=False):
         return self._ADD_INDEX_TEMPLATE.format(
-            unique="UNIQUE" if unique else "",
+            unique="UNIQUE " if unique else "",
             index_name=self.schema_generator._generate_index_name(
                 "idx" if not unique else "uid", model, field_names
             ),

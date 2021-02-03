@@ -21,7 +21,7 @@ class MysqlDDL(BaseDDL):
         "ALTER TABLE `{table_name}` RENAME COLUMN `{old_column_name}` TO `{new_column_name}`"
     )
     _ADD_INDEX_TEMPLATE = (
-        "ALTER TABLE `{table_name}` ADD {unique} INDEX `{index_name}` ({column_names})"
+        "ALTER TABLE `{table_name}` ADD {unique}INDEX `{index_name}` ({column_names})"
     )
     _DROP_INDEX_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`"
     _ADD_FK_TEMPLATE = "ALTER TABLE `{table_name}` ADD CONSTRAINT `{fk_name}` FOREIGN KEY (`{db_column}`) REFERENCES `{table}` (`{field}`) ON DELETE {on_delete}"
