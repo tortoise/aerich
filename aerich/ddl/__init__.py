@@ -1,8 +1,9 @@
+from enum import Enum
 from typing import List, Type
 
-from tortoise import BaseDBAsyncClient, ForeignKeyFieldInstance, ManyToManyFieldInstance, Model
+from tortoise import BaseDBAsyncClient, ManyToManyFieldInstance, Model
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
-from tortoise.fields import CASCADE, Field, JSONField, TextField, UUIDField
+from tortoise.fields import CASCADE
 
 
 class BaseDDL:
@@ -11,6 +12,7 @@ class BaseDDL:
     _DROP_TABLE_TEMPLATE = 'DROP TABLE IF EXISTS "{table_name}"'
     _ADD_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" ADD {column}'
     _DROP_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" DROP COLUMN "{column_name}"'
+    _ALTER_DEFAULT_TEMPLATE = 'ALTER TABLE "{table_name}" ALTER COLUMN "{column}" {default}'
     _RENAME_COLUMN_TEMPLATE = (
         'ALTER TABLE "{table_name}" RENAME COLUMN "{old_column_name}" TO "{new_column_name}"'
     )
@@ -62,6 +64,8 @@ class BaseDDL:
     def _get_default(self, model: "Type[Model]", field_describe: dict):
         db_table = model._meta.db_table
         default = field_describe.get("default")
+        if isinstance(default, Enum):
+            default = default.value
         db_column = field_describe.get("db_column")
         auto_now_add = field_describe.get("auto_now_add", False)
         auto_now = field_describe.get("auto_now", False)
@@ -80,7 +84,7 @@ class BaseDDL:
                 except NotImplementedError:
                     default = ""
         else:
-            default = ""
+            default = None
         return default
 
     def add_column(self, model: "Type[Model]", field_describe: dict, is_pk: bool = False):
@@ -88,6 +92,9 @@ class BaseDDL:
         description = field_describe.get("description")
         db_column = field_describe.get("db_column")
         db_field_types = field_describe.get("db_field_types")
+        default = self._get_default(model, field_describe)
+        if default is None:
+            default = ""
         return self._ADD_COLUMN_TEMPLATE.format(
             table_name=db_table,
             column=self.schema_generator._create_string(
@@ -103,33 +110,37 @@ class BaseDDL:
                 if description
                 else "",
                 is_primary_key=is_pk,
-                default=self._get_default(model, field_describe),
+                default=default,
             ),
         )
 
-    def drop_column(self, model: "Type[Model]", field_describe: dict):
+    def drop_column(self, model: "Type[Model]", column_name: str):
         return self._DROP_COLUMN_TEMPLATE.format(
-            table_name=model._meta.db_table, column_name=field_describe.get("db_column")
+            table_name=model._meta.db_table, column_name=column_name
         )
 
-    def modify_column(self, model: "Type[Model]", field_object: Field):
+    def modify_column(self, model: "Type[Model]", field_describe: dict, is_pk: bool = False):
         db_table = model._meta.db_table
+        db_field_types = field_describe.get("db_field_types")
+        default = self._get_default(model, field_describe)
+        if default is None:
+            default = ""
         return self._MODIFY_COLUMN_TEMPLATE.format(
             table_name=db_table,
             column=self.schema_generator._create_string(
-                db_column=field_object.model_field_name,
-                field_type=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE"),
-                nullable="NOT NULL" if not field_object.null else "",
+                db_column=field_describe.get("db_column"),
+                field_type=db_field_types.get(self.DIALECT) or db_field_types.get(""),
+                nullable="NOT NULL" if not field_describe.get("nullable") else "",
                 unique="",
                 comment=self.schema_generator._column_comment_generator(
                     table=db_table,
-                    column=field_object.model_field_name,
-                    comment=field_object.description,
+                    column=field_describe.get("db_column"),
+                    comment=field_describe.get("description"),
                 )
-                if field_object.description
+                if field_describe.get("description")
                 else "",
-                is_primary_key=field_object.pk,
-                default=self._get_default(model, field_object),
+                is_primary_key=is_pk,
+                default=default,
             ),
         )
 
@@ -200,11 +211,17 @@ class BaseDDL:
             ),
         )
 
-    def alter_column_default(self, model: "Type[Model]", field_object: Field):
-        pass
+    def alter_column_default(self, model: "Type[Model]", field_describe: dict):
+        db_table = model._meta.db_table
+        default = self._get_default(model, field_describe)
+        return self._ALTER_DEFAULT_TEMPLATE.format(
+            table_name=db_table,
+            column=field_describe.get("db_column"),
+            default="SET" + default if default is not None else "DROP DEFAULT",
+        )
 
-    def alter_column_null(self, model: "Type[Model]", field_object: Field):
-        pass
+    def alter_column_null(self, model: "Type[Model]", field_describe: dict):
+        raise NotImplementedError
 
-    def set_comment(self, model: "Type[Model]", field_object: Field):
-        pass
+    def set_comment(self, model: "Type[Model]", field_describe: dict):
+        raise NotImplementedError

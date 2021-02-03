@@ -5,7 +5,7 @@ from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import Migrate
-from tests.models import Category, User
+from tests.models import Category, Product, User
 
 
 def test_create_table():
@@ -67,13 +67,12 @@ def test_add_column():
 
 def test_modify_column():
     if isinstance(Migrate.ddl, SqliteDDL):
-        with pytest.raises(NotSupportError):
-            ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
-            ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
+        return
 
-    else:
-        ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map.get("name"))
-        ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active"))
+    ret0 = Migrate.ddl.modify_column(
+        Category, Category._meta.fields_map.get("name").describe(False)
+    )
+    ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
     elif isinstance(Migrate.ddl, PostgresDDL):
@@ -89,41 +88,52 @@ def test_modify_column():
 
 
 def test_alter_column_default():
-    ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("name"))
+    if isinstance(Migrate.ddl, SqliteDDL):
+        return
+    ret = Migrate.ddl.alter_column_default(
+        Category, Category._meta.fields_map.get("name").describe(False)
+    )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP DEFAULT'
-    else:
-        assert ret is None
+    elif isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `category` ALTER COLUMN `name` DROP DEFAULT"
 
-    ret = Migrate.ddl.alter_column_default(Category, Category._meta.fields_map.get("created_at"))
+    ret = Migrate.ddl.alter_column_default(
+        Category, Category._meta.fields_map.get("created_at").describe(False)
+    )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
         )
-    else:
-        assert ret is None
+    elif isinstance(Migrate.ddl, MysqlDDL):
+        assert (
+            ret
+            == "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        )
 
-    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map.get("avatar"))
+    ret = Migrate.ddl.alter_column_default(
+        Product, Product._meta.fields_map.get("view_num").describe(False)
+    )
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "user" ALTER COLUMN "avatar" SET DEFAULT \'\''
-    else:
-        assert ret is None
+        assert ret == 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0'
+    elif isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0"
 
 
 def test_alter_column_null():
+    if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
+        return
     ret = Migrate.ddl.alter_column_null(Category, Category._meta.fields_map.get("name"))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL'
-    else:
-        assert ret is None
 
 
 def test_set_comment():
+    if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
+        return
     ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name"))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
-    else:
-        assert ret is None
 
     ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("user"))
     if isinstance(Migrate.ddl, PostgresDDL):

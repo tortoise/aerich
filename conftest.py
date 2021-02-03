@@ -51,7 +51,7 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 async def initialize_tests(event_loop, request):
-    await Tortoise.init(config=tortoise_orm, _create_db=True)
+    await Tortoise.init(config=tortoise_orm)
     await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
 
     client = Tortoise.get_connection("default")

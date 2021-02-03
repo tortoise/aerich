@@ -23,7 +23,7 @@ class Status(IntEnum):
 
 class User(Model):
     username = fields.CharField(max_length=20, unique=True)
-    password = fields.CharField(max_length=200)
+    password = fields.CharField(max_length=100)
     last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
@@ -46,7 +46,7 @@ class Category(Model):
 class Product(Model):
     categories = fields.ManyToManyField("models.Category")
     name = fields.CharField(max_length=50)
-    view_num = fields.IntField(description="View Num")
+    view_num = fields.IntField(description="View Num", default=0)
     sort = fields.IntField()
     is_reviewed = fields.BooleanField(description="Is Reviewed")
     type = fields.IntEnumField(ProductType, description="Product Type")
@@ -54,10 +54,13 @@ class Product(Model):
     body = fields.TextField()
     created_at = fields.DatetimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = (("name", "type"),)
+
 
 class Config(Model):
     label = fields.CharField(max_length=200)
     key = fields.CharField(max_length=20)
     value = fields.JSONField()
-    status: Status = fields.IntEnumField(Status, default=Status.on)
+    status: Status = fields.IntEnumField(Status)
     user = fields.ForeignKeyField("models.User", description="User")

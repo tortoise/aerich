@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
+
 from dictdiffer import diff
 from tortoise import (
     BackwardFKRelation,
@@ -173,6 +174,8 @@ class Migrate:
         new_models.pop(_aerich, None)
 
         for new_model_str, new_model_describe in new_models.items():
+            model = cls._get_model(new_model_describe.get("name").split(".")[1])
+
             if new_model_str not in old_models.keys():
                 cls._add_operator(cls.add_model(cls._get_model(new_model_str)), upgrade)
             else:
@@ -180,6 +183,18 @@ class Migrate:
 
                 old_unique_together = old_model_describe.get("unique_together")
                 new_unique_together = new_model_describe.get("unique_together")
+                # add unique_together
+                for index in set(new_unique_together).difference(set(old_unique_together)):
+                    cls._add_operator(
+                        cls._add_index(model, index, True),
+                        upgrade,
+                    )
+                # remove unique_together
+                for index in set(old_unique_together).difference(set(new_unique_together)):
+                    cls._add_operator(
+                        cls._drop_index(model, index, True),
+                        upgrade,
+                    )
 
                 old_data_fields = old_model_describe.get("data_fields")
                 new_data_fields = new_model_describe.get("data_fields")
@@ -187,10 +202,9 @@ class Migrate:
                 old_data_fields_name = list(map(lambda x: x.get("name"), old_data_fields))
                 new_data_fields_name = list(map(lambda x: x.get("name"), new_data_fields))
 
-                model = cls._get_model(new_model_describe.get("name").split(".")[1])
                 # add fields
                 for new_data_field_name in set(new_data_fields_name).difference(
-                        set(old_data_fields_name)
+                    set(old_data_fields_name)
                 ):
                     cls._add_operator(
                         cls._add_field(
@@ -205,7 +219,7 @@ class Migrate:
                     )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
-                        set(new_data_fields_name)
+                    set(new_data_fields_name)
                 ):
                     cls._add_operator(
                         cls._remove_field(
@@ -214,7 +228,7 @@ class Migrate:
                                 filter(
                                     lambda x: x.get("name") == old_data_field_name, old_data_fields
                                 )
-                            ),
+                            ).get("db_column"),
                         ),
                         upgrade,
                     )
@@ -226,7 +240,7 @@ class Migrate:
 
                 # add fk
                 for new_fk_field_name in set(new_fk_fields_name).difference(
-                        set(old_fk_fields_name)
+                    set(old_fk_fields_name)
                 ):
                     fk_field = next(
                         filter(lambda x: x.get("name") == new_fk_field_name, new_fk_fields)
@@ -237,7 +251,7 @@ class Migrate:
                     )
                 # drop fk
                 for old_fk_field_name in set(old_fk_fields_name).difference(
-                        set(new_fk_fields_name)
+                    set(new_fk_fields_name)
                 ):
                     old_fk_field = next(
                         filter(lambda x: x.get("name") == old_fk_field_name, old_fk_fields)
@@ -259,23 +273,28 @@ class Migrate:
                     changes = diff(old_data_field, new_data_field)
                     for change in changes:
                         _, option, old_new = change
-                        if option == 'indexed':
+                        if option == "indexed":
                             # change index
-                            unique = new_data_field.get('unique')
+                            unique = new_data_field.get("unique")
                             if old_new[0] is False and old_new[1] is True:
                                 cls._add_operator(
-                                    cls._add_index(
-                                        model, (field_name,), unique
-                                    ),
+                                    cls._add_index(model, (field_name,), unique),
                                     upgrade,
                                 )
                             else:
                                 cls._add_operator(
-                                    cls._drop_index(
-                                        model, (field_name,), unique
-                                    ),
+                                    cls._drop_index(model, (field_name,), unique),
                                     upgrade,
                                 )
+                        elif option == "db_field_types.":
+                            # change column
+                            cls._add_operator(
+                                cls._change_field(model, old_data_field, new_data_field),
+                                upgrade,
+                            )
+                        elif option == "default":
+                            cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
+
         for old_model in old_models:
             if old_model not in new_models.keys():
                 cls._add_operator(cls.remove_model(cls._get_model(old_model)), upgrade)
@@ -340,40 +359,41 @@ class Migrate:
         return cls.ddl.add_column(model, field_describe, is_pk)
 
     @classmethod
-    def _alter_default(cls, model: Type[Model], field: Field):
-        return cls.ddl.alter_column_default(model, field)
+    def _alter_default(cls, model: Type[Model], field_describe: dict):
+        return cls.ddl.alter_column_default(model, field_describe)
 
     @classmethod
-    def _alter_null(cls, model: Type[Model], field: Field):
-        return cls.ddl.alter_column_null(model, field)
+    def _alter_null(cls, model: Type[Model], field_describe: dict):
+        return cls.ddl.alter_column_null(model, field_describe)
 
     @classmethod
-    def _set_comment(cls, model: Type[Model], field: Field):
-        return cls.ddl.set_comment(model, field)
+    def _set_comment(cls, model: Type[Model], field_describe: dict):
+        return cls.ddl.set_comment(model, field_describe)
 
     @classmethod
-    def _modify_field(cls, model: Type[Model], field: Field):
-        return cls.ddl.modify_column(model, field)
+    def _modify_field(cls, model: Type[Model], field_describe: dict):
+        return cls.ddl.modify_column(model, field_describe)
 
     @classmethod
     def _drop_fk(cls, model: Type[Model], field_describe: dict, reference_table_describe: dict):
         return cls.ddl.drop_fk(model, field_describe, reference_table_describe)
 
     @classmethod
-    def _remove_field(cls, model: Type[Model], field_describe: dict):
-        return cls.ddl.drop_column(model, field_describe)
+    def _remove_field(cls, model: Type[Model], column_name: str):
+        return cls.ddl.drop_column(model, column_name)
 
     @classmethod
     def _rename_field(cls, model: Type[Model], old_field: Field, new_field: Field):
         return cls.ddl.rename_column(model, old_field.model_field_name, new_field.model_field_name)
 
     @classmethod
-    def _change_field(cls, model: Type[Model], old_field: Field, new_field: Field):
+    def _change_field(cls, model: Type[Model], old_field_describe: dict, new_field_describe: dict):
+        db_field_types = new_field_describe.get("db_field_types")
         return cls.ddl.change_column(
             model,
-            old_field.model_field_name,
-            new_field.model_field_name,
-            new_field.get_for_dialect(cls.dialect, "SQL_TYPE"),
+            old_field_describe.get("db_column"),
+            new_field_describe.get("db_column"),
+            db_field_types.get(cls.dialect) or db_field_types.get(""),
         )
 
     @classmethod

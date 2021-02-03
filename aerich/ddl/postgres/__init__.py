@@ -16,35 +16,26 @@ class PostgresDDL(BaseDDL):
     )
     _DROP_INDEX_TEMPLATE = 'DROP INDEX "{index_name}"'
     _DROP_UNIQUE_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT "{index_name}"'
-    _ALTER_DEFAULT_TEMPLATE = 'ALTER TABLE "{table_name}" ALTER COLUMN "{column}" {default}'
     _ALTER_NULL_TEMPLATE = 'ALTER TABLE "{table_name}" ALTER COLUMN "{column}" {set_drop} NOT NULL'
     _MODIFY_COLUMN_TEMPLATE = 'ALTER TABLE "{table_name}" ALTER COLUMN "{column}" TYPE {datatype}'
     _SET_COMMENT_TEMPLATE = 'COMMENT ON COLUMN "{table_name}"."{column}" IS {comment}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT "{fk_name}"'
 
-    def alter_column_default(self, model: "Type[Model]", field_object: Field):
-        db_table = model._meta.db_table
-        default = self._get_default(model, field_object)
-        return self._ALTER_DEFAULT_TEMPLATE.format(
-            table_name=db_table,
-            column=field_object.model_field_name,
-            default="SET" + default if default else "DROP DEFAULT",
-        )
-
-    def alter_column_null(self, model: "Type[Model]", field_object: Field):
+    def alter_column_null(self, model: "Type[Model]", field_describe: dict):
         db_table = model._meta.db_table
         return self._ALTER_NULL_TEMPLATE.format(
             table_name=db_table,
-            column=field_object.model_field_name,
-            set_drop="DROP" if field_object.null else "SET",
+            column=field_describe.get("db_column"),
+            set_drop="DROP" if field_describe.get("nullable") else "SET",
         )
 
-    def modify_column(self, model: "Type[Model]", field_object: Field):
+    def modify_column(self, model: "Type[Model]", field_describe: dict, is_pk: bool = False):
         db_table = model._meta.db_table
+        db_field_types = field_describe.get("db_field_types")
         return self._MODIFY_COLUMN_TEMPLATE.format(
             table_name=db_table,
-            column=field_object.model_field_name,
-            datatype=field_object.get_for_dialect(self.DIALECT, "SQL_TYPE"),
+            column=field_describe.get("db_column"),
+            datatype=db_field_types.get(self.DIALECT) or db_field_types.get(""),
         )
 
     def add_index(self, model: "Type[Model]", field_names: List[str], unique=False):
