@@ -35,6 +35,7 @@ class Email(Model):
     email = fields.CharField(max_length=200, index=True)
     is_primary = fields.BooleanField(default=False)
     address = fields.CharField(max_length=200)
+    users = fields.ManyToManyField("models.User")
 
 
 class Category(Model):

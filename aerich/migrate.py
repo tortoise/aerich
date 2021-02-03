@@ -183,7 +183,39 @@ class Migrate:
                     # current only support rename pk
                     if action == "change" and option == "name":
                         cls._add_operator(cls._rename_field(model, *change), upgrade)
-
+                # m2m fields
+                old_m2m_fields = old_model_describe.get("m2m_fields")
+                new_m2m_fields = new_model_describe.get("m2m_fields")
+                for action, option, change in diff(old_m2m_fields, new_m2m_fields):
+                    table = change[0][1].get("through")
+                    if action == "add":
+                        add = False
+                        if upgrade and table not in cls._upgrade_m2m:
+                            cls._upgrade_m2m.append(table)
+                            add = True
+                        elif not upgrade and table not in cls._downgrade_m2m:
+                            cls._downgrade_m2m.append(table)
+                            add = True
+                        if add:
+                            cls._add_operator(
+                                cls.create_m2m(
+                                    model,
+                                    change[0][1],
+                                    new_models.get(change[0][1].get("model_name")),
+                                ),
+                                upgrade,
+                                fk_m2m=True,
+                            )
+                    elif action == "remove":
+                        add = False
+                        if upgrade and table not in cls._upgrade_m2m:
+                            cls._upgrade_m2m.append(table)
+                            add = True
+                        elif not upgrade and table not in cls._downgrade_m2m:
+                            cls._downgrade_m2m.append(table)
+                            add = True
+                        if add:
+                            cls._add_operator(cls.drop_m2m(table), upgrade, fk_m2m=True)
                 # add unique_together
                 for index in set(new_unique_together).difference(set(old_unique_together)):
                     cls._add_operator(
@@ -298,6 +330,7 @@ class Migrate:
                     cls._add_operator(
                         cls._add_fk(model, fk_field, old_models.get(fk_field.get("python_type"))),
                         upgrade,
+                        fk_m2m=True,
                     )
                 # drop fk
                 for old_fk_field_name in set(old_fk_fields_name).difference(
@@ -311,6 +344,7 @@ class Migrate:
                             model, old_fk_field, old_models.get(old_fk_field.get("python_type"))
                         ),
                         upgrade,
+                        fk_m2m=True,
                     )
                 # change fields
                 for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):
@@ -356,6 +390,14 @@ class Migrate:
     @classmethod
     def remove_model(cls, model: Type[Model]):
         return cls.ddl.drop_table(model)
+
+    @classmethod
+    def create_m2m(cls, model: Type[Model], field_describe: dict, reference_table_describe: dict):
+        return cls.ddl.create_m2m(model, field_describe, reference_table_describe)
+
+    @classmethod
+    def drop_m2m(cls, table_name: str):
+        return cls.ddl.drop_m2m(table_name)
 
     @classmethod
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):

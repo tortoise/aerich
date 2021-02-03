@@ -81,6 +81,8 @@ old_models_describe = {
                     "mysql": "DATETIME(6)",
                     "postgres": "TIMESTAMPTZ",
                 },
+                "auto_now_add": True,
+                "auto_now": False,
             },
             {
                 "name": "user_id",
@@ -131,6 +133,13 @@ old_models_describe = {
                 "description": None,
                 "docstring": None,
                 "constraints": {},
+                "model_name": "models.Product",
+                "related_name": "categories",
+                "forward_key": "product_id",
+                "backward_key": "category_id",
+                "through": "product_category",
+                "on_delete": "CASCADE",
+                "_generated": True,
             }
         ],
     },
@@ -464,6 +473,8 @@ old_models_describe = {
                     "mysql": "DATETIME(6)",
                     "postgres": "TIMESTAMPTZ",
                 },
+                "auto_now_add": True,
+                "auto_now": False,
             },
         ],
         "fk_fields": [],
@@ -483,6 +494,13 @@ old_models_describe = {
                 "description": None,
                 "docstring": None,
                 "constraints": {},
+                "model_name": "models.Category",
+                "related_name": "products",
+                "forward_key": "category_id",
+                "backward_key": "product_id",
+                "through": "product_category",
+                "on_delete": "CASCADE",
+                "_generated": False,
             }
         ],
     },
@@ -558,6 +576,8 @@ old_models_describe = {
                     "mysql": "DATETIME(6)",
                     "postgres": "TIMESTAMPTZ",
                 },
+                "auto_now_add": False,
+                "auto_now": False,
             },
             {
                 "name": "is_active",
@@ -741,6 +761,7 @@ def test_migrate(mocker: MockerFixture):
     - drop fk: Email.user
     - drop field: User.avatar
     - add index: Email.email
+    - add many to many: Email.users
     - remove unique: User.username
     - change column: length User.password
     - add unique_together: (name,type) of Product
@@ -776,6 +797,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` CHANGE password password VARCHAR(100)",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
+                "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
             ]
         )
 
@@ -795,6 +817,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
                 "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
                 "ALTER TABLE `user` CHANGE password password VARCHAR(200)",
+                "DROP TABLE IF EXISTS `email_user`",
             ]
         )
 
@@ -815,6 +838,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "user" DROP COLUMN "avatar"',
                 'ALTER TABLE "user" CHANGE password password VARCHAR(100)',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
+                'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
             ]
         )
         assert sorted(Migrate.downgrade_operators) == sorted(
@@ -833,6 +857,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
                 'DROP INDEX "idx_user_usernam_9987ab"',
                 'ALTER TABLE "user" CHANGE password password VARCHAR(200)',
+                'DROP TABLE IF EXISTS "email_user"',
             ]
         )
     elif isinstance(Migrate.ddl, SqliteDDL):

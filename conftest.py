@@ -20,7 +20,10 @@ tortoise_orm = {
         "second": expand_db_url(db_url_second, True),
     },
     "apps": {
-        "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
+        "models": {
+            "models": ["tests.models", "aerich.models"],
+            "default_connection": "default",
+        },
         "models_second": {"models": ["tests.models_second"], "default_connection": "second"},
     },
 }
