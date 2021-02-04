@@ -178,7 +178,7 @@ def test_drop_index():
         assert ret_u == "ALTER TABLE `category` DROP INDEX `uid_category_name_8b0cb9`"
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'DROP INDEX "idx_category_name_8b0cb9"'
-        assert ret_u == 'ALTER TABLE "category" DROP CONSTRAINT "uid_category_name_8b0cb9"'
+        assert ret_u == 'DROP INDEX "uid_category_name_8b0cb9"'
     else:
         assert ret == 'ALTER TABLE "category" DROP INDEX "idx_category_name_8b0cb9"'
         assert ret_u == 'ALTER TABLE "category" DROP INDEX "uid_category_name_8b0cb9"'

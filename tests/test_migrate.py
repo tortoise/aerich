@@ -852,10 +852,10 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
                 'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
                 'DROP INDEX "idx_email_email_4a1a33"',
-                'ALTER TABLE "product" DROP CONSTRAINT "uid_product_name_f14935"',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
                 'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
                 'DROP INDEX "idx_user_usernam_9987ab"',
+                'DROP INDEX "uid_product_name_f14935"',
                 'ALTER TABLE "user" CHANGE password password VARCHAR(200)',
                 'DROP TABLE IF EXISTS "email_user"',
             ]

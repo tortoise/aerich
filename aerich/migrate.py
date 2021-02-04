@@ -173,11 +173,11 @@ class Migrate:
             else:
                 old_model_describe = old_models.get(new_model_str)
 
-                old_unique_together = map(
-                    lambda x: tuple(x), old_model_describe.get("unique_together")
+                old_unique_together = set(
+                    map(lambda x: tuple(x), old_model_describe.get("unique_together"))
                 )
-                new_unique_together = map(
-                    lambda x: tuple(x), new_model_describe.get("unique_together")
+                new_unique_together = set(
+                    map(lambda x: tuple(x), new_model_describe.get("unique_together"))
                 )
 
                 old_pk_field = old_model_describe.get("pk_field")
@@ -222,13 +222,13 @@ class Migrate:
                         if add:
                             cls._add_operator(cls.drop_m2m(table), upgrade, fk_m2m=True)
                 # add unique_together
-                for index in set(new_unique_together).difference(set(old_unique_together)):
+                for index in new_unique_together.difference(old_unique_together):
                     cls._add_operator(
                         cls._add_index(model, index, True),
                         upgrade,
                     )
                 # remove unique_together
-                for index in set(old_unique_together).difference(set(new_unique_together)):
+                for index in old_unique_together.difference(new_unique_together):
                     cls._add_operator(
                         cls._drop_index(model, index, True),
                         upgrade,
