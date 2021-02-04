@@ -50,7 +50,7 @@ COMMENT ON COLUMN "category"."user_id" IS 'User';"""
 
 
 def test_drop_table():
-    ret = Migrate.ddl.drop_table(Category)
+    ret = Migrate.ddl.drop_table(Category._meta.db_table)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "DROP TABLE IF EXISTS `category`"
     else:

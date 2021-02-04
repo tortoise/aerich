@@ -34,8 +34,8 @@ class BaseDDL:
     def create_table(self, model: "Type[Model]"):
         return self.schema_generator._get_table_sql(model, True)["table_creation_string"]
 
-    def drop_table(self, model: "Type[Model]"):
-        return self._DROP_TABLE_TEMPLATE.format(table_name=model._meta.db_table)
+    def drop_table(self, table_name: str):
+        return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
     def create_m2m(
         self, model: "Type[Model]", field_describe: dict, reference_table_describe: dict
@@ -199,7 +199,7 @@ class BaseDDL:
             table_name=db_table,
             fk_name=fk_name,
             db_column=db_column,
-            table=field_describe.get("name"),
+            table=reference_table_describe.get("table"),
             field=reference_id,
             on_delete=field_describe.get("on_delete"),
         )

@@ -169,12 +169,17 @@ class Migrate:
             model = cls._get_model(new_model_describe.get("name").split(".")[1])
 
             if new_model_str not in old_models.keys():
-                cls._add_operator(cls.add_model(cls._get_model(new_model_str)), upgrade)
+                cls._add_operator(cls.add_model(model), upgrade)
             else:
                 old_model_describe = old_models.get(new_model_str)
 
-                old_unique_together = old_model_describe.get("unique_together")
-                new_unique_together = new_model_describe.get("unique_together")
+                old_unique_together = map(
+                    lambda x: tuple(x), old_model_describe.get("unique_together")
+                )
+                new_unique_together = map(
+                    lambda x: tuple(x), new_model_describe.get("unique_together")
+                )
+
                 old_pk_field = old_model_describe.get("pk_field")
                 new_pk_field = new_model_describe.get("pk_field")
                 # pk field
@@ -328,7 +333,7 @@ class Migrate:
                         filter(lambda x: x.get("name") == new_fk_field_name, new_fk_fields)
                     )
                     cls._add_operator(
-                        cls._add_fk(model, fk_field, old_models.get(fk_field.get("python_type"))),
+                        cls._add_fk(model, fk_field, new_models.get(fk_field.get("python_type"))),
                         upgrade,
                         fk_m2m=True,
                     )
@@ -381,15 +386,15 @@ class Migrate:
 
         for old_model in old_models:
             if old_model not in new_models.keys():
-                cls._add_operator(cls.remove_model(cls._get_model(old_model)), upgrade)
+                cls._add_operator(cls.drop_model(old_models.get(old_model).get("table")), upgrade)
 
     @classmethod
     def add_model(cls, model: Type[Model]):
         return cls.ddl.create_table(model)
 
     @classmethod
-    def remove_model(cls, model: Type[Model]):
-        return cls.ddl.drop_table(model)
+    def drop_model(cls, table_name: str):
+        return cls.ddl.drop_table(table_name)
 
     @classmethod
     def create_m2m(cls, model: Type[Model], field_describe: dict, reference_table_describe: dict):
