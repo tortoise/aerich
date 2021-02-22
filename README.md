@@ -7,8 +7,8 @@
 
 ## Introduction
 
-Aerich is a database migrations tool for Tortoise-ORM, which like alembic for SQLAlchemy, or Django ORM with it\'s own
-migrations solution.
+Aerich is a database migrations tool for Tortoise-ORM, which is like alembic for SQLAlchemy, or like Django ORM with
+it\'s own migrations solution.
 
 ~~**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**~~
 
@@ -49,7 +49,7 @@ Commands:
 
 ## Usage
 
-You need add `aerich.models` to your `Tortoise-ORM` config first, example:
+You need add `aerich.models` to your `Tortoise-ORM` config first. Example:
 
 ```python
 TORTOISE_ORM = {
@@ -79,7 +79,7 @@ Options:
   -h, --help               Show this message and exit.
 ```
 
-Init config file and location:
+Initialize the config file and migrations location:
 
 ```shell
 > aerich init -t tests.backends.mysql.TORTOISE_ORM
@@ -97,8 +97,8 @@ Success create app migrate location ./migrations/models
 Success generate schema for app "models"
 ```
 
-If your Tortoise-ORM app is not default `models`, you must specify
-`--app` like `aerich --app other_models init-db`.
+If your Tortoise-ORM app is not the default `models`, you must specify the correct app via `--app`, e.g. `aerich
+--app other_models init-db`.
 
 ### Update models and make migrate
 
@@ -111,9 +111,9 @@ Success migrate 1_202029051520102929_drop_column.sql
 Format of migrate filename is
 `{version_num}_{datetime}_{name|update}.sql`.
 
-And if `aerich` guess you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`, you can
-choice `True` to rename column without column drop, or choice `False` to drop column then create, note that the after
-maybe lose data.
+If `aerich` guesses you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`. You can choose
+`True` to rename column without column drop, or choose `False` to drop the column then create. Note that the latter may
+lose data.
 
 ### Upgrade to latest version
 
@@ -149,7 +149,7 @@ Options:
 Success downgrade 1_202029051520102929_drop_column.sql
 ```
 
-Now your db rollback to specified version.
+Now your db is rolled back to the specified version.
 
 ### Show history
 
@@ -169,7 +169,7 @@ Now your db rollback to specified version.
 
 ### Inspect db tables to TortoiseORM model
 
-Currently, only support MySQL.
+Currently `inspectdb` only supports MySQL.
 
 ```shell
 Usage: aerich inspectdb [OPTIONS]
@@ -187,14 +187,14 @@ Inspect all tables and print to console:
 aerich --app models inspectdb
 ```
 
-Inspect a specified table in default app and redirect to `models.py`:
+Inspect a specified table in the default app and redirect to `models.py`:
 
 ```shell
 aerich inspectdb -t user > models.py
 ```
 
-Note that this command is restricted, which is not supported in some solutions, such as `IntEnumField`
-and `ForeignKeyField` and so on.
+Note that this command is limited and cannot infer some fields, such as `IntEnumField`, `ForeignKeyField`, and
+others.
 
 ### Multiple databases
 
@@ -211,7 +211,7 @@ tortoise_orm = {
 }
 ```
 
-You need only specify `aerich.models` in one app, and must specify `--app` when run `aerich migrate` and so on.
+You only need to specify `aerich.models` in one app, and must specify `--app` when running `aerich migrate` and so on.
 
 ## Support this project
 
