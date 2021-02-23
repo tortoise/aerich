@@ -8,7 +8,7 @@ from typing import List
 
 import click
 from click import Context, UsageError
-from tortoise import Tortoise, generate_schema_for_client
+from tortoise import Tortoise, generate_schema_for_client, run_async
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
@@ -34,11 +34,7 @@ parser = ConfigParser()
 def coro(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_until_complete(f(*args, **kwargs))
-        finally:
-            loop.run_until_complete(Tortoise.close_connections())
+        run_async(f(*args, **kwargs))
 
     return wrapper
 
