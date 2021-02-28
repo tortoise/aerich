@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.1
+
+- Fix tortoise connections not being closed properly. (#120)
+
 ### 0.5.0
 
 - Refactor core code, now has no limitation for everything.
