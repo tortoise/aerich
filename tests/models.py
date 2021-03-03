@@ -39,8 +39,8 @@ class Email(Model):
 
 
 class Category(Model):
-    slug = fields.CharField(max_length=200)
-    name = fields.CharField(max_length=200)
+    slug = fields.CharField(max_length=100)
+    name = fields.CharField(max_length=200, null=True)
     user = fields.ForeignKeyField("models.User", description="User")
     created_at = fields.DatetimeField(auto_now_add=True)
 

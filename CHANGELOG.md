@@ -5,6 +5,7 @@
 ### 0.5.1
 
 - Fix tortoise connections not being closed properly. (#120)
+- Fix bug for field change. (#119)
 
 ### 0.5.0
 

@@ -15,8 +15,8 @@ def test_create_table():
             ret
             == """CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    `slug` VARCHAR(200) NOT NULL,
-    `name` VARCHAR(200) NOT NULL,
+    `slug` VARCHAR(100) NOT NULL,
+    `name` VARCHAR(200),
     `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
     `user_id` INT NOT NULL COMMENT 'User',
     CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
@@ -28,8 +28,8 @@ def test_create_table():
             ret
             == """CREATE TABLE IF NOT EXISTS "category" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    "slug" VARCHAR(200) NOT NULL,
-    "name" VARCHAR(200) NOT NULL,
+    "slug" VARCHAR(100) NOT NULL,
+    "name" VARCHAR(200),
     "created_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
     "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE /* User */
 );"""
@@ -40,8 +40,8 @@ def test_create_table():
             ret
             == """CREATE TABLE IF NOT EXISTS "category" (
     "id" SERIAL NOT NULL PRIMARY KEY,
-    "slug" VARCHAR(200) NOT NULL,
-    "name" VARCHAR(200) NOT NULL,
+    "slug" VARCHAR(100) NOT NULL,
+    "name" VARCHAR(200),
     "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
     "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
@@ -60,9 +60,9 @@ def test_drop_table():
 def test_add_column():
     ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200) NOT NULL"
+        assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200)"
     else:
-        assert ret == 'ALTER TABLE "category" ADD "name" VARCHAR(200) NOT NULL'
+        assert ret == 'ALTER TABLE "category" ADD "name" VARCHAR(200)'
 
 
 def test_modify_column():
@@ -74,7 +74,7 @@ def test_modify_column():
     )
     ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL"
+        assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)"
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert ret0 == 'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)'
 
@@ -127,7 +127,7 @@ def test_alter_column_null():
         Category, Category._meta.fields_map.get("name").describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL'
+        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL'
 
 
 def test_set_comment():

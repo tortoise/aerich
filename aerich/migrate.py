@@ -281,9 +281,7 @@ class Migrate:
                                         and cls._db_version.startswith("5.")
                                     ):
                                         cls._add_operator(
-                                            cls._change_field(
-                                                model, new_data_field, old_data_field
-                                            ),
+                                            cls._modify_field(model, new_data_field),
                                             upgrade,
                                         )
                                     else:
@@ -376,13 +374,17 @@ class Migrate:
                                     upgrade,
                                 )
                         elif option == "db_field_types.":
-                            # change column
+                            # continue since repeated with others
+                            continue
+                        elif option == "default":
+                            # change column default
+                            cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
+                        else:
+                            # modify column
                             cls._add_operator(
-                                cls._change_field(model, old_data_field, new_data_field),
+                                cls._modify_field(model, new_data_field),
                                 upgrade,
                             )
-                        elif option == "default":
-                            cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
 
         for old_model in old_models:
             if old_model not in new_models.keys():

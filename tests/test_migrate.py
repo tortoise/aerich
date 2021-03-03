@@ -783,6 +783,8 @@ def test_migrate(mocker: MockerFixture):
     if isinstance(Migrate.ddl, MysqlDDL):
         assert sorted(Migrate.upgrade_operators) == sorted(
             [
+                "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
+                "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(100) NOT NULL",
                 "ALTER TABLE `config` ADD `user_id` INT NOT NULL  COMMENT 'User'",
                 "ALTER TABLE `config` ADD CONSTRAINT `fk_config_user_17daa970` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
                 "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
@@ -795,7 +797,8 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_f14935` (`name`, `type`)",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
-                "ALTER TABLE `user` CHANGE password password VARCHAR(100)",
+                "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
+                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
                 "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
             ]
@@ -803,6 +806,8 @@ def test_migrate(mocker: MockerFixture):
 
         assert sorted(Migrate.downgrade_operators) == sorted(
             [
+                "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL",
+                "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `config` DROP COLUMN `user_id`",
                 "ALTER TABLE `config` DROP FOREIGN KEY `fk_config_user_17daa970`",
                 "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
@@ -816,7 +821,8 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` ALTER COLUMN `view_num` DROP DEFAULT",
                 "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
                 "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
-                "ALTER TABLE `user` CHANGE password password VARCHAR(200)",
+                "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
+                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
             ]
         )
@@ -824,6 +830,8 @@ def test_migrate(mocker: MockerFixture):
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert sorted(Migrate.upgrade_operators) == sorted(
             [
+                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100)',
                 'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
                 'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
@@ -833,16 +841,21 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
                 'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
                 'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
+                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
                 'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
                 'ALTER TABLE "user" DROP COLUMN "avatar"',
-                'ALTER TABLE "user" CHANGE password password VARCHAR(100)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100)',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
                 'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
             ]
         )
         assert sorted(Migrate.downgrade_operators) == sorted(
             [
+                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200)',
+                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
                 'ALTER TABLE "config" DROP COLUMN "user_id"',
                 'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
                 'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
@@ -856,15 +869,11 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
                 'DROP INDEX "idx_user_usernam_9987ab"',
                 'DROP INDEX "uid_product_name_f14935"',
-                'ALTER TABLE "user" CHANGE password password VARCHAR(200)',
                 'DROP TABLE IF EXISTS "email_user"',
             ]
         )
     elif isinstance(Migrate.ddl, SqliteDDL):
-        assert Migrate.upgrade_operators == [
-            'ALTER TABLE "config" ADD "user_id" INT NOT NULL  /* User */',
-            'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
-        ]
+        assert Migrate.upgrade_operators == []
 
         assert Migrate.downgrade_operators == []
 
