@@ -3,7 +3,7 @@
 [![image](https://img.shields.io/pypi/v/aerich.svg?style=flat)](https://pypi.python.org/pypi/aerich)
 [![image](https://img.shields.io/github/license/long2ice/aerich)](https://github.com/long2ice/aerich)
 [![image](https://github.com/long2ice/aerich/workflows/pypi/badge.svg)](https://github.com/long2ice/aerich/actions?query=workflow:pypi)
-[![image](https://github.com/long2ice/aerich/workflows/test/badge.svg)](https://github.com/long2ice/aerich/actions?query=workflow:test)
+[![image](https://github.com/long2ice/aerich/workflows/ci/badge.svg)](https://github.com/long2ice/aerich/actions?query=workflow:ci)
 
 ## Introduction
 

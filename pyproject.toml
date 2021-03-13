@@ -33,6 +33,7 @@ pytest-xdist = "*"
 pytest-asyncio = "*"
 bandit = "*"
 pytest-mock = "*"
+cryptography = "*"
 
 [tool.poetry.extras]
 asyncmy = ["asyncmy"]
