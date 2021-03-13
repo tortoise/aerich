@@ -8,23 +8,11 @@ POSTGRES_HOST ?= "127.0.0.1"
 POSTGRES_PORT ?= 5432
 POSTGRES_PASS ?= "123456"
 
-help:
-	@echo "Aerich development makefile"
-	@echo
-	@echo  "usage: make <target>"
-	@echo  "Targets:"
-	@echo  "    up			Updates dev/test dependencies"
-	@echo  "    deps		Ensure dev/test dependencies are installed"
-	@echo  "    check		Checks that build is sane"
-	@echo  "    lint		Reports all linter violations"
-	@echo  "    test		Runs all tests"
-	@echo  "    style		Auto-formats the code"
-
 up:
 	@poetry update
 
 deps:
-	@poetry install -E dbdrivers
+	@poetry install -E asyncpg -E asyncmy
 
 style: deps
 	isort -src $(checkfiles)

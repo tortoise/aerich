@@ -35,7 +35,8 @@ bandit = "*"
 pytest-mock = "*"
 
 [tool.poetry.extras]
-dbdrivers = ["aiomysql", "asyncpg"]
+asyncmy = ["asyncmy"]
+asyncpg = ["asyncpg"]
 
 [build-system]
 requires = ["poetry>=0.12"]
