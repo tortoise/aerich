@@ -561,13 +561,14 @@ docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
 testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pytest-cov", "pytest-enabler", "jaraco.itertools", "func-timeout", "pytest-black (>=0.3.7)", "pytest-mypy"]
 
 [extras]
+aiomysql = ["aiomysql"]
 asyncmy = []
 asyncpg = ["asyncpg"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "51da4f34825ed51379b2aba39e73949f43d1041a3093bf24d7350386e9a4793f"
+content-hash = "fdf0c27a94c558e62d13cca6de14ea3a1836468bb0246ad101e4014eaa09b3b5"
 
 [metadata.files]
 aiomysql = [
