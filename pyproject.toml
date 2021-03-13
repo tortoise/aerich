@@ -33,6 +33,7 @@ pytest-xdist = "*"
 pytest-asyncio = "*"
 bandit = "*"
 pytest-mock = "*"
+cryptography = "^3.4.6"
 
 [tool.poetry.extras]
 dbdrivers = ["aiomysql", "asyncpg"]
