@@ -32,7 +32,7 @@ def get_app_connection(config, app) -> BaseDBAsyncClient:
     return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
-def get_tortoise_config(ctx: Context,  tortoise_orm: str, app_args: str = None) -> dict:
+def get_tortoise_config(ctx: Context, tortoise_orm: str, app_args: str = None) -> dict:
     """
     get tortoise config from module
     :param ctx:
