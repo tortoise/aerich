@@ -169,7 +169,11 @@ class Migrate:
             model = cls._get_model(new_model_describe.get("name").split(".")[1])
 
             if new_model_str not in old_models.keys():
-                cls._add_operator(cls.add_model(model), upgrade)
+                if upgrade:
+                    cls._add_operator(cls.add_model(model), upgrade)
+                else:
+                    # we can't find origin model when downgrade, so skip
+                    pass
             else:
                 old_model_describe = old_models.get(new_model_str)
 

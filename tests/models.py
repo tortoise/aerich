@@ -66,3 +66,7 @@ class Config(Model):
     value = fields.JSONField()
     status: Status = fields.IntEnumField(Status)
     user = fields.ForeignKeyField("models.User", description="User")
+
+
+class NewModel(Model):
+    name = fields.CharField(max_length=50)

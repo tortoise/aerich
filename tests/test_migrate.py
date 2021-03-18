@@ -799,6 +799,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
                 "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
+                "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4;",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
                 "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
             ]
@@ -824,6 +825,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
+                "DROP TABLE IF EXISTS `newmodel`",
             ]
         )
 
@@ -846,6 +848,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
                 'ALTER TABLE "user" DROP COLUMN "avatar"',
                 'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100)',
+                'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
                 'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
             ]
@@ -870,6 +873,7 @@ def test_migrate(mocker: MockerFixture):
                 'DROP INDEX "idx_user_usernam_9987ab"',
                 'DROP INDEX "uid_product_name_f14935"',
                 'DROP TABLE IF EXISTS "email_user"',
+                'DROP TABLE IF EXISTS "newmodel"',
             ]
         )
     elif isinstance(Migrate.ddl, SqliteDDL):

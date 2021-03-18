@@ -6,6 +6,7 @@
 
 - Fix tortoise connections not being closed properly. (#120)
 - Fix bug for field change. (#119)
+- Fix drop model in the downgrade. (#132)
 
 ### 0.5.0
 
