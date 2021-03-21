@@ -392,6 +392,9 @@ class Migrate:
                         elif option == "default":
                             # change column default
                             cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
+                        elif option == "unique":
+                            # because indexed include it
+                            pass
                         else:
                             # modify column
                             cls._add_operator(

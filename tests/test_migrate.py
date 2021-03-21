@@ -768,7 +768,7 @@ def test_migrate(mocker: MockerFixture):
     - alter default: Config.status
     - rename column: Product.image -> Product.pic
     """
-    mocker.patch("click.prompt", side_effect=(False, True))
+    mocker.patch("click.prompt", side_effect=(True,))
 
     models_describe = get_models_describe("models")
     Migrate.app = "models"
@@ -798,7 +798,6 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
-                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4;",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
                 "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
@@ -823,7 +822,6 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
                 "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
-                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
                 "DROP TABLE IF EXISTS `newmodel`",
             ]
@@ -832,8 +830,8 @@ def test_migrate(mocker: MockerFixture):
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert sorted(Migrate.upgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
-                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100)',
+                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200) USING "name"::VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
                 'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
                 'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
@@ -843,11 +841,10 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
                 'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
                 'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
-                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
                 'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
                 'ALTER TABLE "user" DROP COLUMN "avatar"',
-                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100) USING "password"::VARCHAR(100)',
                 'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
                 'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
@@ -855,10 +852,9 @@ def test_migrate(mocker: MockerFixture):
         )
         assert sorted(Migrate.downgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
-                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200)',
-                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200)',
-                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
+                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200) USING "name"::VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
                 'ALTER TABLE "config" DROP COLUMN "user_id"',
                 'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
                 'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',

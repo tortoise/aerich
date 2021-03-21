@@ -5,6 +5,7 @@
 ### 0.5.2
 
 - Fix rename field on the field add. (#134)
+- Fix postgres field type change error. (#135)
 
 ### 0.5.1
 

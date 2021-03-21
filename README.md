@@ -8,11 +8,7 @@
 ## Introduction
 
 Aerich is a database migrations tool for Tortoise-ORM, which is like alembic for SQLAlchemy, or like Django ORM with
-it\'s own migrations solution.
-
-~~**Important: You can only use absolutely import in your `models.py` to make `aerich` work.**~~
-
-From version `v0.5.0`, there is no such limitation now.
+it\'s own migration solution.
 
 ## Install
 
@@ -97,8 +93,8 @@ Success create app migrate location ./migrations/models
 Success generate schema for app "models"
 ```
 
-If your Tortoise-ORM app is not the default `models`, you must specify the correct app via `--app`, e.g. `aerich
---app other_models init-db`.
+If your Tortoise-ORM app is not the default `models`, you must specify the correct app via `--app`,
+e.g. `aerich --app other_models init-db`.
 
 ### Update models and make migrate
 
@@ -193,8 +189,7 @@ Inspect a specified table in the default app and redirect to `models.py`:
 aerich inspectdb -t user > models.py
 ```
 
-Note that this command is limited and cannot infer some fields, such as `IntEnumField`, `ForeignKeyField`, and
-others.
+Note that this command is limited and cannot infer some fields, such as `IntEnumField`, `ForeignKeyField`, and others.
 
 ### Multiple databases
 
@@ -212,12 +207,6 @@ tortoise_orm = {
 ```
 
 You only need to specify `aerich.models` in one app, and must specify `--app` when running `aerich migrate` and so on.
-
-## Support this project
-
-| AliPay                                                                                 | WeChatPay                                                                                 | PayPal                                                           |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| <img width="200" src="https://github.com/long2ice/aerich/raw/dev/images/alipay.jpeg"/> | <img width="200" src="https://github.com/long2ice/aerich/raw/dev/images/wechatpay.jpeg"/> | [PayPal](https://www.paypal.me/long2ice) to my account long2ice. |
 
 ## License
 
