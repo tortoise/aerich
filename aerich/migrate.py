@@ -257,14 +257,23 @@ class Migrate:
                         old_data_field_name = old_data_field.get("name")
                         if len(changes) == 2:
                             # rename field
-                            if changes[0] == (
-                                "change",
-                                "name",
-                                (old_data_field_name, new_data_field_name),
-                            ) and changes[1] == (
-                                "change",
-                                "db_column",
-                                (old_data_field.get("db_column"), new_data_field.get("db_column")),
+                            if (
+                                changes[0]
+                                == (
+                                    "change",
+                                    "name",
+                                    (old_data_field_name, new_data_field_name),
+                                )
+                                and changes[1]
+                                == (
+                                    "change",
+                                    "db_column",
+                                    (
+                                        old_data_field.get("db_column"),
+                                        new_data_field.get("db_column"),
+                                    ),
+                                )
+                                and old_data_field_name not in new_data_fields_name
                             ):
                                 if upgrade:
                                     is_rename = click.prompt(

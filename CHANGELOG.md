@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.2
+
+- Fix rename field on the field add. (#134)
+
 ### 0.5.1
 
 - Fix tortoise connections not being closed properly. (#120)
