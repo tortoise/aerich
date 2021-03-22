@@ -6,6 +6,7 @@
 
 - Fix rename field on the field add. (#134)
 - Fix postgres field type change error. (#135)
+- Fix inspectdb for `FloatField`. (#138)
 
 ### 0.5.1
 
