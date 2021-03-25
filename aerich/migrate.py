@@ -176,7 +176,11 @@ class Migrate:
                     pass
             else:
                 old_model_describe = old_models.get(new_model_str)
-
+                # rename table
+                new_table = new_model_describe.get("table")
+                old_table = old_model_describe.get("table")
+                if new_table != old_table:
+                    cls._add_operator(cls.rename_table(model, old_table, new_table), upgrade)
                 old_unique_together = set(
                     map(lambda x: tuple(x), old_model_describe.get("unique_together"))
                 )
@@ -405,6 +409,10 @@ class Migrate:
         for old_model in old_models:
             if old_model not in new_models.keys():
                 cls._add_operator(cls.drop_model(old_models.get(old_model).get("table")), upgrade)
+
+    @classmethod
+    def rename_table(cls, model: Type[Model], old_table_name: str, new_table_name: str):
+        return cls.ddl.rename_table(model, old_table_name, new_table_name)
 
     @classmethod
     def add_model(cls, model: Type[Model]):

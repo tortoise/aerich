@@ -26,6 +26,7 @@ class BaseDDL:
     _CHANGE_COLUMN_TEMPLATE = (
         'ALTER TABLE "{table_name}" CHANGE {old_column_name} {new_column_name} {new_column_type}'
     )
+    _RENAME_TABLE_TEMPLATE = 'ALTER TABLE "{old_table_name}" RENAME TO "{new_table_name}"'
 
     def __init__(self, client: "BaseDBAsyncClient"):
         self.client = client
@@ -230,3 +231,9 @@ class BaseDDL:
 
     def set_comment(self, model: "Type[Model]", field_describe: dict):
         raise NotImplementedError
+
+    def rename_table(self, model: "Type[Model]", old_table_name: str, new_table_name: str):
+        db_table = model._meta.db_table
+        return self._RENAME_TABLE_TEMPLATE.format(
+            table_name=db_table, old_table_name=old_table_name, new_table_name=new_table_name
+        )

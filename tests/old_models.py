@@ -61,3 +61,6 @@ class Config(Model):
     key = fields.CharField(max_length=20)
     value = fields.JSONField()
     status: Status = fields.IntEnumField(Status, default=Status.on)
+
+    class Meta:
+        table = "configs"
