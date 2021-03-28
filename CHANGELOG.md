@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.3
+
+- Fix postgre alter null. (#142)
+
 ### 0.5.2
 
 - Fix rename field on the field add. (#134)

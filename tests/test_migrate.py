@@ -832,7 +832,7 @@ def test_migrate(mocker: MockerFixture):
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert sorted(Migrate.upgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200) USING "name"::VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL',
                 'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
                 'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
@@ -855,7 +855,7 @@ def test_migrate(mocker: MockerFixture):
         )
         assert sorted(Migrate.downgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200) USING "name"::VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL',
                 'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
                 'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
                 'ALTER TABLE "config" DROP COLUMN "user_id"',

@@ -399,6 +399,9 @@ class Migrate:
                         elif option == "unique":
                             # because indexed include it
                             pass
+                        elif option == "nullable":
+                            # change nullable
+                            cls._add_operator(cls._alter_null(model, new_data_field), upgrade)
                         else:
                             # modify column
                             cls._add_operator(

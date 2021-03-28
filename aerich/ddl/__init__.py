@@ -227,10 +227,10 @@ class BaseDDL:
         )
 
     def alter_column_null(self, model: "Type[Model]", field_describe: dict):
-        raise NotImplementedError
+        return self.modify_column(model, field_describe)
 
     def set_comment(self, model: "Type[Model]", field_describe: dict):
-        raise NotImplementedError
+        return self.modify_column(model, field_describe)
 
     def rename_table(self, model: "Type[Model]", old_table_name: str, new_table_name: str):
         db_table = model._meta.db_table
