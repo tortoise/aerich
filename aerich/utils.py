@@ -1,4 +1,5 @@
 import importlib
+import sys
 from typing import Dict
 
 from click import BadOptionUsage, Context
@@ -31,16 +32,24 @@ def get_app_connection(config, app) -> BaseDBAsyncClient:
     return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
-def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
+def get_tortoise_config(ctx: Context, tortoise_orm: str, app_args: str = None) -> dict:
     """
     get tortoise config from module
     :param ctx:
     :param tortoise_orm:
+    :param app_args: any args to pass with your app import. E.g. -c app_config.yml
     :return:
     """
     splits = tortoise_orm.split(".")
     config_path = ".".join(splits[:-1])
     tortoise_config = splits[-1]
+
+    # apply app's args
+    if app_args is not None:
+        sys.argv = [sys.argv[0]]
+        for arg in app_args.split():
+            sys.argv.append(arg)
+
     try:
         config_module = importlib.import_module(config_path)
     except (ModuleNotFoundError, AttributeError):

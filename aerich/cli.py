@@ -78,8 +78,9 @@ async def cli(ctx: Context, config, app, name):
 
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
+        app_args = parser[name].get("app_args")
 
-        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
+        tortoise_config = get_tortoise_config(ctx, tortoise_orm, app_args)
         app = app or list(tortoise_config.get("apps").keys())[0]
         ctx.obj["config"] = tortoise_config
         ctx.obj["location"] = location
