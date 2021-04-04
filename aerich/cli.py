@@ -30,6 +30,8 @@ from .models import Aerich
 
 parser = ConfigParser()
 
+DEFAULT_CONFIG_NAME = "aerich.ini"
+
 
 def coro(f):
     @wraps(f)
@@ -51,7 +53,7 @@ def coro(f):
 @click.option(
     "-c",
     "--config",
-    default="aerich.ini",
+    default=DEFAULT_CONFIG_NAME,
     show_default=True,
     help="Config file.",
 )
@@ -63,10 +65,14 @@ def coro(f):
     show_default=True,
     help="Name of section in .ini file to use for aerich config.",
 )
+@click.option("--ignore-config-option", is_flag=True)
 @click.pass_context
 @coro
-async def cli(ctx: Context, config, app, name):
+async def cli(ctx: Context, config, app, name, ignore_config_option=False):
     ctx.ensure_object(dict)
+    if ignore_config_option:
+        config = DEFAULT_CONFIG_NAME
+
     ctx.obj["config_file"] = config
     ctx.obj["name"] = name
 
