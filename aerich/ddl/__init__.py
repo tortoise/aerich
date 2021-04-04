@@ -4,6 +4,8 @@ from typing import List, Type
 from tortoise import BaseDBAsyncClient, Model
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
 
+from aerich.utils import is_default_function
+
 
 class BaseDDL:
     schema_generator_cls: Type[BaseSchemaGenerator] = BaseSchemaGenerator
@@ -76,7 +78,7 @@ class BaseDDL:
         auto_now_add = field_describe.get("auto_now_add", False)
         auto_now = field_describe.get("auto_now", False)
         if default is not None or auto_now_add:
-            if field_describe.get("field_type") in ["UUIDField", "TextField", "JSONField"]:
+            if field_describe.get("field_type") in ["UUIDField", "TextField", "JSONField"] or is_default_function(default):
                 default = ""
             else:
                 try:

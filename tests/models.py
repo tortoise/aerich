@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from enum import IntEnum
 
 from tortoise import Model, fields
@@ -38,9 +39,13 @@ class Email(Model):
     users = fields.ManyToManyField("models.User")
 
 
+def default_name():
+    return uuid.uuid4()
+
+
 class Category(Model):
     slug = fields.CharField(max_length=100)
-    name = fields.CharField(max_length=200, null=True)
+    name = fields.CharField(max_length=200, null=True, default=default_name)
     user = fields.ForeignKeyField("models.User", description="User")
     created_at = fields.DatetimeField(auto_now_add=True)
 

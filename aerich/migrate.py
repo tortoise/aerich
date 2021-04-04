@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
@@ -10,7 +11,12 @@ from tortoise.exceptions import OperationalError
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.utils import get_app_connection, get_models_describe, write_version_file
+from aerich.utils import (
+    get_app_connection,
+    get_models_describe,
+    is_default_function,
+    write_version_file,
+)
 
 
 class Migrate:
@@ -394,8 +400,13 @@ class Migrate:
                             # continue since repeated with others
                             continue
                         elif option == "default":
-                            # change column default
-                            cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
+                            if not (
+                                is_default_function(old_new[0]) or is_default_function(old_new[1])
+                            ):
+                                # change column default
+                                cls._add_operator(
+                                    cls._alter_default(model, new_data_field), upgrade
+                                )
                         elif option == "unique":
                             # because indexed include it
                             pass
