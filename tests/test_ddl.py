@@ -95,13 +95,11 @@ def test_modify_column():
 def test_alter_column_default():
     if isinstance(Migrate.ddl, SqliteDDL):
         return
-    ret = Migrate.ddl.alter_column_default(
-        Category, Category._meta.fields_map.get("name").describe(False)
-    )
+    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map.get("intro").describe(False))
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP DEFAULT'
+        assert ret == 'ALTER TABLE "user" ALTER COLUMN "intro" SET DEFAULT \'\''
     elif isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE `category` ALTER COLUMN `name` DROP DEFAULT"
+        assert ret == "ALTER TABLE `user` ALTER COLUMN `intro` SET DEFAULT ''"
 
     ret = Migrate.ddl.alter_column_default(
         Category, Category._meta.fields_map.get("created_at").describe(False)
