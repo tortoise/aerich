@@ -5,6 +5,7 @@
 ### 0.5.3
 
 - Fix postgre alter null. (#142)
+- Fix default function when migrate. (#147)
 
 ### 0.5.2
 

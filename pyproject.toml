@@ -27,7 +27,7 @@ dictdiffer = "*"
 [tool.poetry.dev-dependencies]
 flake8 = "*"
 isort = "*"
-black = "^20.8b1"
+black = "19.10b0"
 pytest = "*"
 pytest-xdist = "*"
 pytest-asyncio = "*"
