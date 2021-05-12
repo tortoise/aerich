@@ -1,4 +1,5 @@
 import importlib
+import re
 from typing import Dict
 
 from click import BadOptionUsage, Context
@@ -16,8 +17,7 @@ def get_app_connection_name(config, app_name: str) -> str:
     if app:
         return app.get("default_connection", "default")
     raise BadOptionUsage(
-        option_name="--app",
-        message=f'Can\'t get app named "{app_name}"',
+        option_name="--app", message=f'Can\'t get app named "{app_name}"',
     )
 
 
@@ -121,3 +121,7 @@ def get_models_describe(app: str) -> Dict:
         describe = model.describe()
         ret[describe.get("name")] = describe
     return ret
+
+
+def is_default_function(string: str):
+    return re.match(r"^<function.+>$", str(string or ""))

@@ -4,6 +4,8 @@ from typing import List, Type
 from tortoise import BaseDBAsyncClient, Model
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
 
+from aerich.utils import is_default_function
+
 
 class BaseDDL:
     schema_generator_cls: Type[BaseSchemaGenerator] = BaseSchemaGenerator
@@ -26,6 +28,7 @@ class BaseDDL:
     _CHANGE_COLUMN_TEMPLATE = (
         'ALTER TABLE "{table_name}" CHANGE {old_column_name} {new_column_name} {new_column_type}'
     )
+    _RENAME_TABLE_TEMPLATE = 'ALTER TABLE "{old_table_name}" RENAME TO "{new_table_name}"'
 
     def __init__(self, client: "BaseDBAsyncClient"):
         self.client = client
@@ -75,7 +78,11 @@ class BaseDDL:
         auto_now_add = field_describe.get("auto_now_add", False)
         auto_now = field_describe.get("auto_now", False)
         if default is not None or auto_now_add:
-            if field_describe.get("field_type") in ["UUIDField", "TextField", "JSONField"]:
+            if field_describe.get("field_type") in [
+                "UUIDField",
+                "TextField",
+                "JSONField",
+            ] or is_default_function(default):
                 default = ""
             else:
                 try:
@@ -108,9 +115,7 @@ class BaseDDL:
                 nullable="NOT NULL" if not field_describe.get("nullable") else "",
                 unique="UNIQUE" if field_describe.get("unique") else "",
                 comment=self.schema_generator._column_comment_generator(
-                    table=db_table,
-                    column=db_column,
-                    comment=field_describe.get("description"),
+                    table=db_table, column=db_column, comment=field_describe.get("description"),
                 )
                 if description
                 else "",
@@ -226,7 +231,13 @@ class BaseDDL:
         )
 
     def alter_column_null(self, model: "Type[Model]", field_describe: dict):
-        raise NotImplementedError
+        return self.modify_column(model, field_describe)
 
     def set_comment(self, model: "Type[Model]", field_describe: dict):
-        raise NotImplementedError
+        return self.modify_column(model, field_describe)
+
+    def rename_table(self, model: "Type[Model]", old_table_name: str, new_table_name: str):
+        db_table = model._meta.db_table
+        return self._RENAME_TABLE_TEMPLATE.format(
+            table_name=db_table, old_table_name=old_table_name, new_table_name=new_table_name
+        )

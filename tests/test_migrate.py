@@ -146,7 +146,7 @@ old_models_describe = {
     "models.Config": {
         "name": "models.Config",
         "app": "models",
-        "table": "config",
+        "table": "configs",
         "abstract": False,
         "description": None,
         "docstring": None,
@@ -768,7 +768,7 @@ def test_migrate(mocker: MockerFixture):
     - alter default: Config.status
     - rename column: Product.image -> Product.pic
     """
-    mocker.patch("click.prompt", side_effect=(False, True))
+    mocker.patch("click.prompt", side_effect=(True,))
 
     models_describe = get_models_describe("models")
     Migrate.app = "models"
@@ -790,6 +790,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
                 "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `user_id`",
+                "ALTER TABLE `configs` RENAME TO `config`",
                 "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
                 "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
                 "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_user_5b58673d`",
@@ -798,7 +799,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
-                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
+                "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4;",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
                 "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
             ]
@@ -813,6 +814,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
                 "ALTER TABLE `email` ADD `user_id` INT NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `address`",
+                "ALTER TABLE `config` RENAME TO `configs`",
                 "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
                 "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
                 "ALTER TABLE `email` ADD CONSTRAINT `fk_email_user_5b58673d` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
@@ -822,16 +824,16 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
                 "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
-                "ALTER TABLE `user` MODIFY COLUMN `username` VARCHAR(20) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
+                "DROP TABLE IF EXISTS `newmodel`",
             ]
         )
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert sorted(Migrate.upgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
-                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100)',
+                'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
                 'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
                 'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
@@ -839,28 +841,29 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "email" DROP COLUMN "user_id"',
                 'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
                 'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
+                'ALTER TABLE "configs" RENAME TO "config"',
                 'ALTER TABLE "email" DROP CONSTRAINT "fk_email_user_5b58673d"',
                 'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
-                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
                 'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
                 'ALTER TABLE "user" DROP COLUMN "avatar"',
-                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100) USING "password"::VARCHAR(100)',
+                'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
                 'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
             ]
         )
         assert sorted(Migrate.downgrade_operators) == sorted(
             [
-                'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200)',
-                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200)',
-                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200)',
-                'ALTER TABLE "user" ALTER COLUMN "username" TYPE VARCHAR(20)',
+                'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
                 'ALTER TABLE "config" DROP COLUMN "user_id"',
                 'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
                 'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
                 'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "email" DROP COLUMN "address"',
+                'ALTER TABLE "config" RENAME TO "configs"',
                 'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
                 'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
                 'ALTER TABLE "email" ADD CONSTRAINT "fk_email_user_5b58673d" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
@@ -870,6 +873,7 @@ def test_migrate(mocker: MockerFixture):
                 'DROP INDEX "idx_user_usernam_9987ab"',
                 'DROP INDEX "uid_product_name_f14935"',
                 'DROP TABLE IF EXISTS "email_user"',
+                'DROP TABLE IF EXISTS "newmodel"',
             ]
         )
     elif isinstance(Migrate.ddl, SqliteDDL):

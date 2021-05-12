@@ -2,10 +2,23 @@
 
 ## 0.5
 
+### 0.5.3
+
+- Fix postgre alter null. (#142)
+- Fix default function when migrate. (#147)
+
+### 0.5.2
+
+- Fix rename field on the field add. (#134)
+- Fix postgres field type change error. (#135)
+- Fix inspectdb for `FloatField`. (#138)
+- Support `rename table`. (#139)
+
 ### 0.5.1
 
 - Fix tortoise connections not being closed properly. (#120)
 - Fix bug for field change. (#119)
+- Fix drop model in the downgrade. (#132)
 
 ### 0.5.0
 

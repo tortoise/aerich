@@ -10,7 +10,12 @@ from tortoise.exceptions import OperationalError
 
 from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
-from aerich.utils import get_app_connection, get_models_describe, write_version_file
+from aerich.utils import (
+    get_app_connection,
+    get_models_describe,
+    is_default_function,
+    write_version_file,
+)
 
 
 class Migrate:
@@ -169,10 +174,18 @@ class Migrate:
             model = cls._get_model(new_model_describe.get("name").split(".")[1])
 
             if new_model_str not in old_models.keys():
-                cls._add_operator(cls.add_model(model), upgrade)
+                if upgrade:
+                    cls._add_operator(cls.add_model(model), upgrade)
+                else:
+                    # we can't find origin model when downgrade, so skip
+                    pass
             else:
                 old_model_describe = old_models.get(new_model_str)
-
+                # rename table
+                new_table = new_model_describe.get("table")
+                old_table = old_model_describe.get("table")
+                if new_table != old_table:
+                    cls._add_operator(cls.rename_table(model, old_table, new_table), upgrade)
                 old_unique_together = set(
                     map(lambda x: tuple(x), old_model_describe.get("unique_together"))
                 )
@@ -224,14 +237,12 @@ class Migrate:
                 # add unique_together
                 for index in new_unique_together.difference(old_unique_together):
                     cls._add_operator(
-                        cls._add_index(model, index, True),
-                        upgrade,
+                        cls._add_index(model, index, True), upgrade,
                     )
                 # remove unique_together
                 for index in old_unique_together.difference(new_unique_together):
                     cls._add_operator(
-                        cls._drop_index(model, index, True),
-                        upgrade,
+                        cls._drop_index(model, index, True), upgrade,
                     )
 
                 old_data_fields = old_model_describe.get("data_fields")
@@ -253,14 +264,19 @@ class Migrate:
                         old_data_field_name = old_data_field.get("name")
                         if len(changes) == 2:
                             # rename field
-                            if changes[0] == (
-                                "change",
-                                "name",
-                                (old_data_field_name, new_data_field_name),
-                            ) and changes[1] == (
-                                "change",
-                                "db_column",
-                                (old_data_field.get("db_column"), new_data_field.get("db_column")),
+                            if (
+                                changes[0]
+                                == ("change", "name", (old_data_field_name, new_data_field_name),)
+                                and changes[1]
+                                == (
+                                    "change",
+                                    "db_column",
+                                    (
+                                        old_data_field.get("db_column"),
+                                        new_data_field.get("db_column"),
+                                    ),
+                                )
+                                and old_data_field_name not in new_data_fields_name
                             ):
                                 if upgrade:
                                     is_rename = click.prompt(
@@ -281,21 +297,15 @@ class Migrate:
                                         and cls._db_version.startswith("5.")
                                     ):
                                         cls._add_operator(
-                                            cls._modify_field(model, new_data_field),
-                                            upgrade,
+                                            cls._modify_field(model, new_data_field), upgrade,
                                         )
                                     else:
                                         cls._add_operator(
-                                            cls._rename_field(model, *changes[1][2]),
-                                            upgrade,
+                                            cls._rename_field(model, *changes[1][2]), upgrade,
                                         )
                     if not is_rename:
                         cls._add_operator(
-                            cls._add_field(
-                                model,
-                                new_data_field,
-                            ),
-                            upgrade,
+                            cls._add_field(model, new_data_field,), upgrade,
                         )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
@@ -365,30 +375,42 @@ class Migrate:
                             unique = new_data_field.get("unique")
                             if old_new[0] is False and old_new[1] is True:
                                 cls._add_operator(
-                                    cls._add_index(model, (field_name,), unique),
-                                    upgrade,
+                                    cls._add_index(model, (field_name,), unique), upgrade,
                                 )
                             else:
                                 cls._add_operator(
-                                    cls._drop_index(model, (field_name,), unique),
-                                    upgrade,
+                                    cls._drop_index(model, (field_name,), unique), upgrade,
                                 )
                         elif option == "db_field_types.":
                             # continue since repeated with others
                             continue
                         elif option == "default":
-                            # change column default
-                            cls._add_operator(cls._alter_default(model, new_data_field), upgrade)
+                            if not (
+                                is_default_function(old_new[0]) or is_default_function(old_new[1])
+                            ):
+                                # change column default
+                                cls._add_operator(
+                                    cls._alter_default(model, new_data_field), upgrade
+                                )
+                        elif option == "unique":
+                            # because indexed include it
+                            pass
+                        elif option == "nullable":
+                            # change nullable
+                            cls._add_operator(cls._alter_null(model, new_data_field), upgrade)
                         else:
                             # modify column
                             cls._add_operator(
-                                cls._modify_field(model, new_data_field),
-                                upgrade,
+                                cls._modify_field(model, new_data_field), upgrade,
                             )
 
         for old_model in old_models:
             if old_model not in new_models.keys():
                 cls._add_operator(cls.drop_model(old_models.get(old_model).get("table")), upgrade)
+
+    @classmethod
+    def rename_table(cls, model: Type[Model], old_table_name: str, new_table_name: str):
+        return cls.ddl.rename_table(model, old_table_name, new_table_name)
 
     @classmethod
     def add_model(cls, model: Type[Model]):
