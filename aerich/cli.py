@@ -8,11 +8,11 @@ from typing import List
 
 import click
 from click import Context, UsageError
-from tortoise import Tortoise, generate_schema_for_client
+from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
-from tortoise.utils import get_schema_sql
 
+from aerich.actions import init_db_action
 from aerich.inspectdb import InspectDb
 from aerich.migrate import Migrate
 from aerich.utils import (
@@ -21,7 +21,6 @@ from aerich.utils import (
     get_models_describe,
     get_tortoise_config,
     get_version_content_from_file,
-    write_version_file,
 )
 
 from . import __version__
@@ -252,30 +251,10 @@ async def init_db(ctx: Context, safe):
     location = ctx.obj["location"]
     app = ctx.obj["app"]
 
-    dirname = Path(location, app)
-    try:
-        dirname.mkdir(parents=True)
-        click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
-    except FileExistsError:
-        return click.secho(
-            f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
-        )
-
     await Tortoise.init(config=config)
     connection = get_app_connection(config, app)
-    await generate_schema_for_client(connection, safe)
 
-    schema = get_schema_sql(connection, safe)
-
-    version = await Migrate.generate_version()
-    await Aerich.create(
-        version=version, app=app, content=get_models_describe(app),
-    )
-    content = {
-        "upgrade": [schema],
-    }
-    write_version_file(Path(dirname, version), content)
-    click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
+    init_db_action(app_name=app, location=location, connection=connection, safe=safe)
 
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
