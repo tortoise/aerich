@@ -11,11 +11,7 @@ from tortoise.utils import get_schema_sql
 
 
 async def init_db_action(
-    app_name: str,
-    location: str,
-    connection: BaseDBAsyncClient,
-    output: Output,
-    safe: bool = True,
+    app_name: str, location: str, connection: BaseDBAsyncClient, output: Output, safe: bool = True,
 ) -> bool:
     dirname = Path(location, app_name)
 
