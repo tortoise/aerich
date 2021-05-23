@@ -46,3 +46,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry.scripts]
 aerich = "aerich.cli:main"
+
+[tool.black]
+line-length = 100
+target-version = py38
