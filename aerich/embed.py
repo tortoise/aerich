@@ -1,5 +1,3 @@
-from tortoise import Tortoise
-
 from aerich.actions import init_db_action, upgrade_action
 from aerich.output import PrintOutput, Output
 
