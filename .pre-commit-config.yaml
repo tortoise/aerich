@@ -14,6 +14,14 @@ repos:
     rev: 20.8b1
     hooks:
       - id: black
+        args: ["--line-length", "100", "--target-version", "py38"]
+
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.8.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        language_version: python3
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.7.2
