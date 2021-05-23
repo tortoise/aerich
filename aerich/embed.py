@@ -1,6 +1,6 @@
 from tortoise import Tortoise
 
-from aerich.actions import init_db_action
+from aerich.actions import init_db_action, upgrade_action
 from aerich.output import PrintOutput, Output
 
 
@@ -18,11 +18,18 @@ class Aerich:
         self.__output = output or PrintOutput()
 
     async def init_db(self, safe: bool = True) -> bool:
-        connection = Tortoise.get_connection(connection_name=self.__connection_name)
         await init_db_action(
             app_name=self.__app_name,
             location=self.__location,
-            connection=connection,
+            connection_name=self.__connection_name,
             output=self.__output,
             safe=safe,
+        )
+
+    async def upgrade(self) -> bool:
+        await upgrade_action(
+            app_name=self.__app_name,
+            location=self.__location,
+            connection_name=self.__connection_name,
+            output=self.__output,
         )

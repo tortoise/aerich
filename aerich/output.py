@@ -16,10 +16,10 @@ class Output(ABC):
 
 class ClickOutput(Output):
     def success(self, message: str):
-        click.secho(message, Color.green)
+        click.secho(message, fg=Color.green)
 
     def warning(self, message: str):
-        click.secho(message, Color.yellow)
+        click.secho(message, fg=Color.yellow)
 
 
 class PrintOutput(Output):

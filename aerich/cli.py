@@ -9,16 +9,15 @@ from typing import List
 import click
 from click import Context, UsageError
 from tortoise import Tortoise
-from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 
-from aerich.actions import init_db_action
+from aerich.actions import init_db_action, upgrade_action
 from aerich.inspectdb import InspectDb
 from aerich.migrate import Migrate
+from aerich.output import ClickOutput
 from aerich.utils import (
     get_app_connection,
     get_app_connection_name,
-    get_models_describe,
     get_tortoise_config,
     get_version_content_from_file,
 )
@@ -103,26 +102,13 @@ async def migrate(ctx: Context, name):
 async def upgrade(ctx: Context):
     config = ctx.obj["config"]
     app = ctx.obj["app"]
-    migrated = False
-    for version_file in Migrate.get_all_version_files():
-        try:
-            exists = await Aerich.exists(version=version_file, app=app)
-        except OperationalError:
-            exists = False
-        if not exists:
-            async with in_transaction(get_app_connection_name(config, app)) as conn:
-                file_path = Path(Migrate.migrate_location, version_file)
-                content = get_version_content_from_file(file_path)
-                upgrade_query_list = content.get("upgrade")
-                for upgrade_query in upgrade_query_list:
-                    await conn.execute_script(upgrade_query)
-                await Aerich.create(
-                    version=version_file, app=app, content=get_models_describe(app),
-                )
-            click.secho(f"Success upgrade {version_file}", fg=Color.green)
-            migrated = True
-    if not migrated:
-        click.secho("No upgrade items found", fg=Color.yellow)
+    location = ctx.obj["location"]
+    connection_name = get_app_connection_name(config, app)
+    output = ClickOutput()
+
+    await upgrade_action(
+        app_name=app, location=location, connection_name=connection_name, output=output
+    )
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -252,9 +238,12 @@ async def init_db(ctx: Context, safe):
     app = ctx.obj["app"]
 
     await Tortoise.init(config=config)
-    connection = get_app_connection(config, app)
+    connection_name = get_app_connection_name(config, app)
+    output = ClickOutput()
 
-    init_db_action(app_name=app, location=location, connection=connection, safe=safe)
+    init_db_action(
+        app_name=app, location=location, connection_name=connection_name, output=output, safe=safe
+    )
 
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
