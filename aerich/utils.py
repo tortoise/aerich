@@ -1,5 +1,6 @@
 import importlib
 import re
+from pathlib import Path
 from typing import Dict
 
 from click import BadOptionUsage, Context
@@ -84,7 +85,7 @@ def get_version_content_from_file(version_file: str) -> Dict:
         return ret
 
 
-def write_version_file(version_file: str, content: Dict):
+def write_version_file(version_file: Path, content: Dict):
     """
     write version file
     :param version_file:

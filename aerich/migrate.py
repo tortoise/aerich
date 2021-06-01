@@ -236,14 +236,10 @@ class Migrate:
                             cls._add_operator(cls.drop_m2m(table), upgrade, fk_m2m=True)
                 # add unique_together
                 for index in new_unique_together.difference(old_unique_together):
-                    cls._add_operator(
-                        cls._add_index(model, index, True), upgrade,
-                    )
+                    cls._add_operator(cls._add_index(model, index, True), upgrade, True)
                 # remove unique_together
                 for index in old_unique_together.difference(new_unique_together):
-                    cls._add_operator(
-                        cls._drop_index(model, index, True), upgrade,
-                    )
+                    cls._add_operator(cls._drop_index(model, index, True), upgrade, True)
 
                 old_data_fields = old_model_describe.get("data_fields")
                 new_data_fields = new_model_describe.get("data_fields")
@@ -375,11 +371,11 @@ class Migrate:
                             unique = new_data_field.get("unique")
                             if old_new[0] is False and old_new[1] is True:
                                 cls._add_operator(
-                                    cls._add_index(model, (field_name,), unique), upgrade,
+                                    cls._add_index(model, (field_name,), unique), upgrade, True
                                 )
                             else:
                                 cls._add_operator(
-                                    cls._drop_index(model, (field_name,), unique), upgrade,
+                                    cls._drop_index(model, (field_name,), unique), upgrade, True
                                 )
                         elif option == "db_field_types.":
                             # continue since repeated with others

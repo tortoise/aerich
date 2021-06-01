@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.4
+
+- Fix incorrect index creation order. (#151)
+
 ### 0.5.3
 
 - Fix postgre alter null. (#142)
