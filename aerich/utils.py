@@ -42,13 +42,7 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     splits = tortoise_orm.split(".")
     config_path = ".".join(splits[:-1])
     tortoise_config = splits[-1]
-    try:
-        config_module = importlib.import_module(config_path)
-    except (ModuleNotFoundError, AttributeError):
-        raise BadOptionUsage(
-            ctx=ctx, message=f'No config named "{config_path}"', option_name="--config"
-        )
-
+    config_module = importlib.import_module(config_path)
     config = getattr(config_module, tortoise_config, None)
     if not config:
         raise BadOptionUsage(

@@ -5,6 +5,7 @@
 ### 0.5.4
 
 - Fix incorrect index creation order. (#151)
+- Not catch exception when import config. (#164)
 
 ### 0.5.3
 
