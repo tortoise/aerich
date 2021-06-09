@@ -113,8 +113,8 @@ class Migrate:
             if version_file.startswith(version.split("_")[0]):
                 os.unlink(Path(cls.migrate_location, version_file))
         content = {
-            "upgrade": cls.upgrade_operators,
-            "downgrade": cls.downgrade_operators,
+            "upgrade": list(dict.fromkeys(cls.upgrade_operators)),
+            "downgrade": list(dict.fromkeys(cls.downgrade_operators)),
         }
         write_version_file(Path(cls.migrate_location, version), content)
         return version
@@ -377,9 +377,6 @@ class Migrate:
                                 cls._add_operator(
                                     cls._drop_index(model, (field_name,), unique), upgrade, True
                                 )
-                        elif option == "db_field_types.":
-                            # continue since repeated with others
-                            continue
                         elif option == "default":
                             if not (
                                 is_default_function(old_new[0]) or is_default_function(old_new[1])
@@ -388,9 +385,6 @@ class Migrate:
                                 cls._add_operator(
                                     cls._alter_default(model, new_data_field), upgrade
                                 )
-                        elif option == "unique":
-                            # because indexed include it
-                            pass
                         elif option == "nullable":
                             # change nullable
                             cls._add_operator(cls._alter_null(model, new_data_field), upgrade)
