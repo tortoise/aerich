@@ -377,6 +377,9 @@ class Migrate:
                                 cls._add_operator(
                                     cls._drop_index(model, (field_name,), unique), upgrade, True
                                 )
+                        elif option == "db_field_types.":
+                            # continue since repeated with others
+                            continue
                         elif option == "default":
                             if not (
                                 is_default_function(old_new[0]) or is_default_function(old_new[1])
@@ -385,6 +388,9 @@ class Migrate:
                                 cls._add_operator(
                                     cls._alter_default(model, new_data_field), upgrade
                                 )
+                        elif option == "unique":
+                            # because indexed include it
+                            continue
                         elif option == "nullable":
                             # change nullable
                             cls._add_operator(cls._alter_null(model, new_data_field), upgrade)
