@@ -26,10 +26,12 @@ Just install from pypi:
 Usage: aerich [OPTIONS] COMMAND [ARGS]...
 
 Options:
+  -V, --version      Show the version and exit.
   -c, --config TEXT  Config file.  [default: aerich.ini]
-  --app TEXT         Tortoise-ORM app name.  [default: models]
+  --app TEXT         Tortoise-ORM app name.
   -n, --name TEXT    Name of section in .ini file to use for aerich config.
                      [default: aerich]
+
   -h, --help         Show this message and exit.
 
 Commands:
@@ -40,7 +42,7 @@ Commands:
   init-db    Generate schema and generate app migrate location.
   inspectdb  Introspects the database tables to standard output as...
   migrate    Generate migrate changes file.
-  upgrade    Upgrade to latest version.
+  upgrade    Upgrade to specified version.
 ```
 
 ## Usage
@@ -68,10 +70,12 @@ Usage: aerich init [OPTIONS]
 
   Init config file and generate root migrate location.
 
-Options:
-  -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.
-                           [required]
+OOptions:
+  -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable, like
+                           settings.TORTOISE_ORM.  [required]
+
   --location TEXT          Migrate store location.  [default: ./migrations]
+  -s, --src_folder TEXT    Folder of the source, relative to the project root.
   -h, --help               Show this message and exit.
 ```
 
