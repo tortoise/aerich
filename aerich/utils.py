@@ -36,7 +36,8 @@ def get_app_connection_name(config, app_name: str) -> str:
     if app:
         return app.get("default_connection", "default")
     raise BadOptionUsage(
-        option_name="--app", message=f'Can\'t get app named "{app_name}"',
+        option_name="--app",
+        message=f'Can\'t get app named "{app_name}"',
     )
 
 
@@ -64,7 +65,7 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     try:
         config_module = importlib.import_module(config_path)
     except ModuleNotFoundError as e:
-        raise ClickException(f'Error while importing configuration module: {e}') from None
+        raise ClickException(f"Error while importing configuration module: {e}") from None
 
     config = getattr(config_module, tortoise_config, None)
     if not config:
