@@ -36,8 +36,7 @@ def get_app_connection_name(config, app_name: str) -> str:
     if app:
         return app.get("default_connection", "default")
     raise BadOptionUsage(
-        option_name="--app",
-        message=f'Can\'t get app named "{app_name}"',
+        option_name="--app", message=f'Can\'t get app named "{app_name}"',
     )
 
 
