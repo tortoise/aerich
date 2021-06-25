@@ -128,7 +128,7 @@ Now your db is migrated to latest.
 ### Downgrade to specified version
 
 ```shell
-> aerich init -h
+> aerich downgrade -h
 
 Usage: aerich downgrade [OPTIONS]
 
