@@ -1,9 +1,6 @@
-import pytest
-
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
-from aerich.exceptions import NotSupportError
 from aerich.migrate import Migrate
 from tests.models import Category, Product, User
 
@@ -144,11 +141,7 @@ def test_set_comment():
 
 
 def test_drop_column():
-    if isinstance(Migrate.ddl, SqliteDDL):
-        with pytest.raises(NotSupportError):
-            ret = Migrate.ddl.drop_column(Category, "name")
-    else:
-        ret = Migrate.ddl.drop_column(Category, "name")
+    ret = Migrate.ddl.drop_column(Category, "name")
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP COLUMN `name`"
     elif isinstance(Migrate.ddl, PostgresDDL):

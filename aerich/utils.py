@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Dict
 
-from click import BadOptionUsage, Context, ClickException
+from click import BadOptionUsage, ClickException, Context
 from tortoise import BaseDBAsyncClient, Tortoise
 
 

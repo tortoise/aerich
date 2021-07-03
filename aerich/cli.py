@@ -23,6 +23,7 @@ from aerich.utils import (
     get_version_content_from_file,
     write_version_file,
 )
+
 from . import __version__
 from .enums import Color
 from .models import Aerich

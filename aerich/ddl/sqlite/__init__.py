@@ -11,9 +11,6 @@ class SqliteDDL(BaseDDL):
     schema_generator_cls = SqliteSchemaGenerator
     DIALECT = SqliteSchemaGenerator.DIALECT
 
-    def drop_column(self, model: "Type[Model]", column_name: str):
-        raise NotSupportError("Drop column is unsupported in SQLite.")
-
     def modify_column(self, model: "Type[Model]", field_object: dict, is_pk: bool = True):
         raise NotSupportError("Modify column is unsupported in SQLite.")
 

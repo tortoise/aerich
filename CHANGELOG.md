@@ -6,6 +6,7 @@
 
 - Fix incorrect index creation order. (#151)
 - Not catch exception when import config. (#164)
+- Support `drop column` for sqlite. (#40)
 
 ### 0.5.3
 
