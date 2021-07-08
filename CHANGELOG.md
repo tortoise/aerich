@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.5
+
+- Fix KeyError: 'src_folder' after upgrading aerich to 0.5.4. (#176)
+
 ### 0.5.4
 
 - Fix incorrect index creation order. (#151)
