@@ -30,6 +30,10 @@ from .models import Aerich
 
 parser = ConfigParser()
 
+CONFIG_DEFAULT_VALUES = {
+    "src_folder": ".",
+}
+
 
 def coro(f):
     @wraps(f)
@@ -74,7 +78,7 @@ async def cli(ctx: Context, config, app, name):
 
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
-        src_folder = parser[name]["src_folder"]
+        src_folder = parser[name].get(["src_folder"], CONFIG_DEFAULT_VALUES["src_folder"])
 
         # Add specified source folder to path
         add_src_path(src_folder)
@@ -221,7 +225,7 @@ async def history(ctx: Context):
 @click.option(
     "-s",
     "--src_folder",
-    default=".",
+    default=CONFIG_DEFAULT_VALUES["src_folder"],
     show_default=False,
     help="Folder of the source, relative to the project root.",
 )
