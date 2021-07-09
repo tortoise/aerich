@@ -293,7 +293,10 @@ class Migrate:
                                         and cls._db_version.startswith("5.")
                                     ):
                                         cls._add_operator(
-                                            cls._modify_field(model, new_data_field), upgrade,
+                                            cls._change_field(
+                                                model, old_data_field, new_data_field
+                                            ),
+                                            upgrade,
                                         )
                                     else:
                                         cls._add_operator(

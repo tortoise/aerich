@@ -5,6 +5,7 @@
 ### 0.5.5
 
 - Fix KeyError: 'src_folder' after upgrading aerich to 0.5.4. (#176)
+- Fix MySQL 5.X rename column.
 
 ### 0.5.4
 

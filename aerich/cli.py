@@ -78,7 +78,7 @@ async def cli(ctx: Context, config, app, name):
 
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
-        src_folder = parser[name].get(["src_folder"], CONFIG_DEFAULT_VALUES["src_folder"])
+        src_folder = parser[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
 
         # Add specified source folder to path
         add_src_path(src_folder)
