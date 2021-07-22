@@ -16,7 +16,7 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tortoise-orm = "*"
+tortoise-orm = { git = "https://github.com/tortoise/tortoise-orm.git", branch = "develop" }
 click = "*"
 pydantic = "*"
 aiomysql = { version = "*", optional = true }
