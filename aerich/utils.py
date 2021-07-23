@@ -113,7 +113,9 @@ def write_version_file(version_file: Path, content: Dict):
         f.write(_UPGRADE)
         upgrade = content.get("upgrade")
         if len(upgrade) > 1:
-            f.write(";\n".join(upgrade) + ";\n")
+            f.write(";\n".join(upgrade))
+            if not upgrade[-1].endswith(";"):
+                f.write(";\n")
         else:
             f.write(f"{upgrade[0]}")
             if not upgrade[0].endswith(";"):
