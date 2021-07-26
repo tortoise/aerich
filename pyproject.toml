@@ -16,7 +16,7 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tortoise-orm = { git = "https://github.com/tortoise/tortoise-orm.git", branch = "develop" }
+tortoise-orm = "*"
 click = "*"
 pydantic = "*"
 aiomysql = { version = "*", optional = true }
@@ -27,7 +27,7 @@ dictdiffer = "*"
 [tool.poetry.dev-dependencies]
 flake8 = "*"
 isort = "*"
-black = "19.10b0"
+black = "*"
 pytest = "*"
 pytest-xdist = "*"
 pytest-asyncio = "*"
