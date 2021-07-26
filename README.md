@@ -212,6 +212,17 @@ tortoise_orm = {
 
 You only need to specify `aerich.models` in one app, and must specify `--app` when running `aerich migrate` and so on.
 
+## Restore `aerich` workflow
+
+In some cases, such as broken changes from upgrade of `aerich`, you can't run `aerich migrate` or `aerich upgrade`, you
+can make the following steps:
+
+1. drop `aerich` table.
+2. delete `migrations/{app}` directory.
+3. rerun `aerich init-db`.
+
+Note that these actions is safe, also you can do that to reset your migrations if your migration files is too many.
+
 ## License
 
 This project is licensed under the
