@@ -50,7 +50,9 @@ class Product(Model):
     view_num = fields.IntField(description="View Num")
     sort = fields.IntField()
     is_reviewed = fields.BooleanField(description="Is Reviewed")
-    type = fields.IntEnumField(ProductType, description="Product Type")
+    type = fields.IntEnumField(
+        ProductType, description="Product Type", source_field="type_db_alias"
+    )
     image = fields.CharField(max_length=200)
     body = fields.TextField()
     created_at = fields.DatetimeField(auto_now_add=True)
