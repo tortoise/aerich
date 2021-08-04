@@ -447,7 +447,10 @@ class Migrate:
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
         ret = []
         for field_name in fields_name:
-            if field_name in model._meta.fk_fields:
+            field = model._meta.fields_map[field_name]
+            if field.source_field:
+                ret.append(field.source_field)
+            elif field_name in model._meta.fk_fields:
                 ret.append(field_name + "_id")
             else:
                 ret.append(field_name)
