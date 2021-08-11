@@ -7,26 +7,13 @@ from typing import List
 
 import click
 from click import Context, UsageError
-from tortoise import Tortoise, generate_schema_for_client
-from tortoise.exceptions import OperationalError
-from tortoise.transactions import in_transaction
-from tortoise.utils import get_schema_sql
+from tortoise import Tortoise
 
-from aerich.inspectdb import InspectDb
-from aerich.migrate import Migrate
-from aerich.utils import (
-    add_src_path,
-    get_app_connection,
-    get_app_connection_name,
-    get_models_describe,
-    get_tortoise_config,
-    get_version_content_from_file,
-    write_version_file,
-)
+from aerich.exceptions import DowngradeError
+from aerich.utils import add_src_path, get_tortoise_config
 
-from . import __version__
+from . import Command, __version__
 from .enums import Color
-from .models import Aerich
 
 parser = ConfigParser()
 
@@ -53,7 +40,11 @@ def coro(f):
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
 @click.option(
-    "-c", "--config", default="aerich.ini", show_default=True, help="Config file.",
+    "-c",
+    "--config",
+    default="aerich.ini",
+    show_default=True,
+    help="Config file.",
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.option(
@@ -79,20 +70,16 @@ async def cli(ctx: Context, config, app, name):
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
         src_folder = parser[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
-
-        # Add specified source folder to path
-        add_src_path(src_folder)
-
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]
-        ctx.obj["config"] = tortoise_config
-        ctx.obj["location"] = location
-        ctx.obj["app"] = app
-        Migrate.app = app
+        command = Command(
+            tortoise_config=tortoise_config, app=app, location=location, src_folder=src_folder
+        )
+        ctx.obj["command"] = command
         if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
                 raise UsageError("You must exec init-db first", ctx=ctx)
-            await Migrate.init(tortoise_config, app, location)
+            await command.init()
 
 
 @cli.command(help="Generate migrate changes file.")
@@ -100,7 +87,8 @@ async def cli(ctx: Context, config, app, name):
 @click.pass_context
 @coro
 async def migrate(ctx: Context, name):
-    ret = await Migrate.migrate(name)
+    command = ctx.obj["command"]
+    ret = await command.migrate(name)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
     click.secho(f"Success migrate {ret}", fg=Color.green)
@@ -110,28 +98,13 @@ async def migrate(ctx: Context, name):
 @click.pass_context
 @coro
 async def upgrade(ctx: Context):
-    config = ctx.obj["config"]
-    app = ctx.obj["app"]
-    migrated = False
-    for version_file in Migrate.get_all_version_files():
-        try:
-            exists = await Aerich.exists(version=version_file, app=app)
-        except OperationalError:
-            exists = False
-        if not exists:
-            async with in_transaction(get_app_connection_name(config, app)) as conn:
-                file_path = Path(Migrate.migrate_location, version_file)
-                content = get_version_content_from_file(file_path)
-                upgrade_query_list = content.get("upgrade")
-                for upgrade_query in upgrade_query_list:
-                    await conn.execute_script(upgrade_query)
-                await Aerich.create(
-                    version=version_file, app=app, content=get_models_describe(app),
-                )
-            click.secho(f"Success upgrade {version_file}", fg=Color.green)
-            migrated = True
+    command = ctx.obj["command"]
+    migrated = await command.upgrade()
     if not migrated:
         click.secho("No upgrade items found", fg=Color.yellow)
+    else:
+        for version_file in migrated:
+            click.secho(f"Success upgrade {version_file}", fg=Color.green)
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -157,59 +130,37 @@ async def upgrade(ctx: Context):
 )
 @coro
 async def downgrade(ctx: Context, version: int, delete: bool):
-    app = ctx.obj["app"]
-    config = ctx.obj["config"]
-    if version == -1:
-        specified_version = await Migrate.get_last_version()
-    else:
-        specified_version = await Aerich.filter(app=app, version__startswith=f"{version}_").first()
-    if not specified_version:
-        return click.secho("No specified version found", fg=Color.yellow)
-    if version == -1:
-        versions = [specified_version]
-    else:
-        versions = await Aerich.filter(app=app, pk__gte=specified_version.pk)
-    for version in versions:
-        file = version.version
-        async with in_transaction(get_app_connection_name(config, app)) as conn:
-            file_path = Path(Migrate.migrate_location, file)
-            content = get_version_content_from_file(file_path)
-            downgrade_query_list = content.get("downgrade")
-            if not downgrade_query_list:
-                click.secho("No downgrade items found", fg=Color.yellow)
-                return
-            for downgrade_query in downgrade_query_list:
-                await conn.execute_query(downgrade_query)
-            await version.delete()
-            if delete:
-                os.unlink(file_path)
-            click.secho(f"Success downgrade {file}", fg=Color.green)
+    command = ctx.obj["command"]
+    try:
+        files = await command.downgrade(version, delete)
+    except DowngradeError as e:
+        return click.secho(str(e), fg=Color.yellow)
+    for file in files:
+        click.secho(f"Success downgrade {file}", fg=Color.green)
 
 
 @cli.command(help="Show current available heads in migrate location.")
 @click.pass_context
 @coro
 async def heads(ctx: Context):
-    app = ctx.obj["app"]
-    versions = Migrate.get_all_version_files()
-    is_heads = False
-    for version in versions:
-        if not await Aerich.exists(version=version, app=app):
-            click.secho(version, fg=Color.green)
-            is_heads = True
-    if not is_heads:
-        click.secho("No available heads,try migrate first", fg=Color.green)
+    command = ctx.obj["command"]
+    head_list = await command.heads()
+    if not head_list:
+        return click.secho("No available heads, try migrate first", fg=Color.green)
+    for version in head_list:
+        click.secho(version, fg=Color.green)
 
 
 @cli.command(help="List all migrate items.")
 @click.pass_context
 @coro
 async def history(ctx: Context):
-    versions = Migrate.get_all_version_files()
+    command = ctx.obj["command"]
+    versions = await command.history()
+    if not versions:
+        return click.secho("No history, try migrate", fg=Color.green)
     for version in versions:
         click.secho(version, fg=Color.green)
-    if not versions:
-        click.secho("No history,try migrate", fg=Color.green)
 
 
 @cli.command(help="Init config file and generate root migrate location.")
@@ -220,7 +171,10 @@ async def history(ctx: Context):
     help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
 )
 @click.option(
-    "--location", default="./migrations", show_default=True, help="Migrate store location.",
+    "--location",
+    default="./migrations",
+    show_default=True,
+    help="Migrate store location.",
 )
 @click.option(
     "-s",
@@ -272,49 +226,32 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
 @click.pass_context
 @coro
 async def init_db(ctx: Context, safe):
-    config = ctx.obj["config"]
-    location = ctx.obj["location"]
-    app = ctx.obj["app"]
-
-    dirname = Path(location, app)
+    command = ctx.obj["command"]
+    app = command.app
+    dirname = Path(command.location, app)
     try:
-        dirname.mkdir(parents=True)
+        await command.init_db(safe)
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
+        click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
     except FileExistsError:
         return click.secho(
             f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
         )
 
-    await Tortoise.init(config=config)
-    connection = get_app_connection(config, app)
-    await generate_schema_for_client(connection, safe)
-
-    schema = get_schema_sql(connection, safe)
-
-    version = await Migrate.generate_version()
-    await Aerich.create(
-        version=version, app=app, content=get_models_describe(app),
-    )
-    content = {
-        "upgrade": [schema],
-    }
-    write_version_file(Path(dirname, version), content)
-    click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
-
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
 @click.option(
-    "-t", "--table", help="Which tables to inspect.", multiple=True, required=False,
+    "-t",
+    "--table",
+    help="Which tables to inspect.",
+    multiple=True,
+    required=False,
 )
 @click.pass_context
 @coro
 async def inspectdb(ctx: Context, table: List[str]):
-    config = ctx.obj["config"]
-    app = ctx.obj["app"]
-    connection = get_app_connection(config, app)
-
-    inspect = InspectDb(connection, table)
-    await inspect.inspect()
+    command = ctx.obj["command"]
+    await command.inspectdb(table)
 
 
 def main():

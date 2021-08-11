@@ -413,7 +413,7 @@ old_models_describe = {
             {
                 "name": "type",
                 "field_type": "IntEnumFieldInstance",
-                "db_column": "type",
+                "db_column": "type_db_alias",
                 "python_type": "int",
                 "generated": False,
                 "nullable": False,
@@ -794,7 +794,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
                 "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
                 "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
-                "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_f14935` (`name`, `type`)",
+                "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_869427` (`name`, `type_db_alias`)",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
@@ -817,7 +817,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
                 "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
                 "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
-                "ALTER TABLE `product` DROP INDEX `uid_product_name_f14935`",
+                "ALTER TABLE `product` DROP INDEX `uid_product_name_869427`",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` DROP DEFAULT",
                 "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
                 "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
@@ -846,7 +846,7 @@ def test_migrate(mocker: MockerFixture):
                 'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
                 'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
                 'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
-                'CREATE UNIQUE INDEX "uid_product_name_f14935" ON "product" ("name", "type")',
+                'CREATE UNIQUE INDEX "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
                 'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
             ]
         )
@@ -867,7 +867,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
                 'DROP INDEX "idx_email_email_4a1a33"',
                 'DROP INDEX "idx_user_usernam_9987ab"',
-                'DROP INDEX "uid_product_name_f14935"',
+                'DROP INDEX "uid_product_name_869427"',
                 'DROP TABLE IF EXISTS "email_user"',
                 'DROP TABLE IF EXISTS "newmodel"',
             ]

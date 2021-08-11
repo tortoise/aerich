@@ -264,7 +264,11 @@ class Migrate:
                             # rename field
                             if (
                                 changes[0]
-                                == ("change", "name", (old_data_field_name, new_data_field_name),)
+                                == (
+                                    "change",
+                                    "name",
+                                    (old_data_field_name, new_data_field_name),
+                                )
                                 and changes[1]
                                 == (
                                     "change",
@@ -302,11 +306,16 @@ class Migrate:
                                         )
                                     else:
                                         cls._add_operator(
-                                            cls._rename_field(model, *changes[1][2]), upgrade,
+                                            cls._rename_field(model, *changes[1][2]),
+                                            upgrade,
                                         )
                     if not is_rename:
                         cls._add_operator(
-                            cls._add_field(model, new_data_field,), upgrade,
+                            cls._add_field(
+                                model,
+                                new_data_field,
+                            ),
+                            upgrade,
                         )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
@@ -406,7 +415,8 @@ class Migrate:
                         else:
                             # modify column
                             cls._add_operator(
-                                cls._modify_field(model, new_data_field), upgrade,
+                                cls._modify_field(model, new_data_field),
+                                upgrade,
                             )
 
         for old_model in old_models:
@@ -437,7 +447,10 @@ class Migrate:
     def _resolve_fk_fields_name(cls, model: Type[Model], fields_name: Tuple[str]):
         ret = []
         for field_name in fields_name:
-            if field_name in model._meta.fk_fields:
+            field = model._meta.fields_map[field_name]
+            if field.source_field:
+                ret.append(field.source_field)
+            elif field_name in model._meta.fk_fields:
                 ret.append(field_name + "_id")
             else:
                 ret.append(field_name)

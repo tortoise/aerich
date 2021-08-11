@@ -223,6 +223,17 @@ can make the following steps:
 
 Note that these actions is safe, also you can do that to reset your migrations if your migration files is too many.
 
+## Use `aerich` in application
+
+You can use `aerich` out of cli by use `Command` class.
+
+```python
+from aerich import Command
+
+command = Command(tortoise_config=config, app='models')
+await command.migrate('test')
+```
+
 ## License
 
 This project is licensed under the

@@ -2,6 +2,11 @@
 
 ## 0.5
 
+### 0.5.6
+
+- Add `Command` class. (#148) (#141) (#123) (#106)
+- Fix: migrate doesn't use source_field in unique_together. (#181)
+
 ### 0.5.5
 
 - Fix KeyError: 'src_folder' after upgrading aerich to 0.5.4. (#176)

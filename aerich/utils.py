@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 
 from click import BadOptionUsage, ClickException, Context
 from tortoise import BaseDBAsyncClient, Tortoise
@@ -36,7 +36,8 @@ def get_app_connection_name(config, app_name: str) -> str:
     if app:
         return app.get("default_connection", "default")
     raise BadOptionUsage(
-        option_name="--app", message=f'Can\'t get app named "{app_name}"',
+        option_name="--app",
+        message=f'Can\'t get app named "{app_name}"',
     )
 
 
@@ -80,7 +81,7 @@ _UPGRADE = "-- upgrade --\n"
 _DOWNGRADE = "-- downgrade --\n"
 
 
-def get_version_content_from_file(version_file: str) -> Dict:
+def get_version_content_from_file(version_file: Union[str, Path]) -> Dict:
     """
     get version content
     :param version_file:
