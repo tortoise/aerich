@@ -27,7 +27,7 @@ class Command:
     def __init__(
         self,
         tortoise_config: dict,
-        app: str,
+        app: str = "models",
         location: str = "./migrations",
         src_folder: str = ".",
     ):
