@@ -1,5 +1,3 @@
-__version__ = "0.5.6"
-
 import os
 from pathlib import Path
 from typing import List
@@ -14,7 +12,6 @@ from aerich.inspectdb import InspectDb
 from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
-    add_src_path,
     get_app_connection,
     get_app_connection_name,
     get_models_describe,
@@ -29,14 +26,11 @@ class Command:
         tortoise_config: dict,
         app: str = "models",
         location: str = "./migrations",
-        src_folder: str = ".",
     ):
         self.tortoise_config = tortoise_config
         self.app = app
         self.location = location
-        self.src_folder = src_folder
         Migrate.app = app
-        add_src_path(src_folder)
 
     async def init(self):
         await Migrate.init(self.tortoise_config, self.app, self.location)

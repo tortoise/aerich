@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.7
+
+- Fix no module found error. (#188) (#189)
+
 ### 0.5.6
 
 - Add `Command` class. (#148) (#141) (#123) (#106)

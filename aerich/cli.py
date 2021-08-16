@@ -12,8 +12,9 @@ from tortoise import Tortoise
 from aerich.exceptions import DowngradeError
 from aerich.utils import add_src_path, get_tortoise_config
 
-from . import Command, __version__
+from . import Command
 from .enums import Color
+from .version import __version__
 
 parser = ConfigParser()
 
@@ -70,11 +71,10 @@ async def cli(ctx: Context, config, app, name):
         location = parser[name]["location"]
         tortoise_orm = parser[name]["tortoise_orm"]
         src_folder = parser[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+        add_src_path(src_folder)
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]
-        command = Command(
-            tortoise_config=tortoise_config, app=app, location=location, src_folder=src_folder
-        )
+        command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
         if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
