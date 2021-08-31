@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aerich"
-version = "0.5.7"
+version = "0.5.8"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 license = "Apache-2.0"
@@ -16,7 +16,7 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tortoise-orm = "*"
+tortoise-orm = "^0.17.7"
 click = "*"
 pydantic = "*"
 aiomysql = { version = "*", optional = true }

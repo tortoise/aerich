@@ -65,6 +65,7 @@ class Product(Model):
 
     class Meta:
         unique_together = (("name", "type"),)
+        indexes = (("name", "type"),)
 
 
 class Config(Model):

@@ -2,6 +2,10 @@
 
 ## 0.5
 
+### 0.5.8
+
+- Support `indexes` change. (#193)
+
 ### 0.5.7
 
 - Fix no module found error. (#188) (#189)

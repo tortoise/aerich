@@ -138,21 +138,21 @@ class Migrate:
         return await cls._generate_diff_sql(name)
 
     @classmethod
-    def _add_operator(cls, operator: str, upgrade=True, fk_m2m=False):
+    def _add_operator(cls, operator: str, upgrade=True, fk_m2m_index=False):
         """
         add operator,differentiate fk because fk is order limit
         :param operator:
         :param upgrade:
-        :param fk_m2m:
+        :param fk_m2m_index:
         :return:
         """
         if upgrade:
-            if fk_m2m:
+            if fk_m2m_index:
                 cls._upgrade_fk_m2m_index_operators.append(operator)
             else:
                 cls.upgrade_operators.append(operator)
         else:
-            if fk_m2m:
+            if fk_m2m_index:
                 cls._downgrade_fk_m2m_index_operators.append(operator)
             else:
                 cls.downgrade_operators.append(operator)
@@ -192,7 +192,8 @@ class Migrate:
                 new_unique_together = set(
                     map(lambda x: tuple(x), new_model_describe.get("unique_together"))
                 )
-
+                old_indexes = set(map(lambda x: tuple(x), old_model_describe.get("indexes")))
+                new_indexes = set(map(lambda x: tuple(x), new_model_describe.get("indexes")))
                 old_pk_field = old_model_describe.get("pk_field")
                 new_pk_field = new_model_describe.get("pk_field")
                 # pk field
@@ -224,7 +225,7 @@ class Migrate:
                                     new_models.get(change[0][1].get("model_name")),
                                 ),
                                 upgrade,
-                                fk_m2m=True,
+                                fk_m2m_index=True,
                             )
                     elif action == "remove":
                         add = False
@@ -235,14 +236,19 @@ class Migrate:
                             cls._downgrade_m2m.append(table)
                             add = True
                         if add:
-                            cls._add_operator(cls.drop_m2m(table), upgrade, fk_m2m=True)
+                            cls._add_operator(cls.drop_m2m(table), upgrade, True)
                 # add unique_together
                 for index in new_unique_together.difference(old_unique_together):
                     cls._add_operator(cls._add_index(model, index, True), upgrade, True)
                 # remove unique_together
                 for index in old_unique_together.difference(new_unique_together):
                     cls._add_operator(cls._drop_index(model, index, True), upgrade, True)
-
+                # add indexes
+                for index in new_indexes.difference(old_indexes):
+                    cls._add_operator(cls._add_index(model, index, False), upgrade, True)
+                # remove indexes
+                for index in old_indexes.difference(new_indexes):
+                    cls._add_operator(cls._drop_index(model, index, False), upgrade, True)
                 old_data_fields = old_model_describe.get("data_fields")
                 new_data_fields = new_model_describe.get("data_fields")
 
@@ -356,7 +362,7 @@ class Migrate:
                                 model, fk_field, new_models.get(fk_field.get("python_type"))
                             ),
                             upgrade,
-                            fk_m2m=True,
+                            fk_m2m_index=True,
                         )
                 # drop fk
                 for old_fk_field_name in set(old_fk_fields_name).difference(
@@ -371,7 +377,7 @@ class Migrate:
                                 model, old_fk_field, old_models.get(old_fk_field.get("python_type"))
                             ),
                             upgrade,
-                            fk_m2m=True,
+                            fk_m2m_index=True,
                         )
                 # change fields
                 for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):

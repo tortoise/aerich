@@ -17,6 +17,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -151,6 +152,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -242,6 +244,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -334,6 +337,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -512,6 +516,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -681,6 +686,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
+        "indexes": [],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -793,6 +799,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `configs` RENAME TO `config`",
                 "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
                 "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
+                "ALTER TABLE `product` ADD INDEX `idx_product_name_869427` (`name`, `type_db_alias`)",
                 "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
                 "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_869427` (`name`, `type_db_alias`)",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
@@ -816,6 +823,7 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `config` RENAME TO `configs`",
                 "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
                 "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
+                "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
                 "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
                 "ALTER TABLE `product` DROP INDEX `uid_product_name_869427`",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` DROP DEFAULT",
@@ -838,6 +846,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "configs" RENAME TO "config"',
                 'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
                 'ALTER TABLE "email" DROP COLUMN "user_id"',
+                'ALTER TABLE "product" ADD INDEX "idx_product_name_869427" ("name", "type_db_alias")',
                 'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
                 'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
@@ -860,6 +869,7 @@ def test_migrate(mocker: MockerFixture):
                 'ALTER TABLE "config" RENAME TO "configs"',
                 'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
                 'ALTER TABLE "email" DROP COLUMN "address"',
+                'ALTER TABLE "product" DROP INDEX "idx_product_name_869427"',
                 'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
                 'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
                 'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
