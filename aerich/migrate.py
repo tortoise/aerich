@@ -192,8 +192,8 @@ class Migrate:
                 new_unique_together = set(
                     map(lambda x: tuple(x), new_model_describe.get("unique_together"))
                 )
-                old_indexes = set(map(lambda x: tuple(x), old_model_describe.get("indexes")))
-                new_indexes = set(map(lambda x: tuple(x), new_model_describe.get("indexes")))
+                old_indexes = set(map(lambda x: tuple(x), old_model_describe.get("indexes", [])))
+                new_indexes = set(map(lambda x: tuple(x), new_model_describe.get("indexes", [])))
                 old_pk_field = old_model_describe.get("pk_field")
                 new_pk_field = new_model_describe.get("pk_field")
                 # pk field
