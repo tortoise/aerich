@@ -7,6 +7,7 @@ from typing import List
 import click
 import tomlkit
 from click import Context, UsageError
+from tomlkit.exceptions import NonExistentKey
 from tortoise import Tortoise
 
 from aerich.exceptions import DowngradeError
@@ -67,9 +68,12 @@ async def cli(ctx: Context, config, app, name):
         with open(config, "r") as f:
             content = f.read()
         doc = tomlkit.parse(content)
-        location = doc[name]["location"]
-        tortoise_orm = doc[name]["tortoise_orm"]
-        src_folder = doc[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+        try:
+            location = doc[name]["location"]
+            tortoise_orm = doc[name]["tortoise_orm"]
+            src_folder = doc[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+        except NonExistentKey:
+            raise UsageError("You need run aerich init again when upgrade to 0.6.0+")
         add_src_path(src_folder)
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]

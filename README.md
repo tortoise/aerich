@@ -15,7 +15,7 @@ it\'s own migration solution.
 Just install from pypi:
 
 ```shell
-> pip install aerich
+pip install aerich
 ```
 
 ## Quick Start
@@ -27,11 +27,10 @@ Usage: aerich [OPTIONS] COMMAND [ARGS]...
 
 Options:
   -V, --version      Show the version and exit.
-  -c, --config TEXT  Config file.  [default: aerich.ini]
+  -c, --config TEXT  Config file.  [default: pyproject.toml]
   --app TEXT         Tortoise-ORM app name.
   -n, --name TEXT    Name of section in .ini file to use for aerich config.
-                     [default: aerich]
-
+                     [default: tool.aerich]
   -h, --help         Show this message and exit.
 
 Commands:
@@ -70,10 +69,9 @@ Usage: aerich init [OPTIONS]
 
   Init config file and generate root migrate location.
 
-OOptions:
+Options:
   -t, --tortoise-orm TEXT  Tortoise-ORM config module dict variable, like
                            settings.TORTOISE_ORM.  [required]
-
   --location TEXT          Migrate store location.  [default: ./migrations]
   -s, --src_folder TEXT    Folder of the source, relative to the project root.
   -h, --help               Show this message and exit.
@@ -85,7 +83,7 @@ Initialize the config file and migrations location:
 > aerich init -t tests.backends.mysql.TORTOISE_ORM
 
 Success create migrate location ./migrations
-Success generate config file aerich.ini
+Success write config to pyproject.toml
 ```
 
 ### Init db
