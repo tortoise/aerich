@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aerich"
-version = "0.5.8"
+version = "0.5.9"
 description = "A database migrations tool for Tortoise ORM."
 authors = ["long2ice <long2ice@gmail.com>"]
 license = "Apache-2.0"
@@ -23,6 +23,7 @@ aiomysql = { version = "*", optional = true }
 asyncpg = { version = "*", optional = true }
 ddlparse = "*"
 dictdiffer = "*"
+tomlkit = "*"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
