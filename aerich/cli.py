@@ -47,19 +47,11 @@ def coro(f):
     help="Config file.",
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
-@click.option(
-    "-n",
-    "--name",
-    default="tool.aerich",
-    show_default=True,
-    help="Name of section in .ini file to use for aerich config.",
-)
 @click.pass_context
 @coro
-async def cli(ctx: Context, config, app, name):
+async def cli(ctx: Context, config, app):
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
-    ctx.obj["name"] = name
 
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
@@ -69,9 +61,10 @@ async def cli(ctx: Context, config, app, name):
             content = f.read()
         doc = tomlkit.parse(content)
         try:
-            location = doc[name]["location"]
-            tortoise_orm = doc[name]["tortoise_orm"]
-            src_folder = doc[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+            tool = doc["tool"]["aerich"]
+            location = tool["location"]
+            tortoise_orm = tool["tortoise_orm"]
+            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
         except NonExistentKey:
             raise UsageError("You need run aerich init again when upgrade to 0.6.0+")
         add_src_path(src_folder)
@@ -190,7 +183,6 @@ async def history(ctx: Context):
 @coro
 async def init(ctx: Context, tortoise_orm, location, src_folder):
     config_file = ctx.obj["config_file"]
-    name = ctx.obj["name"]
 
     if os.path.isabs(src_folder):
         src_folder = os.path.relpath(os.getcwd(), src_folder)
@@ -209,7 +201,7 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
     table["tortoise_orm"] = tortoise_orm
     table["location"] = location
     table["src_folder"] = src_folder
-    doc[name] = table
+    doc["tool"]["aerich"] = table
 
     with open(config_file, "w") as f:
         f.write(tomlkit.dumps(doc))

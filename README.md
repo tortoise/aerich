@@ -29,8 +29,6 @@ Options:
   -V, --version      Show the version and exit.
   -c, --config TEXT  Config file.  [default: pyproject.toml]
   --app TEXT         Tortoise-ORM app name.
-  -n, --name TEXT    Name of section in .ini file to use for aerich config.
-                     [default: tool.aerich]
   -h, --help         Show this message and exit.
 
 Commands:
