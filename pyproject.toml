@@ -18,7 +18,6 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 python = "^3.7"
 tortoise-orm = "^0.17.7"
 click = "*"
-pydantic = "*"
 aiomysql = { version = "*", optional = true }
 asyncpg = { version = "*", optional = true }
 ddlparse = "*"

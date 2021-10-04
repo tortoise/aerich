@@ -9,6 +9,7 @@
   **Upgrade note:**
     1. Run `aerich init -t config.TORTOISE_ORM`.
     2. Remove `aerich.ini`.
+- Remove `pydantic` dependency. (#198)
 
 ## 0.5
 
