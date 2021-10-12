@@ -110,25 +110,22 @@ def write_version_file(version_file: Path, content: Dict):
     :param content:
     :return:
     """
-    with open(version_file, "w", encoding="utf-8") as f:
-        f.write(_UPGRADE)
-        upgrade = content.get("upgrade")
-        if len(upgrade) > 1:
-            f.write(";\n".join(upgrade))
-            if not upgrade[-1].endswith(";"):
-                f.write(";\n")
-        else:
-            f.write(f"{upgrade[0]}")
-            if not upgrade[0].endswith(";"):
-                f.write(";")
-            f.write("\n")
-        downgrade = content.get("downgrade")
-        if downgrade:
-            f.write(_DOWNGRADE)
-            if len(downgrade) > 1:
-                f.write(";\n".join(downgrade) + ";\n")
-            else:
-                f.write(f"{downgrade[0]};\n")
+
+    def append_ddl(ddl: str):
+        if not ddl.endswith(";"):
+            ddl += ";"
+        ddl += "\n"
+        data.append(ddl)
+
+    data = [_UPGRADE]
+    for upgrade_ddl in content.get("upgrade"):
+        append_ddl(upgrade_ddl)
+    downgrade = content.get("downgrade")
+    if downgrade:
+        data.append(_DOWNGRADE)
+        for downgrade_ddl in downgrade:
+            append_ddl(downgrade_ddl)
+    version_file.write_text("".join(data))
 
 
 def get_models_describe(app: str) -> Dict:
