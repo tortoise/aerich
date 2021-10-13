@@ -251,6 +251,67 @@ async def inspectdb(ctx: Context, table: List[str]):
     await command.inspectdb(table)
 
 
+async def init_db_in_ipython(ctx: Context):
+    import importlib
+    from tortoise.transactions import get_connection
+    shell_config = ctx.obj["shell_config"]
+    await Tortoise.init(config=shell_config["tortoise_config"])
+    importlib.import_module("__main__").__dict__.update({"db": get_connection(shell_config["connection"])})
+
+
+@cli.command("shell", short_help="interactive shell mode")
+@click.option(
+    "-t",
+    "--tortoise-orm",
+    required=False,
+    help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
+)
+@click.option(
+    "--connection-name",
+    required=False,
+    help="db connection.")
+@click.pass_context
+def shell(ctx: Context, tortoise_orm, connection_name):
+    """
+    the warning about open stream thrown by asyncio, upgrade to python3.9 can solve it.
+    reference: https://www.mail-archive.com/python-bugs-list@python.org/msg395411.html
+    """
+    import importlib
+    from IPython import start_ipython
+    import cProfile
+    import pdb
+    from traitlets.config import Config
+
+    tortoise_config = get_tortoise_config(ctx, tortoise_orm) if tortoise_orm else ctx.obj["command"].tortoise_config
+    ctx.obj["shell_config"] = {
+        "tortoise_config": tortoise_config,
+        "connection": connection_name or list(tortoise_config.get("connections").keys())[0]
+    }
+
+    i_ctx = importlib.import_module("__main__").__dict__
+    i_ctx.update(
+        {
+            # **models,
+            "ipdb": pdb,
+            "cProfile": cProfile,
+        }
+    )
+
+    conf = Config()
+    conf.InteractiveShellApp.exec_lines = [
+        # IPython Context Preparation
+        "print('System Ready!')",
+        "from aerich.cli import init_db_in_ipython",
+        "from click import get_current_context",
+        "await init_db_in_ipython(get_current_context())",
+    ]
+    conf.InteractiveShellApp.log_level = 30
+    conf.TerminalInteractiveShell.loop_runner = "asyncio"
+    conf.TerminalInteractiveShell.colors = "neutral"
+    conf.TerminalInteractiveShell.autoawait = True
+    start_ipython(argv=[], user_ns=i_ctx, config=conf)
+
+
 def main():
     cli()
 
