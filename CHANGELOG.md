@@ -10,6 +10,7 @@
     1. Run `aerich init -t config.TORTOISE_ORM`.
     2. Remove `aerich.ini`.
 - Remove `pydantic` dependency. (#198)
+- `inspectdb` support `DATE`. (#215)
 
 ## 0.5
 

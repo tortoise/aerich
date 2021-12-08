@@ -16,6 +16,7 @@ class InspectDb:
         "TEXT": "    {field} = fields.TextField({null}{default}{comment})",
         "DATETIME": "    {field} = fields.DatetimeField({null}{default}{comment})",
         "FLOAT": "    {field} = fields.FloatField({null}{default}{comment})",
+        "DATE": "    {field} = fields.DateField({null}{default}{comment})",
     }
 
     def __init__(self, conn: BaseDBAsyncClient, tables: Optional[List[str]] = None):
