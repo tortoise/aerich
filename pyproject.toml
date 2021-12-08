@@ -18,8 +18,8 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 python = "^3.7"
 tortoise-orm = "^0.17.7"
 click = "*"
-aiomysql = { version = "*", optional = true }
 asyncpg = { version = "*", optional = true }
+asyncmy = { version = "*", optional = true }
 ddlparse = "*"
 dictdiffer = "*"
 tomlkit = "*"
@@ -38,7 +38,6 @@ cryptography = "*"
 [tool.poetry.extras]
 asyncmy = ["asyncmy"]
 asyncpg = ["asyncpg"]
-aiomysql = ["aiomysql"]
 
 [build-system]
 requires = ["poetry>=0.12"]

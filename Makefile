@@ -12,7 +12,7 @@ up:
 	@poetry update
 
 deps:
-	@poetry install -E asyncpg -E asyncmy -E aiomysql
+	@poetry install -E asyncpg -E asyncmy
 
 style: deps
 	isort -src $(checkfiles)
