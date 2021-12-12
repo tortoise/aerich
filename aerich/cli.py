@@ -193,10 +193,12 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
     get_tortoise_config(ctx, tortoise_orm)
-
-    with open(config_file, "r") as f:
-        content = f.read()
-    doc = tomlkit.parse(content)
+    if Path(config_file).exists():
+        with open(config_file, "r") as f:
+            content = f.read()
+        doc = tomlkit.parse(content)
+    else:
+        doc = tomlkit.parse("[tool.aerich]")
     table = tomlkit.table()
     table["tortoise_orm"] = tortoise_orm
     table["location"] = location

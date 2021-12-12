@@ -2,6 +2,10 @@
 
 ## 0.6
 
+### 0.6.1
+
+- Fix `pyproject.toml` not existing error. (#217)
+
 ### 0.6.0
 
 - Change default config file from `aerich.ini` to `pyproject.toml`. (#197)
