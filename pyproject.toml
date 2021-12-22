@@ -16,7 +16,7 @@ include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tortoise-orm = "^0.17.7"
+tortoise-orm = "*"
 click = "*"
 asyncpg = { version = "*", optional = true }
 asyncmy = { version = "*", optional = true }
