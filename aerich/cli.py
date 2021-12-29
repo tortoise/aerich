@@ -10,12 +10,11 @@ from click import Context, UsageError
 from tomlkit.exceptions import NonExistentKey
 from tortoise import Tortoise
 
+from aerich import Command
+from aerich.enums import Color
 from aerich.exceptions import DowngradeError
 from aerich.utils import add_src_path, get_tortoise_config
-
-from . import Command
-from .enums import Color
-from .version import __version__
+from aerich.version import __version__
 
 CONFIG_DEFAULT_VALUES = {
     "src_folder": ".",

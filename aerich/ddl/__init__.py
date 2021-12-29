@@ -195,6 +195,12 @@ class BaseDDL:
             table_name=model._meta.db_table,
         )
 
+    def drop_index_by_name(self, model: "Type[Model]", index_name: str):
+        return self._DROP_INDEX_TEMPLATE.format(
+            index_name=index_name,
+            table_name=model._meta.db_table,
+        )
+
     def add_fk(self, model: "Type[Model]", field_describe: dict, reference_table_describe: dict):
         db_table = model._meta.db_table
 

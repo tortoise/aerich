@@ -2,6 +2,10 @@
 
 ## 0.6
 
+### 0.6.2
+
+- Support migration for specified index. (#203)
+
 ### 0.6.1
 
 - Fix `pyproject.toml` not existing error. (#217)

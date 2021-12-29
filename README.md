@@ -7,7 +7,7 @@
 
 ## Introduction
 
-Aerich is a database migrations tool for Tortoise-ORM, which is like alembic for SQLAlchemy, or like Django ORM with
+Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy, or like Django ORM with
 it\'s own migration solution.
 
 ## Install
