@@ -10,6 +10,7 @@ from tortoise.utils import get_schema_sql
 from aerich.exceptions import DowngradeError
 from aerich.inspect.mysql import InspectMySQL
 from aerich.inspect.postgres import InspectPostgres
+from aerich.inspect.sqlite import InspectSQLite
 from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
@@ -114,6 +115,8 @@ class Command:
             cls = InspectMySQL
         elif dialect == "postgres":
             cls = InspectPostgres
+        elif dialect == "sqlite":
+            cls = InspectSQLite
         else:
             raise NotImplementedError(f"{dialect} is not supported")
         inspect = cls(connection, tables)

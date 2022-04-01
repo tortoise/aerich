@@ -15,8 +15,10 @@ class InspectPostgres(Inspect):
         return {
             "int4": self.int_field,
             "int8": self.int_field,
+            "smallint": self.smallint_field,
             "varchar": self.char_field,
             "text": self.text_field,
+            "bigint": self.bigint_field,
             "timestamptz": self.datetime_field,
             "float4": self.float_field,
             "float8": self.float_field,
@@ -53,8 +55,8 @@ from information_schema.constraint_column_usage const
 where c.table_catalog = $1
   and c.table_name = $2
   and c.table_schema = $3;"""
-        ret = await self.conn.execute_query(sql, [self.database, table, self.schema])
-        for row in ret[1]:
+        ret = await self.conn.execute_query_dict(sql, [self.database, table, self.schema])
+        for row in ret:
             columns.append(
                 Column(
                     name=row["column_name"],

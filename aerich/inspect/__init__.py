@@ -23,18 +23,18 @@ class Column(BaseModel):
             pk = "pk=True, "
         if self.unique:
             unique = "unique=True, "
-        if self.data_type == "varchar":
+        if self.data_type in ["varchar", "VARCHAR"]:
             length = f"max_length={self.length}, "
         if self.data_type == "decimal":
             length = f"max_digits={self.max_digits}, decimal_places={self.decimal_places}, "
         if self.null:
             null = "null=True, "
         if self.default is not None:
-            if self.data_type == "tinyint":
+            if self.data_type in ["tinyint", "INT"]:
                 default = f"default={'True' if self.default == '1' else 'False'}, "
             elif self.data_type == "bool":
                 default = f"default={'True' if self.default == 'true' else 'False'}, "
-            elif self.data_type in ["datetime", "timestamptz"]:
+            elif self.data_type in ["datetime", "timestamptz", "TIMESTAMP"]:
                 if "CURRENT_TIMESTAMP" == self.default:
                     if "DEFAULT_GENERATED on update CURRENT_TIMESTAMP" == self.extra:
                         default = "auto_now=True, "
@@ -66,7 +66,10 @@ class Inspect:
 
     def __init__(self, conn: BaseDBAsyncClient, tables: Optional[List[str]] = None):
         self.conn = conn
-        self.database = conn.database
+        try:
+            self.database = conn.database
+        except AttributeError:
+            pass
         self.tables = tables
 
     @property

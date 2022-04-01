@@ -10,6 +10,7 @@ class InspectMySQL(Inspect):
             "int": self.int_field,
             "smallint": self.smallint_field,
             "tinyint": self.bool_field,
+            "bigint": self.bigint_field,
             "varchar": self.char_field,
             "longtext": self.text_field,
             "text": self.text_field,
@@ -30,8 +31,8 @@ class InspectMySQL(Inspect):
     async def get_columns(self, table: str) -> List[Column]:
         columns = []
         sql = "select * from information_schema.columns where TABLE_SCHEMA=%s and TABLE_NAME=%s"
-        ret = await self.conn.execute_query(sql, [self.database, table])
-        for row in ret[1]:
+        ret = await self.conn.execute_query_dict(sql, [self.database, table])
+        for row in ret:
             columns.append(
                 Column(
                     name=row["COLUMN_NAME"],

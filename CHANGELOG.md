@@ -4,7 +4,7 @@
 
 ### 0.6.3
 
-- Improve `inspectdb` and support `postgres`.
+- Improve `inspectdb` and support `postgres` & `sqlite`.
 
 ### 0.6.2
 

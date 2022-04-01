@@ -165,7 +165,7 @@ Now your db is rolled back to the specified version.
 
 ### Inspect db tables to TortoiseORM model
 
-Currently `inspectdb` only supports MySQL & Postgres.
+Currently `inspectdb` support MySQL & Postgres & SQLite.
 
 ```shell
 Usage: aerich inspectdb [OPTIONS]
