@@ -78,15 +78,11 @@ class BaseDDL:
         auto_now_add = field_describe.get("auto_now_add", False)
         auto_now = field_describe.get("auto_now", False)
         if default is not None or auto_now_add:
-            if (
-                field_describe.get("field_type")
-                in [
-                    "UUIDField",
-                    "TextField",
-                    "JSONField",
-                ]
-                or is_default_function(default)
-            ):
+            if field_describe.get("field_type") in [
+                "UUIDField",
+                "TextField",
+                "JSONField",
+            ] or is_default_function(default):
                 default = ""
             else:
                 try:

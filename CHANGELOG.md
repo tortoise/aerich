@@ -2,6 +2,10 @@
 
 ## 0.6
 
+### 0.6.3
+
+- Improve `inspectdb` and support `postgres`.
+
 ### 0.6.2
 
 - Support migration for specified index. (#203)

@@ -8,7 +8,8 @@ from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
 from aerich.exceptions import DowngradeError
-from aerich.inspectdb import InspectDb
+from aerich.inspect.mysql import InspectMySQL
+from aerich.inspect.postgres import InspectPostgres
 from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
@@ -106,10 +107,17 @@ class Command:
             ret.append(version)
         return ret
 
-    async def inspectdb(self, tables: List[str]):
+    async def inspectdb(self, tables: List[str]) -> str:
         connection = get_app_connection(self.tortoise_config, self.app)
-        inspect = InspectDb(connection, tables)
-        await inspect.inspect()
+        dialect = connection.schema_generator.DIALECT
+        if dialect == "mysql":
+            cls = InspectMySQL
+        elif dialect == "postgres":
+            cls = InspectPostgres
+        else:
+            raise NotImplementedError(f"{dialect} is not supported")
+        inspect = cls(connection, tables)
+        return await inspect.inspect()
 
     async def migrate(self, name: str = "update"):
         return await Migrate.migrate(name)

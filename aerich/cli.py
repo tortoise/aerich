@@ -30,7 +30,7 @@ def coro(f):
         try:
             loop.run_until_complete(f(*args, **kwargs))
         finally:
-            if f.__name__ != "cli":
+            if f.__name__ not in ["cli", "init"]:
                 loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper
@@ -249,7 +249,8 @@ async def init_db(ctx: Context, safe):
 @coro
 async def inspectdb(ctx: Context, table: List[str]):
     command = ctx.obj["command"]
-    await command.inspectdb(table)
+    ret = await command.inspectdb(table)
+    click.secho(ret)
 
 
 def main():

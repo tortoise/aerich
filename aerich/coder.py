@@ -1,6 +1,6 @@
 import base64
 import json
-import pickle  # nosec: B301
+import pickle  # nosec: B301,B403
 
 from tortoise.indexes import Index
 
@@ -10,8 +10,8 @@ class JsonEncoder(json.JSONEncoder):
         if isinstance(obj, Index):
             return {
                 "type": "index",
-                "val": base64.b64encode(pickle.dumps(obj)).decode(),
-            }  # nosec: B301
+                "val": base64.b64encode(pickle.dumps(obj)).decode(),  # nosec: B301
+            }
         else:
             return super().default(obj)
 
