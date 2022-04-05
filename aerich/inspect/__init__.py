@@ -12,17 +12,22 @@ class Column(BaseModel):
     comment: Optional[str]
     pk: bool
     unique: bool
+    index: bool
     length: Optional[int]
     extra: Optional[str]
     decimal_places: Optional[int]
     max_digits: Optional[int]
 
     def translate(self) -> dict:
-        comment = default = length = unique = null = pk = ""
+        comment = default = length = index = null = pk = ""
         if self.pk:
             pk = "pk=True, "
-        if self.unique:
-            unique = "unique=True, "
+        else:
+            if self.unique:
+                index = "unique=True, "
+            else:
+                if self.index:
+                    index = "index=True, "
         if self.data_type in ["varchar", "VARCHAR"]:
             length = f"max_length={self.length}, "
         if self.data_type == "decimal":
@@ -53,7 +58,7 @@ class Column(BaseModel):
         return {
             "name": self.name,
             "pk": pk,
-            "unique": unique,
+            "index": index,
             "null": null,
             "default": default,
             "length": length,
@@ -99,7 +104,7 @@ class Inspect:
 
     @classmethod
     def decimal_field(cls, **kwargs) -> str:
-        return "{name} = fields.DecimalField({pk}{unique}{length}{null}{default}{comment})".format(
+        return "{name} = fields.DecimalField({pk}{index}{length}{null}{default}{comment})".format(
             **kwargs
         )
 
@@ -125,21 +130,21 @@ class Inspect:
 
     @classmethod
     def char_field(cls, **kwargs) -> str:
-        return "{name} = fields.CharField({pk}{unique}{length}{null}{default}{comment})".format(
+        return "{name} = fields.CharField({pk}{index}{length}{null}{default}{comment})".format(
             **kwargs
         )
 
     @classmethod
     def int_field(cls, **kwargs) -> str:
-        return "{name} = fields.IntField({pk}{unique}{comment})".format(**kwargs)
+        return "{name} = fields.IntField({pk}{index}{comment})".format(**kwargs)
 
     @classmethod
     def smallint_field(cls, **kwargs) -> str:
-        return "{name} = fields.SmallIntField({pk}{unique}{comment})".format(**kwargs)
+        return "{name} = fields.SmallIntField({pk}{index}{comment})".format(**kwargs)
 
     @classmethod
     def bigint_field(cls, **kwargs) -> str:
-        return "{name} = fields.BigIntField({pk}{unique}{default}{comment})".format(**kwargs)
+        return "{name} = fields.BigIntField({pk}{index}{default}{comment})".format(**kwargs)
 
     @classmethod
     def bool_field(cls, **kwargs) -> str:
@@ -147,7 +152,7 @@ class Inspect:
 
     @classmethod
     def uuid_field(cls, **kwargs) -> str:
-        return "{name} = fields.UUIDField({pk}{unique}{default}{comment})".format(**kwargs)
+        return "{name} = fields.UUIDField({pk}{index}{default}{comment})".format(**kwargs)
 
     @classmethod
     def json_field(cls, **kwargs) -> str:

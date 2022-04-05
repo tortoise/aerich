@@ -108,7 +108,7 @@ class Command:
             ret.append(version)
         return ret
 
-    async def inspectdb(self, tables: List[str]) -> str:
+    async def inspectdb(self, tables: List[str] = None) -> str:
         connection = get_app_connection(self.tortoise_config, self.app)
         dialect = connection.schema_generator.DIALECT
         if dialect == "mysql":

@@ -30,9 +30,25 @@ class InspectMySQL(Inspect):
 
     async def get_columns(self, table: str) -> List[Column]:
         columns = []
-        sql = "select * from information_schema.columns where TABLE_SCHEMA=%s and TABLE_NAME=%s"
+        sql = """select c.*, s.NON_UNIQUE, s.INDEX_NAME
+from information_schema.COLUMNS c
+         left join information_schema.STATISTICS s on c.TABLE_NAME = s.TABLE_NAME
+    and c.TABLE_SCHEMA = s.TABLE_SCHEMA
+    and c.COLUMN_NAME = s.COLUMN_NAME
+where c.TABLE_SCHEMA = %s
+  and c.TABLE_NAME = %s"""
         ret = await self.conn.execute_query_dict(sql, [self.database, table])
         for row in ret:
+            non_unique = row["NON_UNIQUE"]
+            if non_unique is None:
+                unique = False
+            else:
+                unique = not non_unique
+            index_name = row["INDEX_NAME"]
+            if index_name is None:
+                index = False
+            else:
+                index = row["INDEX_NAME"] != "PRIMARY"
             columns.append(
                 Column(
                     name=row["COLUMN_NAME"],
@@ -43,6 +59,8 @@ class InspectMySQL(Inspect):
                     comment=row["COLUMN_COMMENT"],
                     unique=row["COLUMN_KEY"] == "UNI",
                     extra=row["EXTRA"],
+                    unque=unique,
+                    index=index,
                     length=row["CHARACTER_MAXIMUM_LENGTH"],
                     max_digits=row["NUMERIC_PRECISION"],
                     decimal_places=row["NUMERIC_SCALE"],

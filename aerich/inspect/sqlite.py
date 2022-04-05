@@ -25,6 +25,7 @@ class InspectSQLite(Inspect):
         columns = []
         sql = f"PRAGMA table_info({table})"
         ret = await self.conn.execute_query_dict(sql)
+        columns_index = await self._get_columns_index(table)
         for row in ret:
             try:
                 length = row["type"].split("(")[1].split(")")[0]
@@ -38,10 +39,21 @@ class InspectSQLite(Inspect):
                     default=row["dflt_value"],
                     length=length,
                     pk=row["pk"] == 1,
-                    unique=False,  # can't get this simply
+                    unique=columns_index.get(row["name"]) == "unique",
+                    index=columns_index.get(row["name"]) == "index",
                 )
             )
         return columns
+
+    async def _get_columns_index(self, table: str):
+        sql = f"PRAGMA index_list ({table})"
+        indexes = await self.conn.execute_query_dict(sql)
+        ret = {}
+        for index in indexes:
+            sql = f"PRAGMA index_info({index['name']})"
+            index_info = (await self.conn.execute_query_dict(sql))[0]
+            ret[index_info["name"]] = "unique" if index["unique"] else "index"
+        return ret
 
     async def get_all_tables(self) -> List[str]:
         sql = "select tbl_name from sqlite_master where type='table' and name!='sqlite_sequence'"
