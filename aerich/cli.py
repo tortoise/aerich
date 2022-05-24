@@ -215,15 +215,17 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
 
 @cli.command(help="Generate schema and generate app migrate location.")
 @click.option(
+    "-s",
     "--safe",
     type=bool,
+    is_flag=True,
     default=True,
     help="When set to true, creates the table only when it does not already exist.",
     show_default=True,
 )
 @click.pass_context
 @coro
-async def init_db(ctx: Context, safe):
+async def init_db(ctx: Context, safe: bool):
     command = ctx.obj["command"]
     app = command.app
     dirname = Path(command.location, app)
