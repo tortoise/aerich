@@ -25,6 +25,7 @@ class InspectPostgres(Inspect):
             "date": self.date_field,
             "time": self.time_field,
             "decimal": self.decimal_field,
+            "numeric": self.decimal_field,
             "uuid": self.uuid_field,
             "jsonb": self.json_field,
             "bytea": self.binary_field,
