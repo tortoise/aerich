@@ -787,15 +787,17 @@ def test_migrate(mocker: MockerFixture):
         Migrate.diff_models(models_describe, old_models_describe, False)
     Migrate._merge_operators()
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert sorted(Migrate.upgrade_operators) == sorted(
+        expected_upgrade_operators = set(
             [
                 "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
                 "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(100) NOT NULL",
                 "ALTER TABLE `config` ADD `user_id` INT NOT NULL  COMMENT 'User'",
                 "ALTER TABLE `config` ADD CONSTRAINT `fk_config_user_17daa970` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
                 "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
+                "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL",
                 "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `email` DROP COLUMN `user_id`",
+                "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
                 "ALTER TABLE `configs` RENAME TO `config`",
                 "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
                 "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
@@ -803,15 +805,22 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
                 "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_869427` (`name`, `type_db_alias`)",
                 "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
+                "ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
+                "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'",
                 "ALTER TABLE `user` DROP COLUMN `avatar`",
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
-                "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4;",
+                "ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL",
+                "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
+                "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
+                "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0",
                 "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
-                "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
+                "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4;",
+                "ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
+                "ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL",
+                "ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0",
             ]
         )
-
-        assert sorted(Migrate.downgrade_operators) == sorted(
+        expected_downgrade_operators = set(
             [
                 "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL",
                 "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(200) NOT NULL",
@@ -832,75 +841,89 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
                 "DROP TABLE IF EXISTS `newmodel`",
+                'ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL', 'ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL',
+                'ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)',
+                'ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)',
+                "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'", "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'", "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
+                "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0", 'ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL',
+                'ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0'
             ]
         )
+        assert not set(Migrate.upgrade_operators).symmetric_difference(expected_upgrade_operators)
+
+        assert not set(Migrate.downgrade_operators).symmetric_difference(expected_downgrade_operators)
 
     elif isinstance(Migrate.ddl, PostgresDDL):
-        expected_upgrade_operators = set([
-            'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL',
-            'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
-            'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
-            'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
-            'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
-            'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
-            'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
-            'ALTER TABLE "configs" RENAME TO "config"',
-            'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
-            'ALTER TABLE "email" DROP COLUMN "user_id"',
-            'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
-            'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
-            'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
-            'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
-            'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
-            'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100) USING "password"::VARCHAR(100)',
-            'ALTER TABLE "user" DROP COLUMN "avatar"',
-            'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
-            'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
-            'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
-            'CREATE INDEX "idx_product_name_869427" ON "product" ("name", "type_db_alias")',
-            'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
-            'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
-            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
-            'CREATE UNIQUE INDEX "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
-            'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
-
-        ])
-        expected_downgrade_operators = set([
-            'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL',
-            'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
-            'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
-            'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
-            'ALTER TABLE "config" DROP COLUMN "user_id"',
-            'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
-            'ALTER TABLE "config" RENAME TO "configs"',
-            'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
-            'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
-            'ALTER TABLE "email" DROP COLUMN "address"',
-            'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
-            'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
-            'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
-            'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
-            'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
-            'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
-            'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
-            'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
-            'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
-            'DROP INDEX "idx_product_name_869427"',
-            'DROP INDEX "idx_email_email_4a1a33"',
-            'DROP INDEX "idx_user_usernam_9987ab"',
-            'DROP INDEX "uid_product_name_869427"',
-            'DROP TABLE IF EXISTS "email_user"',
-            'DROP TABLE IF EXISTS "newmodel"',
-        ])
+        expected_upgrade_operators = set(
+            [
+                'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
+                'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+                'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
+                'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+                'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
+                'ALTER TABLE "configs" RENAME TO "config"',
+                'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
+                'ALTER TABLE "email" DROP COLUMN "user_id"',
+                'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
+                'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
+                'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
+                'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
+                'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
+                'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
+                'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100) USING "password"::VARCHAR(100)',
+                'ALTER TABLE "user" DROP COLUMN "avatar"',
+                'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
+                'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
+                'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
+                'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
+                'CREATE INDEX "idx_product_name_869427" ON "product" ("name", "type_db_alias")',
+                'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
+                'CREATE TABLE "email_user" ("email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,"user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE)',
+                'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\';',
+                'CREATE UNIQUE INDEX "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
+                'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
+            ]
+        )
+        expected_downgrade_operators = set(
+            [
+                'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL',
+                'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
+                'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+                'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
+                'ALTER TABLE "config" DROP COLUMN "user_id"',
+                'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
+                'ALTER TABLE "config" RENAME TO "configs"',
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
+                'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
+                'ALTER TABLE "email" DROP COLUMN "address"',
+                'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
+                'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
+                'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
+                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
+                'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
+                'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
+                'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
+                'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
+                'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
+                'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
+                'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+                'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
+                'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
+                'DROP INDEX "idx_product_name_869427"',
+                'DROP INDEX "idx_email_email_4a1a33"',
+                'DROP INDEX "idx_user_usernam_9987ab"',
+                'DROP INDEX "uid_product_name_869427"',
+                'DROP TABLE IF EXISTS "email_user"',
+                'DROP TABLE IF EXISTS "newmodel"',
+            ]
+        )
         assert not set(Migrate.upgrade_operators).symmetric_difference(expected_upgrade_operators)
-        assert not set(Migrate.downgrade_operators).symmetric_difference(expected_downgrade_operators)
+        assert not set(Migrate.downgrade_operators).symmetric_difference(
+            expected_downgrade_operators
+        )
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []
