@@ -841,17 +841,23 @@ def test_migrate(mocker: MockerFixture):
                 "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
                 "DROP TABLE IF EXISTS `email_user`",
                 "DROP TABLE IF EXISTS `newmodel`",
-                'ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL', 'ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL',
-                'ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)',
-                'ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)',
-                "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'", "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'", "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
-                "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0", 'ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL',
-                'ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0'
+                "ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL",
+                "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL",
+                "ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
+                "ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
+                "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'",
+                "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
+                "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
+                "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0",
+                "ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL",
+                "ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0",
             ]
         )
         assert not set(Migrate.upgrade_operators).symmetric_difference(expected_upgrade_operators)
 
-        assert not set(Migrate.downgrade_operators).symmetric_difference(expected_downgrade_operators)
+        assert not set(Migrate.downgrade_operators).symmetric_difference(
+            expected_downgrade_operators
+        )
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = set(
