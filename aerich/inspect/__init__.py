@@ -30,8 +30,13 @@ class Column(BaseModel):
                     index = "index=True, "
         if self.data_type in ["varchar", "VARCHAR"]:
             length = f"max_length={self.length}, "
-        if self.data_type == "decimal":
-            length = f"max_digits={self.max_digits}, decimal_places={self.decimal_places}, "
+        if self.data_type in ["decimal", "numeric"]:
+            length_parts = []
+            if self.max_digits:
+                length_parts.append(f"max_digits={self.max_digits}")
+            if self.decimal_places:
+                length_parts.append(f"decimal_places={self.decimal_places}")
+            length = ", ".join(length_parts)
         if self.null:
             null = "null=True, "
         if self.default is not None:

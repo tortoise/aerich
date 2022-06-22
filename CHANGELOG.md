@@ -2,6 +2,10 @@
 
 ## 0.6
 
+### 0.6.4
+
+- Improve `inspectdb` adding support to `postgresql::numeric` data type
+
 ### 0.6.3
 
 - Improve `inspectdb` and support `postgres` & `sqlite`.
