@@ -5,6 +5,8 @@
 ### 0.6.4
 
 - Improve `inspectdb` adding support to `postgresql::numeric` data type
+- Add support for dynamically load DDL classes easing to add support to
+  new databases without changing `Migrate` class logic
 
 ### 0.6.3
 
