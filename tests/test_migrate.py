@@ -657,7 +657,7 @@ old_models_describe = {
                 "constraints": {},
                 "description": None,
                 "python_type": "decimal.Decimal",
-                "db_field_types": {"": "DECIMAL(16,14)", "sqlite": "VARCHAR(40)"},
+                "db_field_types": {"": "DECIMAL(12,9)", "sqlite": "VARCHAR(40)"},
             },
         ],
         "fk_fields": [],
