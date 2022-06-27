@@ -422,8 +422,14 @@ class Migrate:
                                     cls._drop_index(model, (field_name,), unique), upgrade, True
                                 )
                         elif option == "db_field_types.":
-                            # continue since repeated with others
-                            continue
+                            if new_data_field.get("field_type") == "DecimalField":
+                                # modify column
+                                cls._add_operator(
+                                    cls._modify_field(model, new_data_field),
+                                    upgrade,
+                                )
+                            else:
+                                continue
                         elif option == "default":
                             if not (
                                 is_default_function(old_new[0]) or is_default_function(old_new[1])
