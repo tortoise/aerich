@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from tortoise import BaseDBAsyncClient
 
-from aerich.inspect import Column, Inspect
+from aerich.inspectdb import Column, Inspect
 
 
 class InspectPostgres(Inspect):

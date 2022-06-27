@@ -1,6 +1,6 @@
 from typing import List
 
-from aerich.inspect import Column, Inspect
+from aerich.inspectdb import Column, Inspect
 
 
 class InspectSQLite(Inspect):

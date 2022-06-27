@@ -8,9 +8,9 @@ from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
 
 from aerich.exceptions import DowngradeError
-from aerich.inspect.mysql import InspectMySQL
-from aerich.inspect.postgres import InspectPostgres
-from aerich.inspect.sqlite import InspectSQLite
+from aerich.inspectdb.mysql import InspectMySQL
+from aerich.inspectdb.postgres import InspectPostgres
+from aerich.inspectdb.sqlite import InspectSQLite
 from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
