@@ -8,6 +8,7 @@
 - Add support for dynamically load DDL classes easing to add support to
   new databases without changing `Migrate` class logic
 - Fix decimal field change. (#246)
+- Support add/remove field with index.
 
 ### 0.6.3
 

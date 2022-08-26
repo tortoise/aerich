@@ -343,26 +343,44 @@ class Migrate:
                             ),
                             upgrade,
                         )
+                        if new_data_field["indexed"]:
+                            cls._add_operator(
+                                cls._add_index(
+                                    model, {new_data_field["db_column"]}, new_data_field["unique"]
+                                ),
+                                upgrade,
+                                True,
+                            )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
                     set(new_data_fields_name)
                 ):
-                    # don't remove field if is rename
+                    # don't remove field if is renamed
                     if (upgrade and old_data_field_name in cls._rename_old) or (
                         not upgrade and old_data_field_name in cls._rename_new
                     ):
                         continue
+                    old_data_field = next(
+                        filter(lambda x: x.get("name") == old_data_field_name, old_data_fields)
+                    )
+                    db_column = old_data_field["db_column"]
                     cls._add_operator(
                         cls._remove_field(
                             model,
-                            next(
-                                filter(
-                                    lambda x: x.get("name") == old_data_field_name, old_data_fields
-                                )
-                            ).get("db_column"),
+                            db_column,
                         ),
                         upgrade,
                     )
+                    if old_data_field["indexed"]:
+                        cls._add_operator(
+                            cls._drop_index(
+                                model,
+                                {db_column},
+                            ),
+                            upgrade,
+                            True,
+                        )
+
                 old_fk_fields = old_model_describe.get("fk_fields")
                 new_fk_fields = new_model_describe.get("fk_fields")
 
