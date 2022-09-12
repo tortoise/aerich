@@ -26,7 +26,7 @@ def coro(f):
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
 
-        # Close db connections at the end of all all but the cli group function
+        # Close db connections at the end of all but the cli group function
         try:
             loop.run_until_complete(f(*args, **kwargs))
         finally:
@@ -54,10 +54,10 @@ async def cli(ctx: Context, config, app):
 
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
-        if not Path(config).exists():
+        config_path = Path(config)
+        if not config_path.exists():
             raise UsageError("You must exec init first", ctx=ctx)
-        with open(config, "r") as f:
-            content = f.read()
+        content = config_path.read_text()
         doc = tomlkit.parse(content)
         try:
             tool = doc["tool"]["aerich"]
@@ -192,9 +192,9 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
     get_tortoise_config(ctx, tortoise_orm)
-    if Path(config_file).exists():
-        with open(config_file, "r") as f:
-            content = f.read()
+    config_path = Path(config_file)
+    if config_path.exists():
+        content = config_path.read_text()
         doc = tomlkit.parse(content)
     else:
         doc = tomlkit.parse("[tool.aerich]")
@@ -204,8 +204,7 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
     table["src_folder"] = src_folder
     doc["tool"]["aerich"] = table
 
-    with open(config_file, "w") as f:
-        f.write(tomlkit.dumps(doc))
+    config_path.write_text(tomlkit.dumps(doc))
 
     Path(location).mkdir(parents=True, exist_ok=True)
 
