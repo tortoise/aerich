@@ -97,8 +97,8 @@ def get_version_content_from_file(version_file: Union[str, Path]) -> Dict:
         upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
         downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
         return {
-            "upgrade": list(filter(lambda x: x or False, upgrade_content.split(";\n"))),
-            "downgrade": list(filter(lambda x: x or False, downgrade_content.split(";\n"))),
+            "upgrade": [line for line in upgrade_content.split(";\n") if line],
+            "downgrade": [line for line in downgrade_content.split(";\n") if line],
         }
 
 
