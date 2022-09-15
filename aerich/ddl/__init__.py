@@ -78,15 +78,11 @@ class BaseDDL:
         auto_now_add = field_describe.get("auto_now_add", False)
         auto_now = field_describe.get("auto_now", False)
         if default is not None or auto_now_add:
-            if (
-                field_describe.get("field_type")
-                in [
-                    "UUIDField",
-                    "TextField",
-                    "JSONField",
-                ]
-                or is_default_function(default)
-            ):
+            if field_describe.get("field_type") in [
+                "UUIDField",
+                "TextField",
+                "JSONField",
+            ] or is_default_function(default):
                 default = ""
             else:
                 try:
@@ -192,6 +188,12 @@ class BaseDDL:
             index_name=self.schema_generator._generate_index_name(
                 "idx" if not unique else "uid", model, field_names
             ),
+            table_name=model._meta.db_table,
+        )
+
+    def drop_index_by_name(self, model: "Type[Model]", index_name: str):
+        return self._DROP_INDEX_TEMPLATE.format(
+            index_name=index_name,
             table_name=model._meta.db_table,
         )
 

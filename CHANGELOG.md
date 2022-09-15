@@ -2,6 +2,26 @@
 
 ## 0.6
 
+### 0.6.4
+
+- Improve `inspectdb` adding support to `postgresql::numeric` data type
+- Add support for dynamically load DDL classes easing to add support to
+  new databases without changing `Migrate` class logic
+- Fix decimal field change. (#246)
+- Support add/remove field with index.
+
+### 0.6.3
+
+- Improve `inspectdb` and support `postgres` & `sqlite`.
+
+### 0.6.2
+
+- Support migration for specified index. (#203)
+
+### 0.6.1
+
+- Fix `pyproject.toml` not existing error. (#217)
+
 ### 0.6.0
 
 - Change default config file from `aerich.ini` to `pyproject.toml`. (#197)
@@ -10,6 +30,7 @@
     1. Run `aerich init -t config.TORTOISE_ORM`.
     2. Remove `aerich.ini`.
 - Remove `pydantic` dependency. (#198)
+- `inspectdb` support `DATE`. (#215)
 
 ## 0.5
 
