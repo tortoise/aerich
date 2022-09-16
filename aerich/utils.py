@@ -87,20 +87,19 @@ def get_version_content_from_file(version_file: Union[str, Path]) -> Dict:
     :param version_file:
     :return:
     """
-    with open(version_file, "r", encoding="utf-8") as f:
-        content = f.read()
-        first = content.index(_UPGRADE)
-        try:
-            second = content.index(_DOWNGRADE)
-        except ValueError:
-            second = len(content) - 1
-        upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
-        downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
-        ret = {
-            "upgrade": list(filter(lambda x: x or False, upgrade_content.split(";\n"))),
-            "downgrade": list(filter(lambda x: x or False, downgrade_content.split(";\n"))),
-        }
-        return ret
+    content = Path(version_file).read_text(encoding="utf-8")
+    first = content.index(_UPGRADE)
+    try:
+        second = content.index(_DOWNGRADE)
+    except ValueError:
+        second = len(content) - 1
+    upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
+    downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
+    ret = {
+        "upgrade": [line for line in upgrade_content.split(";\n") if line],
+        "downgrade": [line for line in downgrade_content.split(";\n") if line],
+    }
+    return ret
 
 
 def write_version_file(version_file: Path, content: Dict):
@@ -125,7 +124,7 @@ def write_version_file(version_file: Path, content: Dict):
         data.append(_DOWNGRADE)
         for downgrade_ddl in downgrade:
             append_ddl(downgrade_ddl)
-    version_file.write_text("".join(data))
+    version_file.write_text("".join(data), encoding="utf-8")
 
 
 def get_models_describe(app: str) -> Dict:

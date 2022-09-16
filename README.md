@@ -7,7 +7,7 @@
 
 ## Introduction
 
-Aerich is a database migrations tool for Tortoise-ORM, which is like alembic for SQLAlchemy, or like Django ORM with
+Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy, or like Django ORM with
 it\'s own migration solution.
 
 ## Install
@@ -165,7 +165,7 @@ Now your db is rolled back to the specified version.
 
 ### Inspect db tables to TortoiseORM model
 
-Currently `inspectdb` only supports MySQL.
+Currently `inspectdb` support MySQL & Postgres & SQLite.
 
 ```shell
 Usage: aerich inspectdb [OPTIONS]
@@ -189,7 +189,44 @@ Inspect a specified table in the default app and redirect to `models.py`:
 aerich inspectdb -t user > models.py
 ```
 
-Note that this command is limited and cannot infer some fields, such as `IntEnumField`, `ForeignKeyField`, and others.
+For example, you table is:
+
+```sql
+CREATE TABLE `test`
+(
+    `id`       int            NOT NULL AUTO_INCREMENT,
+    `decimal`  decimal(10, 2) NOT NULL,
+    `date`     date                                    DEFAULT NULL,
+    `datetime` datetime       NOT NULL                 DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `time`     time                                    DEFAULT NULL,
+    `float`    float                                   DEFAULT NULL,
+    `string`   varchar(200) COLLATE utf8mb4_general_ci DEFAULT NULL,
+    `tinyint`  tinyint                                 DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `asyncmy_string_index` (`string`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci
+```
+
+Now run `aerich inspectdb -t test` to see the generated model:
+
+```python
+from tortoise import Model, fields
+
+
+class Test(Model):
+    date = fields.DateField(null=True, )
+    datetime = fields.DatetimeField(auto_now=True, )
+    decimal = fields.DecimalField(max_digits=10, decimal_places=2, )
+    float = fields.FloatField(null=True, )
+    id = fields.IntField(pk=True, )
+    string = fields.CharField(max_length=200, null=True, )
+    time = fields.TimeField(null=True, )
+    tinyint = fields.BooleanField(null=True, )
+```
+
+Note that this command is limited and can't infer some fields, such as `IntEnumField`, `ForeignKeyField`, and others.
 
 ### Multiple databases
 
