@@ -96,8 +96,8 @@ def get_version_content_from_file(version_file: Union[str, Path]) -> Dict:
     upgrade_content = content[first + len(_UPGRADE) : second].strip()  # noqa:E203
     downgrade_content = content[second + len(_DOWNGRADE) :].strip()  # noqa:E203
     ret = {
-        "upgrade": list(filter(lambda x: x or False, upgrade_content.split(";\n"))),
-        "downgrade": list(filter(lambda x: x or False, downgrade_content.split(";\n"))),
+        "upgrade": [line for line in upgrade_content.split(";\n") if line],
+        "downgrade": [line for line in downgrade_content.split(";\n") if line],
     }
     return ret
 
@@ -109,25 +109,22 @@ def write_version_file(version_file: Path, content: Dict):
     :param content:
     :return:
     """
-    text = _UPGRADE
-    upgrade = content.get("upgrade")
-    if len(upgrade) > 1:
-        text += ";\n".join(upgrade)
-        if not upgrade[-1].endswith(";"):
-            text += ";\n"
-    else:
-        text += f"{upgrade[0]}"
-        if not upgrade[0].endswith(";"):
-            text += ";"
-        text += "\n"
+
+    def append_ddl(ddl: str):
+        if not ddl.endswith(";"):
+            ddl += ";"
+        ddl += "\n"
+        data.append(ddl)
+
+    data = [_UPGRADE]
+    for upgrade_ddl in content.get("upgrade"):
+        append_ddl(upgrade_ddl)
     downgrade = content.get("downgrade")
     if downgrade:
-        text += _DOWNGRADE
-        if len(downgrade) > 1:
-            text += ";\n".join(downgrade) + ";\n"
-        else:
-            text += f"{downgrade[0]};\n"
-    version_file.write_text(text, encoding="utf-8")
+        data.append(_DOWNGRADE)
+        for downgrade_ddl in downgrade:
+            append_ddl(downgrade_ddl)
+    version_file.write_text("".join(data), encoding="utf-8")
 
 
 def get_models_describe(app: str) -> Dict:
