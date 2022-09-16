@@ -1,12 +1,13 @@
 import asyncio
 import os
-from configparser import ConfigParser
 from functools import wraps
 from pathlib import Path
 from typing import List
 
 import click
+import tomlkit
 from click import Context, UsageError
+from tomlkit.exceptions import NonExistentKey
 from tortoise import Tortoise
 
 from aerich.exceptions import DowngradeError
@@ -15,8 +16,6 @@ from aerich.utils import add_src_path, get_tortoise_config
 from . import Command
 from .enums import Color
 from .version import __version__
-
-parser = ConfigParser()
 
 CONFIG_DEFAULT_VALUES = {
     "src_folder": ".",
@@ -43,34 +42,31 @@ def coro(f):
 @click.option(
     "-c",
     "--config",
-    default="aerich.ini",
+    default="pyproject.toml",
     show_default=True,
     help="Config file.",
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
-@click.option(
-    "-n",
-    "--name",
-    default="aerich",
-    show_default=True,
-    help="Name of section in .ini file to use for aerich config.",
-)
 @click.pass_context
 @coro
-async def cli(ctx: Context, config, app, name):
+async def cli(ctx: Context, config, app):
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
-    ctx.obj["name"] = name
 
     invoked_subcommand = ctx.invoked_subcommand
     if invoked_subcommand != "init":
         if not Path(config).exists():
             raise UsageError("You must exec init first", ctx=ctx)
-        parser.read(config)
-
-        location = parser[name]["location"]
-        tortoise_orm = parser[name]["tortoise_orm"]
-        src_folder = parser[name].get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+        with open(config, "r") as f:
+            content = f.read()
+        doc = tomlkit.parse(content)
+        try:
+            tool = doc["tool"]["aerich"]
+            location = tool["location"]
+            tortoise_orm = tool["tortoise_orm"]
+            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
+        except NonExistentKey:
+            raise UsageError("You need run aerich init again when upgrade to 0.6.0+")
         add_src_path(src_folder)
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         app = app or list(tortoise_config.get("apps").keys())[0]
@@ -187,9 +183,6 @@ async def history(ctx: Context):
 @coro
 async def init(ctx: Context, tortoise_orm, location, src_folder):
     config_file = ctx.obj["config_file"]
-    name = ctx.obj["name"]
-    if Path(config_file).exists():
-        return click.secho("Configuration file already created", fg=Color.yellow)
 
     if os.path.isabs(src_folder):
         src_folder = os.path.relpath(os.getcwd(), src_folder)
@@ -201,18 +194,22 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
     add_src_path(src_folder)
     get_tortoise_config(ctx, tortoise_orm)
 
-    parser.add_section(name)
-    parser.set(name, "tortoise_orm", tortoise_orm)
-    parser.set(name, "location", location)
-    parser.set(name, "src_folder", src_folder)
+    with open(config_file, "r") as f:
+        content = f.read()
+    doc = tomlkit.parse(content)
+    table = tomlkit.table()
+    table["tortoise_orm"] = tortoise_orm
+    table["location"] = location
+    table["src_folder"] = src_folder
+    doc["tool"]["aerich"] = table
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        parser.write(f)
+    with open(config_file, "w") as f:
+        f.write(tomlkit.dumps(doc))
 
     Path(location).mkdir(parents=True, exist_ok=True)
 
     click.secho(f"Success create migrate location {location}", fg=Color.green)
-    click.secho(f"Success generate config file {config_file}", fg=Color.green)
+    click.secho(f"Success write config to {config_file}", fg=Color.green)
 
 
 @cli.command(help="Generate schema and generate app migrate location.")

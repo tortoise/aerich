@@ -1,5 +1,16 @@
 # ChangeLog
 
+## 0.6
+
+### 0.6.0
+
+- Change default config file from `aerich.ini` to `pyproject.toml`. (#197)
+
+  **Upgrade note:**
+    1. Run `aerich init -t config.TORTOISE_ORM`.
+    2. Remove `aerich.ini`.
+- Remove `pydantic` dependency. (#198)
+
 ## 0.5
 
 ### 0.5.8
