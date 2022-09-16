@@ -811,7 +811,6 @@ def test_migrate(mocker: MockerFixture):
             "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL",
             "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
             "ALTER TABLE `email` DROP COLUMN `user_id`",
-            "CREATE TABLE `email_user` (`email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,`user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE) CHARACTER SET utf8mb4",
             "ALTER TABLE `configs` RENAME TO `config`",
             "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
             "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
