@@ -102,11 +102,8 @@ class Command:
         return ret
 
     async def history(self):
-        ret = []
         versions = Migrate.get_all_version_files()
-        for version in versions:
-            ret.append(version)
-        return ret
+        return [version for version in versions]
 
     async def inspectdb(self, tables: List[str] = None) -> str:
         connection = get_app_connection(self.tortoise_config, self.app)

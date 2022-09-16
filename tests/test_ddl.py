@@ -72,18 +72,16 @@ def test_modify_column():
     ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active").describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)"
+        assert (
+            ret1
+            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
+        )
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret0
             == 'ALTER TABLE "category" ALTER COLUMN "name" TYPE VARCHAR(200) USING "name"::VARCHAR(200)'
         )
 
-    if isinstance(Migrate.ddl, MysqlDDL):
-        assert (
-            ret1
-            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
-        )
-    elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret1 == 'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL'
         )

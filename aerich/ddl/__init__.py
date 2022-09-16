@@ -180,7 +180,7 @@ class BaseDDL:
                 "idx" if not unique else "uid", model, field_names
             ),
             table_name=model._meta.db_table,
-            column_names=", ".join([self.schema_generator.quote(f) for f in field_names]),
+            column_names=", ".join(self.schema_generator.quote(f) for f in field_names),
         )
 
     def drop_index(self, model: "Type[Model]", field_names: List[str], unique=False):
