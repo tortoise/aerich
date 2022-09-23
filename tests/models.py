@@ -28,6 +28,8 @@ class User(Model):
     last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
     is_active = fields.BooleanField(default=True, description="Is Active")
     is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
+    intro = fields.TextField(default="")
+    longitude = fields.DecimalField(max_digits=10, decimal_places=8)
 
 
 class Email(Model):
