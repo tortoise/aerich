@@ -125,8 +125,8 @@ class Migrate:
 
         version_file = Path(cls.migrate_location, version)
         content = MIGRATE_TEMPLATE.format(
-            upgrade_sql=",\n        ".join(map(lambda x: f'"""{x}"""', cls.upgrade_operators)),
-            downgrade_sql=",\n        ".join(map(lambda x: f'"""{x}"""', cls.downgrade_operators)),
+            upgrade_sql=",\n        ".join(map(lambda x: f"'{x}'", cls.upgrade_operators)),
+            downgrade_sql=",\n        ".join(map(lambda x: f"'{x}'", cls.downgrade_operators)),
         )
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)

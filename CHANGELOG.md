@@ -2,6 +2,10 @@
 
 ## 0.7
 
+### 0.7.1rc1
+
+- Fix postgres sql error (#263)
+
 ### 0.7.0
 
 **Now aerich use `.py` file to record versions.**
