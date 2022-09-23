@@ -1,14 +1,24 @@
 # ChangeLog
 
-## 0.6
+## 0.7
 
-### 0.6.4
+### 0.7.0
+
+**Now aerich use `.py` file to record versions.**
+
+Upgrade Note:
+
+1. Drop `aerich` table
+2. Delete `migrations/models` folder
+3. Run `aerich init-db`
 
 - Improve `inspectdb` adding support to `postgresql::numeric` data type
 - Add support for dynamically load DDL classes easing to add support to
   new databases without changing `Migrate` class logic
 - Fix decimal field change. (#246)
 - Support add/remove field with index.
+
+## 0.6
 
 ### 0.6.3
 

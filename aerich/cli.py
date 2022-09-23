@@ -26,11 +26,11 @@ def coro(f):
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
 
-        # Close db connections at the end of all all but the cli group function
+        # Close db connections at the end of all but the cli group function
         try:
             loop.run_until_complete(f(*args, **kwargs))
         finally:
-            if f.__name__ not in ["cli", "init_db"]:
+            if f.__name__ not in ["cli", "init_db", "init"]:
                 loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper

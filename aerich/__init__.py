@@ -11,14 +11,13 @@ from aerich.exceptions import DowngradeError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
-from aerich.migrate import Migrate
+from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import (
     get_app_connection,
     get_app_connection_name,
     get_models_describe,
-    get_version_content_from_file,
-    write_version_file,
+    import_py_file,
 )
 
 
@@ -49,10 +48,9 @@ class Command:
                     get_app_connection_name(self.tortoise_config, self.app)
                 ) as conn:
                     file_path = Path(Migrate.migrate_location, version_file)
-                    content = get_version_content_from_file(file_path)
-                    upgrade_query_list = content.get("upgrade")
-                    for upgrade_query in upgrade_query_list:
-                        await conn.execute_script(upgrade_query)
+                    m = import_py_file(file_path)
+                    upgrade = getattr(m, "upgrade")
+                    await upgrade(conn)
                     await Aerich.create(
                         version=version_file,
                         app=self.app,
@@ -81,12 +79,11 @@ class Command:
                 get_app_connection_name(self.tortoise_config, self.app)
             ) as conn:
                 file_path = Path(Migrate.migrate_location, file)
-                content = get_version_content_from_file(file_path)
-                downgrade_query_list = content.get("downgrade")
-                if not downgrade_query_list:
+                m = import_py_file(file_path)
+                downgrade = getattr(m, "downgrade", None)
+                if not downgrade:
                     raise DowngradeError("No downgrade items found")
-                for downgrade_query in downgrade_query_list:
-                    await conn.execute_query(downgrade_query)
+                await downgrade(conn)
                 await version.delete()
                 if delete:
                     os.unlink(file_path)
@@ -143,7 +140,7 @@ class Command:
             app=app,
             content=get_models_describe(app),
         )
-        content = {
-            "upgrade": [schema],
-        }
-        write_version_file(Path(dirname, version), content)
+        version_file = Path(dirname, version)
+        content = MIGRATE_TEMPLATE.format(upgrade_sql=f'"""{schema}"""', downgrade_sql="")
+        with open(version_file, "w", encoding="utf-8") as f:
+            f.write(content)

@@ -101,11 +101,11 @@ e.g. `aerich --app other_models init-db`.
 ```shell
 > aerich migrate --name drop_column
 
-Success migrate 1_202029051520102929_drop_column.sql
+Success migrate 1_202029051520102929_drop_column.py
 ```
 
 Format of migrate filename is
-`{version_num}_{datetime}_{name|update}.sql`.
+`{version_num}_{datetime}_{name|update}.py`.
 
 If `aerich` guesses you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`. You can choose
 `True` to rename column without column drop, or choose `False` to drop the column then create. Note that the latter may
@@ -116,7 +116,7 @@ lose data.
 ```shell
 > aerich upgrade
 
-Success upgrade 1_202029051520102929_drop_column.sql
+Success upgrade 1_202029051520102929_drop_column.py
 ```
 
 Now your db is migrated to latest.
@@ -142,7 +142,7 @@ Options:
 ```shell
 > aerich downgrade
 
-Success downgrade 1_202029051520102929_drop_column.sql
+Success downgrade 1_202029051520102929_drop_column.py
 ```
 
 Now your db is rolled back to the specified version.
@@ -152,7 +152,7 @@ Now your db is rolled back to the specified version.
 ```shell
 > aerich history
 
-1_202029051520102929_drop_column.sql
+1_202029051520102929_drop_column.py
 ```
 
 ### Show heads to be migrated
@@ -160,7 +160,7 @@ Now your db is rolled back to the specified version.
 ```shell
 > aerich heads
 
-1_202029051520102929_drop_column.sql
+1_202029051520102929_drop_column.py
 ```
 
 ### Inspect db tables to TortoiseORM model
