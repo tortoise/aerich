@@ -2,6 +2,11 @@
 
 ## 0.7
 
+### 0.7.1rc2
+
+- Fix syntax error with python3.8.10. (#265)
+- Fix sql generate error. (#263)
+
 ### 0.7.1rc1
 
 - Fix postgres sql error (#263)

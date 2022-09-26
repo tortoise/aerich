@@ -15,21 +15,17 @@ from aerich.ddl import BaseDDL
 from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import get_app_connection, get_models_describe, is_default_function
 
-MIGRATE_TEMPLATE = """from typing import List
-
-from tortoise import BaseDBAsyncClient
+MIGRATE_TEMPLATE = """from tortoise import BaseDBAsyncClient
 
 
-async def upgrade(db: BaseDBAsyncClient) -> List[str]:
-    return [
-        {upgrade_sql}
-    ]
+async def upgrade(db: BaseDBAsyncClient) -> str:
+    return \"\"\"
+        {upgrade_sql}\"\"\"
 
 
-async def downgrade(db: BaseDBAsyncClient) -> List[str]:
-    return [
-        {downgrade_sql}
-    ]
+async def downgrade(db: BaseDBAsyncClient) -> str:
+    return \"\"\"
+        {downgrade_sql}\"\"\"
 """
 
 
@@ -52,7 +48,7 @@ class Migrate:
     _db_version: Optional[str] = None
 
     @classmethod
-    def get_all_version_files(cls) -> list[str]:
+    def get_all_version_files(cls) -> List[str]:
         return sorted(
             filter(lambda x: x.endswith("py"), os.listdir(cls.migrate_location)),
             key=lambda x: int(x.split("_")[0]),
@@ -125,9 +121,10 @@ class Migrate:
 
         version_file = Path(cls.migrate_location, version)
         content = MIGRATE_TEMPLATE.format(
-            upgrade_sql=",\n        ".join(map(lambda x: f"'{x}'", cls.upgrade_operators)),
-            downgrade_sql=",\n        ".join(map(lambda x: f"'{x}'", cls.downgrade_operators)),
+            upgrade_sql=";\n        ".join(cls.upgrade_operators) + ";",
+            downgrade_sql=";\n        ".join(cls.downgrade_operators) + ";",
         )
+
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
         return version
