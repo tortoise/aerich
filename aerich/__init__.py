@@ -50,7 +50,9 @@ class Command:
                     file_path = Path(Migrate.migrate_location, version_file)
                     m = import_py_file(file_path)
                     upgrade = getattr(m, "upgrade")
-                    await upgrade(conn)
+                    upgrade_query_list = await upgrade(conn)
+                    for upgrade_query in upgrade_query_list:
+                        await conn.execute_script(upgrade_query)
                     await Aerich.create(
                         version=version_file,
                         app=self.app,
@@ -83,7 +85,9 @@ class Command:
                 downgrade = getattr(m, "downgrade", None)
                 if not downgrade:
                     raise DowngradeError("No downgrade items found")
-                await downgrade(conn)
+                downgrade_query_list = await downgrade(conn)
+                for downgrade_query in downgrade_query_list:
+                    await conn.execute_script(downgrade_query)
                 await version.delete()
                 if delete:
                     os.unlink(file_path)
