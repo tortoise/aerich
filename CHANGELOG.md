@@ -6,6 +6,7 @@
 
 - Fix syntax error with python3.8.10. (#265)
 - Fix sql generate error. (#263)
+- Fix initialize an empty database. (#267)
 
 ### 0.7.1rc1
 

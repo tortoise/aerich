@@ -50,7 +50,7 @@ class Command:
                     file_path = Path(Migrate.migrate_location, version_file)
                     m = import_py_file(file_path)
                     upgrade = getattr(m, "upgrade")
-                    await upgrade(conn)
+                    await conn.execute_script(await upgrade(conn))
                     await Aerich.create(
                         version=version_file,
                         app=self.app,
@@ -80,10 +80,11 @@ class Command:
             ) as conn:
                 file_path = Path(Migrate.migrate_location, file)
                 m = import_py_file(file_path)
-                downgrade = getattr(m, "downgrade", None)
-                if not downgrade:
+                downgrade = getattr(m, "downgrade")
+                downgrade_sql = await downgrade(conn)
+                if not downgrade_sql.strip():
                     raise DowngradeError("No downgrade items found")
-                await downgrade(conn)
+                await conn.execute_script(downgrade_sql)
                 await version.delete()
                 if delete:
                     os.unlink(file_path)
@@ -138,6 +139,6 @@ class Command:
             content=get_models_describe(app),
         )
         version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(upgrade_sql=f'"""{schema}"""', downgrade_sql="")
+        content = MIGRATE_TEMPLATE.format(upgrade_sql=schema, downgrade_sql="")
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
