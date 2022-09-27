@@ -2,7 +2,7 @@
 
 ## 0.7
 
-### 0.7.1rc2
+### 0.7.1
 
 - Fix syntax error with python3.8.10. (#265)
 - Fix sql generate error. (#263)
