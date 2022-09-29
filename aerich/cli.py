@@ -30,7 +30,7 @@ def coro(f):
         try:
             loop.run_until_complete(f(*args, **kwargs))
         finally:
-            if f.__name__ not in ["cli", "init_db", "init"]:
+            if f.__name__ not in ["cli", "init"]:
                 loop.run_until_complete(Tortoise.close_connections())
 
     return wrapper
