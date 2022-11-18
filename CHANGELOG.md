@@ -2,6 +2,10 @@
 
 ## 0.7
 
+### 0.7.2
+
+- Support virtual fields.
+
 ### 0.7.1
 
 - Fix syntax error with python3.8.10. (#265)
