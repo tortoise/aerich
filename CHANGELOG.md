@@ -5,6 +5,7 @@
 ### 0.7.2
 
 - Support virtual fields.
+- Fix modify multiple times. (#279)
 
 ### 0.7.1
 
