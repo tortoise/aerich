@@ -50,7 +50,7 @@ class Migrate:
     @classmethod
     def get_all_version_files(cls) -> List[str]:
         return sorted(
-            filter(lambda x: x.endswith("py") and not x.startswith("__"), os.listdir(cls.migrate_location)),
+            filter(lambda x: x.endswith("py") and not x.startswith("__init__"), os.listdir(cls.migrate_location)),
             key=lambda x: int(x.split("_")[0]),
         )
 
