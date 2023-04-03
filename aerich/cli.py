@@ -90,11 +90,17 @@ async def migrate(ctx: Context, name):
 
 
 @cli.command(help="Upgrade to specified version.")
+@click.option(
+    "--in-transaction",
+    default=True,
+    type=bool,
+    help="Make migrations in transaction or not. Can be helpful for large migrations or creating concurrent indexes.",
+)
 @click.pass_context
 @coro
-async def upgrade(ctx: Context):
+async def upgrade(ctx: Context, in_transaction: bool):
     command = ctx.obj["command"]
-    migrated = await command.upgrade()
+    migrated = await command.upgrade(run_in_transaction=in_transaction)
     if not migrated:
         click.secho("No upgrade items found", fg=Color.yellow)
     else:
@@ -233,9 +239,7 @@ async def init_db(ctx: Context, safe: bool):
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
         click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
     except FileExistsError:
-        return click.secho(
-            f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
-        )
+        return click.secho(f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow)
 
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
