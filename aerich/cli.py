@@ -92,6 +92,7 @@ async def migrate(ctx: Context, name):
 @cli.command(help="Upgrade to specified version.")
 @click.option(
     "--in-transaction",
+    "-i",
     default=True,
     type=bool,
     help="Make migrations in transaction or not. Can be helpful for large migrations or creating concurrent indexes.",
