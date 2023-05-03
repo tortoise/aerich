@@ -2,6 +2,10 @@
 
 ## 0.7
 
+### 0.7.3
+
+- Added `-i` and `--in-transaction` options to `aerich migrate` command. (#296)
+
 ### 0.7.2
 
 - Support virtual fields.
