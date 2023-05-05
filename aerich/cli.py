@@ -90,11 +90,18 @@ async def migrate(ctx: Context, name):
 
 
 @cli.command(help="Upgrade to specified version.")
+@click.option(
+    "--in-transaction",
+    "-i",
+    default=True,
+    type=bool,
+    help="Make migrations in transaction or not. Can be helpful for large migrations or creating concurrent indexes.",
+)
 @click.pass_context
 @coro
-async def upgrade(ctx: Context):
+async def upgrade(ctx: Context, in_transaction: bool):
     command = ctx.obj["command"]
-    migrated = await command.upgrade()
+    migrated = await command.upgrade(run_in_transaction=in_transaction)
     if not migrated:
         click.secho("No upgrade items found", fg=Color.yellow)
     else:

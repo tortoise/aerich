@@ -36,7 +36,18 @@ class Command:
     async def init(self):
         await Migrate.init(self.tortoise_config, self.app, self.location)
 
-    async def upgrade(self):
+    async def _upgrade(self, conn, version_file):
+        file_path = Path(Migrate.migrate_location, version_file)
+        m = import_py_file(file_path)
+        upgrade = getattr(m, "upgrade")
+        await conn.execute_script(await upgrade(conn))
+        await Aerich.create(
+            version=version_file,
+            app=self.app,
+            content=get_models_describe(self.app),
+        )
+
+    async def upgrade(self, run_in_transaction: bool):
         migrated = []
         for version_file in Migrate.get_all_version_files():
             try:
@@ -44,18 +55,13 @@ class Command:
             except OperationalError:
                 exists = False
             if not exists:
-                async with in_transaction(
-                    get_app_connection_name(self.tortoise_config, self.app)
-                ) as conn:
-                    file_path = Path(Migrate.migrate_location, version_file)
-                    m = import_py_file(file_path)
-                    upgrade = getattr(m, "upgrade")
-                    await conn.execute_script(await upgrade(conn))
-                    await Aerich.create(
-                        version=version_file,
-                        app=self.app,
-                        content=get_models_describe(self.app),
-                    )
+                app_conn_name = get_app_connection_name(self.tortoise_config, self.app)
+                if run_in_transaction:
+                    async with in_transaction(app_conn_name) as conn:
+                        await self._upgrade(conn, version_file)
+                else:
+                    app_conn = get_app_connection(self.tortoise_config, self.app)
+                    await self._upgrade(app_conn, version_file)
                 migrated.append(version_file)
         return migrated
 
