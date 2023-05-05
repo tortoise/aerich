@@ -240,7 +240,9 @@ async def init_db(ctx: Context, safe: bool):
         click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
         click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
     except FileExistsError:
-        return click.secho(f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow)
+        return click.secho(
+            f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
+        )
 
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
