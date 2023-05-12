@@ -156,6 +156,7 @@ class Migrate:
         :param fk_m2m_index:
         :return:
         """
+        operator = operator.rstrip(";")
         if upgrade:
             if fk_m2m_index:
                 cls._upgrade_fk_m2m_index_operators.append(operator)

@@ -2,14 +2,12 @@
 
 ## 0.7
 
-### 0.7.3
-
-- Added `-i` and `--in-transaction` options to `aerich migrate` command. (#296)
-
 ### 0.7.2
 
 - Support virtual fields.
 - Fix modify multiple times. (#279)
+- Added `-i` and `--in-transaction` options to `aerich migrate` command. (#296)
+- Fix generates two semicolons in a row. (#301)
 
 ### 0.7.1
 
