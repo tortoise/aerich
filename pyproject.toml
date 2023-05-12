@@ -19,13 +19,13 @@ python = "^3.7"
 tortoise-orm = "*"
 click = "*"
 asyncpg = { version = "*", optional = true }
-asyncmy = { version = "*", optional = true }
+asyncmy = { version = "^0.2.8rc1", optional = true, allow-prereleases = true }
 pydantic = "*"
 dictdiffer = "*"
 tomlkit = "*"
 
 [tool.poetry.dev-dependencies]
-flake8 = "*"
+ruff = "*"
 isort = "*"
 black = "*"
 pytest = "*"
@@ -34,7 +34,6 @@ pytest-asyncio = "*"
 bandit = "*"
 pytest-mock = "*"
 cryptography = "*"
-pyproject-flake8 = "*"
 
 [tool.poetry.extras]
 asyncmy = ["asyncmy"]
@@ -63,5 +62,5 @@ asyncio_mode = 'auto'
 pretty = true
 ignore_missing_imports = true
 
-[tool.flake8]
-ignore = 'E501,W503,E203'
+[tool.ruff]
+ignore = ['E501']
