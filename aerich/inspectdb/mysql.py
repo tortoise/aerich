@@ -12,6 +12,7 @@ class InspectMySQL(Inspect):
             "tinyint": self.bool_field,
             "bigint": self.bigint_field,
             "varchar": self.char_field,
+            "char": self.char_field,
             "longtext": self.text_field,
             "text": self.text_field,
             "datetime": self.datetime_field,
