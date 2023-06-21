@@ -126,7 +126,7 @@ class Command:
     async def migrate(self, name: str = "update"):
         return await Migrate.migrate(name)
 
-    async def init_db(self, safe: bool):
+    async def init_db(self, safe: bool, name: str = "init"):
         location = self.location
         app = self.app
         dirname = Path(location, app)
@@ -138,7 +138,7 @@ class Command:
 
         schema = get_schema_sql(connection, safe)
 
-        version = await Migrate.generate_version()
+        version = await Migrate.generate_version(name)
         await Aerich.create(
             version=version,
             app=app,
