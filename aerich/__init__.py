@@ -47,7 +47,7 @@ class Command:
             content=get_models_describe(self.app),
         )
 
-    async def upgrade(self, run_in_transaction: bool):
+    async def upgrade(self, run_in_transaction: bool = True):
         migrated = []
         for version_file in Migrate.get_all_version_files():
             try:
