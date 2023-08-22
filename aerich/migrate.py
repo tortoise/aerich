@@ -486,6 +486,9 @@ class Migrate:
                         elif option == "nullable":
                             # change nullable
                             cls._add_operator(cls._alter_null(model, new_data_field), upgrade)
+                        elif option == "description":
+                            # change comment
+                            cls._add_operator(cls._set_comment(model, new_data_field), upgrade)
                         else:
                             if modified:
                                 continue
