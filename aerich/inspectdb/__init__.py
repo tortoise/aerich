@@ -55,6 +55,8 @@ class Column(BaseModel):
                     default = f"default={self.default.split('::')[0]}, "
                 elif self.default.endswith("()"):
                     default = ""
+                elif self.default == '':
+                    default = 'default=""'
                 else:
                     default = f"default={self.default}, "
 
