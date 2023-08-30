@@ -20,7 +20,7 @@ tortoise-orm = "*"
 click = "*"
 asyncpg = { version = "*", optional = true }
 asyncmy = { version = "^0.2.8rc1", optional = true, allow-prereleases = true }
-pydantic = "*"
+pydantic = "^2.0"
 dictdiffer = "*"
 tomlkit = "*"
 

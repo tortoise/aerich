@@ -9,14 +9,14 @@ class Column(BaseModel):
     data_type: str
     null: bool
     default: Any
-    comment: Optional[str]
+    comment: Optional[str] = None
     pk: bool
     unique: bool
     index: bool
-    length: Optional[int]
-    extra: Optional[str]
-    decimal_places: Optional[int]
-    max_digits: Optional[int]
+    length: Optional[int] = None
+    extra: Optional[str] = None
+    decimal_places: Optional[int] = None
+    max_digits: Optional[int] = None
 
     def translate(self) -> dict:
         comment = default = length = index = null = pk = ""
@@ -55,7 +55,7 @@ class Column(BaseModel):
                     default = f"default={self.default.split('::')[0]}, "
                 elif self.default.endswith("()"):
                     default = ""
-                elif self.default == '':
+                elif self.default == "":
                     default = 'default=""'
                 else:
                     default = f"default={self.default}, "
