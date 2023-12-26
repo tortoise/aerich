@@ -973,7 +973,7 @@ def test_sort_all_version_files(mocker):
 async def test_empty_migration(mocker) -> None:
     mocker.patch("os.listdir", return_value=[])
     Migrate.app = "foo"
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql=";", downgrade_sql=";")
+    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
     with tempfile.TemporaryDirectory() as temp_dir:
         Migrate.migrate_location = temp_dir
 
