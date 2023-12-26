@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 import pytest
 from pytest_mock import MockerFixture
 
@@ -5,7 +8,7 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
-from aerich.migrate import Migrate
+from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.utils import get_models_describe
 
 old_models_describe = {
@@ -966,3 +969,15 @@ def test_sort_all_version_files(mocker):
         "10_datetime_update.py",
         "11_datetime_update.py",
     ]
+
+async def test_empty_migration(mocker) -> None:
+    mocker.patch("os.listdir", return_value=[])
+    Migrate.app = "foo"
+    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql=";", downgrade_sql=";")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        Migrate.migrate_location = temp_dir
+
+        migration_file = await Migrate.migrate("update", True)
+
+        with open(Path(temp_dir, migration_file), "r") as f:
+            assert f.read() == expected_content

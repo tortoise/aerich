@@ -130,12 +130,16 @@ class Migrate:
         return version
 
     @classmethod
-    async def migrate(cls, name) -> str:
+    async def migrate(cls, name: str, empty: bool) -> str:
         """
         diff old models and new models to generate diff content
-        :param name:
+        :param name: str name for migration
+        :param empty: bool if True generates empty migration
         :return:
         """
+        if empty:
+            return await cls._generate_diff_py(name)
+
         new_version_content = get_models_describe(cls.app)
         cls.diff_models(cls._last_version_content, new_version_content)
         cls.diff_models(new_version_content, cls._last_version_content, False)
