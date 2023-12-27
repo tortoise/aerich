@@ -79,6 +79,7 @@ async def cli(ctx: Context, config, app):
 
 @cli.command(help="Generate migrate changes file.")
 @click.option("--name", default="update", show_default=True, help="Migrate name.")
+@click.option("--empty", default=False, is_flag=True, help="Generate empty migration file.")
 @click.pass_context
 @coro
 async def migrate(ctx: Context, name):
