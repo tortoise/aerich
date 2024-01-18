@@ -113,6 +113,14 @@ If `aerich` guesses you are renaming a column, it will ask `Rename {old_column} 
 `True` to rename column without column drop, or choose `False` to drop the column then create. Note that the latter may
 lose data.
 
+If you need to manually write migration, you could generate empty file:
+
+```shell
+> aerich migrate --name add_index --empty
+
+Success migrate 1_202326122220101229_add_index.py
+```
+
 ### Upgrade to latest version
 
 ```shell

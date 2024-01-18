@@ -120,22 +120,23 @@ class Migrate:
                 os.unlink(Path(cls.migrate_location, version_file))
 
         version_file = Path(cls.migrate_location, version)
-        content = MIGRATE_TEMPLATE.format(
-            upgrade_sql=";\n        ".join(cls.upgrade_operators) + ";",
-            downgrade_sql=";\n        ".join(cls.downgrade_operators) + ";",
-        )
+        content = cls._get_diff_file_content()
 
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
         return version
 
     @classmethod
-    async def migrate(cls, name) -> str:
+    async def migrate(cls, name: str, empty: bool) -> str:
         """
         diff old models and new models to generate diff content
-        :param name:
+        :param name: str name for migration
+        :param empty: bool if True generates empty migration
         :return:
         """
+        if empty:
+            return await cls._generate_diff_py(name)
+
         new_version_content = get_models_describe(cls.app)
         cls.diff_models(cls._last_version_content, new_version_content)
         cls.diff_models(new_version_content, cls._last_version_content, False)
@@ -146,6 +147,21 @@ class Migrate:
             return ""
 
         return await cls._generate_diff_py(name)
+
+    @classmethod
+    def _get_diff_file_content(cls) -> str:
+        """
+        builds content for diff file from template
+        """
+        def join_lines(lines: List[str]) -> str:
+            if not lines:
+                return ""
+            return ";\n        ".join(lines) + ";"
+            
+        return MIGRATE_TEMPLATE.format(
+            upgrade_sql=join_lines(cls.upgrade_operators), 
+            downgrade_sql=join_lines(cls.downgrade_operators)
+        )
 
     @classmethod
     def _add_operator(cls, operator: str, upgrade=True, fk_m2m_index=False):

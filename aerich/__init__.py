@@ -123,8 +123,8 @@ class Command:
         inspect = cls(connection, tables)
         return await inspect.inspect()
 
-    async def migrate(self, name: str = "update"):
-        return await Migrate.migrate(name)
+    async def migrate(self, name: str = "update", empty: bool = False) -> str:
+        return await Migrate.migrate(name, empty)
 
     async def init_db(self, safe: bool):
         location = self.location
