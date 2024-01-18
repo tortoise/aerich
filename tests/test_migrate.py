@@ -970,6 +970,7 @@ def test_sort_all_version_files(mocker):
         "11_datetime_update.py",
     ]
 
+
 async def test_empty_migration(mocker) -> None:
     mocker.patch("os.listdir", return_value=[])
     Migrate.app = "foo"

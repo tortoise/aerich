@@ -153,14 +153,15 @@ class Migrate:
         """
         builds content for diff file from template
         """
+
         def join_lines(lines: List[str]) -> str:
             if not lines:
                 return ""
             return ";\n        ".join(lines) + ";"
-            
+
         return MIGRATE_TEMPLATE.format(
-            upgrade_sql=join_lines(cls.upgrade_operators), 
-            downgrade_sql=join_lines(cls.downgrade_operators)
+            upgrade_sql=join_lines(cls.upgrade_operators),
+            downgrade_sql=join_lines(cls.downgrade_operators),
         )
 
     @classmethod
