@@ -258,7 +258,13 @@ class Migrate:
                 for action, option, change in diff(old_m2m_fields, new_m2m_fields):
                     if change[0][0] == "db_constraint":
                         continue
-                    table = change[0][1].get("through")
+                    if isinstance(change[0][1], str):
+                        for new_m2m_field in new_m2m_fields:
+                            if new_m2m_field["name"] == change[0][1]:
+                                table = new_m2m_field.get("through")
+                                break
+                    else:
+                        table = change[0][1].get("through")
                     if action == "add":
                         add = False
                         if upgrade and table not in cls._upgrade_m2m:
