@@ -190,10 +190,17 @@ class Migrate:
         ret = []
         for index in indexes:
             if isinstance(index, Index):
-                index.__hash__ = lambda self: md5(  # nosec: B303
-                    self.index_name(cls.ddl.schema_generator, model).encode()
-                    + self.__class__.__name__.encode()
-                ).hexdigest()
+                def add_hash_eq_methods_to_index(idx):
+                    def _hash(self):
+                        return hash(self.index_name(cls.ddl.schema_generator, model).encode() + self.__class__.__name__.encode())
+
+                    def _eq(self, other):
+                        return self.__hash__() == other.__hash__()
+
+                    setattr(idx.__class__, '__hash__', _hash)
+                    setattr(idx.__class__, '__eq__', _eq)
+                    return idx
+                index = add_hash_eq_methods_to_index(index)                
             ret.append(index)
         return ret
 
