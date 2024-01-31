@@ -198,6 +198,44 @@ class Migrate:
         return ret
 
     @classmethod
+    def _return_order_m2ms(cls, old_m2m_fields, new_m2m_fields):
+        """
+        dictdiffer.diff: 当对象为list的时候，他的check是按照list索引check的，但是old_m2m_fields, new_m2m_fields两个list的顺序无法确定，因此这个函数将会按照
+        through 作为关键字，进行list元素排序，现在你可以任意的添加和删除多对多关系的字段了
+
+        dictdiffer.diff: When the objects are two lists, its check is checked according to the list index,
+        but the order of the two lists cannot be determined, so this function will follow the `through`
+        is used as the keyword to sort the list elements. Now you can add and delete fields of many-to-many
+        relationship at will
+
+        :param old_m2m_fields: aerich  old_m2m_fields
+        :param new_m2m_fields: aerich  new_m2m_fields
+        :return: 返回经过 through字段排序后的两个list
+        """
+        if len(old_m2m_fields) <= len(new_m2m_fields):
+            # add or change
+            new_list = ['' for i in range(len(old_m2m_fields))]
+            old_m2m_fields_dict = {value['through']: str(index) for index, value in enumerate(old_m2m_fields)}
+
+            for index, item in enumerate(new_m2m_fields):
+                if old_m2m_fields_dict.get(item['through']):
+                    new_list[int(old_m2m_fields_dict.get(item['through']))] = item
+                else:
+                    new_list.append(item)
+            return old_m2m_fields, new_list
+        else:
+            # remove
+            new_list = ['' for i in range(len(new_m2m_fields))]
+            new_m2m_fields_dict = {value['through']: str(index) for index, value in enumerate(new_m2m_fields)}
+
+            for index, item in enumerate(old_m2m_fields):
+                if new_m2m_fields_dict.get(item['through']):
+                    new_list[int(new_m2m_fields_dict.get(item['through']))] = item
+                else:
+                    new_list.append(item)
+            return new_list, new_m2m_fields
+
+    @classmethod
     def diff_models(cls, old_models: Dict[str, dict], new_models: Dict[str, dict], upgrade=True):
         """
         diff models and add operators
@@ -255,6 +293,7 @@ class Migrate:
                 # m2m fields
                 old_m2m_fields = old_model_describe.get("m2m_fields")
                 new_m2m_fields = new_model_describe.get("m2m_fields")
+                old_m2m_fields, new_m2m_fields = cls._return_order_m2ms(old_m2m_fields, new_m2m_fields)
                 for action, option, change in diff(old_m2m_fields, new_m2m_fields):
                     if change[0][0] == "db_constraint":
                         continue
@@ -323,7 +362,7 @@ class Migrate:
 
                 # add fields or rename fields
                 for new_data_field_name in set(new_data_fields_name).difference(
-                    set(old_data_fields_name)
+                        set(old_data_fields_name)
                 ):
                     new_data_field = next(
                         filter(lambda x: x.get("name") == new_data_field_name, new_data_fields)
@@ -335,22 +374,22 @@ class Migrate:
                         if len(changes) == 2:
                             # rename field
                             if (
-                                changes[0]
-                                == (
+                                    changes[0]
+                                    == (
                                     "change",
                                     "name",
                                     (old_data_field_name, new_data_field_name),
-                                )
-                                and changes[1]
-                                == (
+                            )
+                                    and changes[1]
+                                    == (
                                     "change",
                                     "db_column",
                                     (
-                                        old_data_field.get("db_column"),
-                                        new_data_field.get("db_column"),
+                                            old_data_field.get("db_column"),
+                                            new_data_field.get("db_column"),
                                     ),
-                                )
-                                and old_data_field_name not in new_data_fields_name
+                            )
+                                    and old_data_field_name not in new_data_fields_name
                             ):
                                 if upgrade:
                                     is_rename = click.prompt(
@@ -366,9 +405,9 @@ class Migrate:
                                     cls._rename_old.append(old_data_field_name)
                                     # only MySQL8+ has rename syntax
                                     if (
-                                        cls.dialect == "mysql"
-                                        and cls._db_version
-                                        and cls._db_version.startswith("5.")
+                                            cls.dialect == "mysql"
+                                            and cls._db_version
+                                            and cls._db_version.startswith("5.")
                                     ):
                                         cls._add_operator(
                                             cls._change_field(
@@ -399,11 +438,11 @@ class Migrate:
                             )
                 # remove fields
                 for old_data_field_name in set(old_data_fields_name).difference(
-                    set(new_data_fields_name)
+                        set(new_data_fields_name)
                 ):
                     # don't remove field if is renamed
                     if (upgrade and old_data_field_name in cls._rename_old) or (
-                        not upgrade and old_data_field_name in cls._rename_new
+                            not upgrade and old_data_field_name in cls._rename_new
                     ):
                         continue
                     old_data_field = next(
@@ -435,7 +474,7 @@ class Migrate:
 
                 # add fk
                 for new_fk_field_name in set(new_fk_fields_name).difference(
-                    set(old_fk_fields_name)
+                        set(old_fk_fields_name)
                 ):
                     fk_field = next(
                         filter(lambda x: x.get("name") == new_fk_field_name, new_fk_fields)
@@ -450,7 +489,7 @@ class Migrate:
                         )
                 # drop fk
                 for old_fk_field_name in set(old_fk_fields_name).difference(
-                    set(new_fk_fields_name)
+                        set(new_fk_fields_name)
                 ):
                     old_fk_field = next(
                         filter(lambda x: x.get("name") == old_fk_field_name, old_fk_fields)
@@ -497,7 +536,7 @@ class Migrate:
                                 continue
                         elif option == "default":
                             if not (
-                                is_default_function(old_new[0]) or is_default_function(old_new[1])
+                                    is_default_function(old_new[0]) or is_default_function(old_new[1])
                             ):
                                 # change column default
                                 cls._add_operator(
