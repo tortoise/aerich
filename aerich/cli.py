@@ -57,7 +57,7 @@ async def cli(ctx: Context, config, app):
         config_path = Path(config)
         if not config_path.exists():
             raise UsageError("You must exec init first", ctx=ctx)
-        content = config_path.read_text()
+        content = config_path.read_text("utf-8")
         doc = tomlkit.parse(content)
         try:
             tool = doc["tool"]["aerich"]
@@ -244,6 +244,9 @@ async def init_db(ctx: Context, safe: bool):
         return click.secho(
             f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
         )
+    finally:
+        if dirname.is_dir() and not any(dirname.iterdir()):
+            dirname.rmdir()
 
 
 @cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
