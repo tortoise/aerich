@@ -36,7 +36,7 @@ class Column(BaseModel):
                 length_parts.append(f"max_digits={self.max_digits}")
             if self.decimal_places:
                 length_parts.append(f"decimal_places={self.decimal_places}")
-            length = ", ".join(length_parts)
+            length = ", ".join(length_parts)+", "
         if self.null:
             null = "null=True, "
         if self.default is not None:
