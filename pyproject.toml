@@ -1,30 +1,42 @@
-[tool.poetry]
+[project]
 name = "aerich"
 version = "0.8.1"
 description = "A database migrations tool for Tortoise ORM."
-authors = ["long2ice <long2ice@gmail.com>"]
-license = "Apache-2.0"
+authors = [{name="long2ice", email="long2ice@gmail.com>"}]
+license = { text = "Apache-2.0" }
 readme = "README.md"
-homepage = "https://github.com/tortoise/aerich"
-repository = "https://github.com/tortoise/aerich.git"
-documentation = "https://github.com/tortoise/aerich"
 keywords = ["migrate", "Tortoise-ORM", "mysql"]
 packages = [
     { include = "aerich" }
 ]
 include = ["CHANGELOG.md", "LICENSE", "README.md"]
+requires-python = ">=3.8,<4.0"
+dependencies = [
+  "tortoise-orm (>=0.21.0,<1.0.0)",
+  "pydantic (>=2.0.2,!=2.1.0,!=2.7.0,<3.0.0)",
+  "dictdiffer (>=0.9.0,<1.0.0)",
+  "asyncclick (>=8.1.7,<9.0.0)",
+  "eval-type-backport (>=0.2.2,<1.0.0); python_version < '3.10'",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-tortoise-orm = ">=0.21"
-asyncpg = { version = "*", optional = true }
-asyncmy = { version = "^0.2.9", optional = true, allow-prereleases = true }
-pydantic = "^2.0,!=2.7.0"
-dictdiffer = "*"
-tomlkit = { version = "*", optional = true, python="<3.11" }
-tomli-w = { version = "^1.1.0", optional = true, python=">=3.11" }
-asyncclick = "^8.1.7.2"
-eval-type-backport = { version = "^0.2.2", python="<3.10" }
+[project.optional-dependencies]
+toml = [
+    "tomli-w (>=1.1.0,<2.0.0); python_version >= '3.11'",
+    "tomlkit (>=0.11.4,<1.0.0); python_version < '3.11'",
+]
+asyncmy = ["asyncmy>=0.2.9"]
+asyncpg = ["asyncpg"]
+
+[project.urls]
+homepage = "https://github.com/tortoise/aerich"
+repository = "https://github.com/tortoise/aerich.git"
+documentation = "https://github.com/tortoise/aerich"
+
+[project.scripts]
+aerich = "aerich.cli:main"
+
+[tool.poetry]
+requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "*"
@@ -38,30 +50,40 @@ pytest-mock = "*"
 cryptography = "*"
 mypy = "^1.10.0"
 
-[tool.poetry.extras]
-asyncmy = ["asyncmy"]
-asyncpg = ["asyncpg"]
-toml = ["tomlkit", "tomli-w"]
-
-
 [tool.aerich]
 tortoise_orm = "conftest.tortoise_orm"
 location = "./migrations"
 src_folder = "./."
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-aerich = "aerich.cli:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = 'auto'
 
+[tool.coverage.run]
+branch = true
+source = ["aerich"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:"
+]
+
 [tool.mypy]
 pretty = true
 python_version = "3.8"
+exclude = [
+    "tests/assets",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    'dictdiffer.*',
+    'tomlkit',
+    'tomli_w',
+]
 ignore_missing_imports = true
 
 [tool.ruff]

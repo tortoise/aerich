@@ -1186,5 +1186,5 @@ toml = ["tomli-w", "tomlkit"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.8"
-content-hash = "9d6f5b30d042a2fc4670a4077c2ee3d86f0489a36b04f02d439966776b58100e"
+python-versions = ">=3.8,<4.0"
+content-hash = "3e19b40a291b6dee5ef923e3f7edcce7aa6d0d80e35fe697a55776de2e192cb9"
