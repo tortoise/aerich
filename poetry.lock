@@ -1043,4 +1043,4 @@ toml = ["tomli-w", "tomlkit"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.8,<4.0"
-content-hash = "98262dbc5ddabb67c1767d276f1b6a6b1e49b76e8d583199cee740eb8c8d04d1"
+content-hash = "7bcb15b4f104c98886561db8e92bbf38939b73322998870fb91129b4b9737448"
