@@ -35,7 +35,6 @@ pytest-xdist = "*"
 pytest-asyncio = "^0.21.2"
 bandit = "*"
 pytest-mock = "*"
-cryptography = "*"
 mypy = "^1.10.0"
 
 [tool.poetry.extras]
