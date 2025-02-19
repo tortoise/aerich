@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import os
+import platform
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Type
+from typing import TYPE_CHECKING
 
 from tortoise import Tortoise, generate_schema_for_client
 from tortoise.exceptions import OperationalError
@@ -21,7 +24,30 @@ from aerich.utils import (
 )
 
 if TYPE_CHECKING:
-    from aerich.inspectdb import Inspect  # noqa:F401
+    from aerich.inspectdb import Inspect
+
+
+def _init_asyncio_patch():
+    """
+    Select compatible event loop for psycopg3.
+
+    As of Python 3.8+, the default event loop on Windows is `proactor`,
+    however psycopg3 requires the old default "selector" event loop.
+    See https://www.psycopg.org/psycopg3/docs/advanced/async.html
+    """
+    if platform.system() == "Windows":
+        try:
+            from asyncio import WindowsSelectorEventLoopPolicy
+        except ImportError:
+            pass  # Can't assign a policy which doesn't exist.
+        else:
+            from asyncio import get_event_loop_policy, set_event_loop_policy
+
+            if not isinstance(get_event_loop_policy(), WindowsSelectorEventLoopPolicy):
+                set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
+
+_init_asyncio_patch()
 
 
 class Command:
@@ -39,7 +65,7 @@ class Command:
     async def init(self) -> None:
         await Migrate.init(self.tortoise_config, self.app, self.location)
 
-    async def _upgrade(self, conn, version_file, fake=False) -> None:
+    async def _upgrade(self, conn, version_file, fake: bool = False) -> None:
         file_path = Path(Migrate.migrate_location, version_file)
         m = import_py_file(file_path)
         upgrade = m.upgrade
@@ -51,7 +77,7 @@ class Command:
             content=get_models_describe(self.app),
         )
 
-    async def upgrade(self, run_in_transaction: bool = True, fake=False) -> List[str]:
+    async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
         for version_file in Migrate.get_all_version_files():
             try:
@@ -69,8 +95,8 @@ class Command:
                 migrated.append(version_file)
         return migrated
 
-    async def downgrade(self, version: int, delete: bool, fake=False) -> List[str]:
-        ret: List[str] = []
+    async def downgrade(self, version: int, delete: bool, fake: bool = False) -> list[str]:
+        ret: list[str] = []
         if version == -1:
             specified_version = await Migrate.get_last_version()
         else:
@@ -102,7 +128,7 @@ class Command:
                 ret.append(file)
         return ret
 
-    async def heads(self) -> List[str]:
+    async def heads(self) -> list[str]:
         ret = []
         versions = Migrate.get_all_version_files()
         for version in versions:
@@ -110,15 +136,15 @@ class Command:
                 ret.append(version)
         return ret
 
-    async def history(self) -> List[str]:
+    async def history(self) -> list[str]:
         versions = Migrate.get_all_version_files()
         return [version for version in versions]
 
-    async def inspectdb(self, tables: Optional[List[str]] = None) -> str:
+    async def inspectdb(self, tables: list[str] | None = None) -> str:
         connection = get_app_connection(self.tortoise_config, self.app)
         dialect = connection.schema_generator.DIALECT
         if dialect == "mysql":
-            cls: Type["Inspect"] = InspectMySQL
+            cls: type[Inspect] = InspectMySQL
         elif dialect == "postgres":
             cls = InspectPostgres
         elif dialect == "sqlite":

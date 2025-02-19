@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import importlib
 import os
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional, Union, cast
+from typing import cast
 
 import asyncclick as click
 import tortoise
@@ -49,11 +50,11 @@ class Migrate:
 
     ddl: BaseDDL
     ddl_class: type[BaseDDL]
-    _last_version_content: Optional[dict] = None
+    _last_version_content: dict | None = None
     app: str
     migrate_location: Path
     dialect: str
-    _db_version: Optional[str] = None
+    _db_version: str | None = None
 
     @staticmethod
     def get_field_by_name(name: str, fields: list[dict]) -> dict:
@@ -79,7 +80,7 @@ class Migrate:
         return Tortoise.apps[cls.app].get(model)  # type: ignore
 
     @classmethod
-    async def get_last_version(cls) -> Optional[Aerich]:
+    async def get_last_version(cls) -> Aerich | None:
         try:
             return await Aerich.filter(app=cls.app).first()
         except OperationalError:
@@ -113,7 +114,7 @@ class Migrate:
         await cls._get_db_version(connection)
 
     @classmethod
-    async def _get_last_version_num(cls) -> Optional[int]:
+    async def _get_last_version_num(cls) -> int | None:
         last_version = await cls.get_last_version()
         if not last_version:
             return None
@@ -121,7 +122,7 @@ class Migrate:
         return int(version.split("_", 1)[0])
 
     @classmethod
-    async def generate_version(cls, name=None) -> str:
+    async def generate_version(cls, name: str | None = None) -> str:
         now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
         last_version_num = await cls._get_last_version_num()
         if last_version_num is None:
@@ -198,7 +199,7 @@ class Migrate:
         )
 
     @classmethod
-    def _add_operator(cls, operator: str, upgrade=True, fk_m2m_index=False) -> None:
+    def _add_operator(cls, operator: str, upgrade: bool = True, fk_m2m_index: bool = False) -> None:
         """
         add operator,differentiate fk because fk is order limit
         :param operator:
@@ -219,7 +220,7 @@ class Migrate:
                 cls.downgrade_operators.append(operator)
 
     @classmethod
-    def _handle_indexes(cls, model: type[Model], indexes: list[Union[tuple[str], Index]]) -> list:
+    def _handle_indexes(cls, model: type[Model], indexes: list[tuple[str] | Index]) -> list:
         if tortoise.__version__ > "0.22.2":
             # The min version of tortoise is '0.11.0', so we can compare it by a `>`,
             # tortoise>0.22.2 have __eq__/__hash__ with Index class since 313ee76.
@@ -241,8 +242,8 @@ class Migrate:
         return indexes
 
     @classmethod
-    def _get_indexes(cls, model, model_describe: dict) -> set[Union[Index, tuple[str, ...]]]:
-        indexes: set[Union[Index, tuple[str, ...]]] = set()
+    def _get_indexes(cls, model, model_describe: dict) -> set[Index | tuple[str, ...]]:
+        indexes: set[Index | tuple[str, ...]] = set()
         for x in cls._handle_indexes(model, model_describe.get("indexes", [])):
             if isinstance(x, Index):
                 indexes.add(x)
@@ -631,8 +632,10 @@ class Migrate:
                     # indexed include it
                     continue
                 # Change unique for indexed field, e.g.: `db_index=True, unique=False` --> `db_index=True, unique=True`
-                if old_new[0] is False and old_new[1] is True
-                    cls._add_operator(cls.ddl.add_unique_constraint(model, field_name), upgrade, True)
+                if old_new[0] is False and old_new[1] is True:
+                    cls._add_operator(
+                        cls.ddl.add_unique_constraint(model, field_name), upgrade, True
+                    )
                 else:
                     drop_unique = cls.ddl.drop_unique_constraint(model, field_name)
                     if isinstance(drop_unique, str):
@@ -694,7 +697,7 @@ class Migrate:
 
     @classmethod
     def _drop_index(
-        cls, model: type[Model], fields_name: Union[Iterable[str], Index], unique=False
+        cls, model: type[Model], fields_name: Iterable[str] | Index, unique=False
     ) -> str:
         if isinstance(fields_name, Index):
             if cls.dialect == "mysql":
@@ -715,7 +718,7 @@ class Migrate:
 
     @classmethod
     def _add_index(
-        cls, model: type[Model], fields_name: Union[Iterable[str], Index], unique=False
+        cls, model: type[Model], fields_name: Iterable[str] | Index, unique=False
     ) -> str:
         if isinstance(fields_name, Index):
             if cls.dialect == "mysql":

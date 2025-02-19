@@ -5,12 +5,14 @@
 ### [0.8.2]**(Unreleased)**
 
 #### Added
+- feat: support command `python -m aerich`. ([#417])
 - feat: add --fake to upgrade/downgrade. ([#398])
 
 #### Fixed
 - fix: aerich migrate raises tortoise.exceptions.FieldError when `index.INDEX_TYPE` is not empty. ([#415])
 - fix: inspectdb raise KeyError 'int2' for smallint. ([#401])
 - No migration occurs as expected when adding `unique=True` to indexed field. ([#404])
+- fix: inspectdb not match data type 'DOUBLE' and 'CHAR' for MySQL. ([#187])
 
 ### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
@@ -20,6 +22,7 @@
 [#404]: https://github.com/tortoise/aerich/pull/404
 [#412]: https://github.com/tortoise/aerich/pull/412
 [#415]: https://github.com/tortoise/aerich/pull/415
+[#417]: https://github.com/tortoise/aerich/pull/417
 
 ### [0.8.1](../../releases/tag/v0.8.1) - 2024-12-27
 

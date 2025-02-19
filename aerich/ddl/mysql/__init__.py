@@ -7,7 +7,7 @@ from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from aerich.ddl import BaseDDL
 
 if TYPE_CHECKING:
-    from tortoise import Model  # noqa:F401
+    from tortoise import Model
 
 
 class MysqlDDL(BaseDDL):
@@ -25,7 +25,9 @@ class MysqlDDL(BaseDDL):
     )
     _ADD_INDEX_TEMPLATE = "ALTER TABLE `{table_name}` ADD {index_type}{unique}INDEX `{index_name}` ({column_names}){extra}"
     _DROP_INDEX_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`"
-    _ADD_UNIQUE_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`, ADD UNIQUE (`{column_name}`)"
+    _ADD_UNIQUE_TEMPLATE = (
+        "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`, ADD UNIQUE (`{column_name}`)"
+    )
     _DROP_UNIQUE_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{column_name}`"
     _ADD_FK_TEMPLATE = "ALTER TABLE `{table_name}` ADD CONSTRAINT `{fk_name}` FOREIGN KEY (`{db_column}`) REFERENCES `{table}` (`{field}`) ON DELETE {on_delete}"
     _DROP_FK_TEMPLATE = "ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"
@@ -38,7 +40,7 @@ class MysqlDDL(BaseDDL):
     _MODIFY_COLUMN_TEMPLATE = "ALTER TABLE `{table_name}` MODIFY COLUMN {column}"
     _RENAME_TABLE_TEMPLATE = "ALTER TABLE `{old_table_name}` RENAME TO `{new_table_name}`"
 
-    def _index_name(self, unique: bool, model: type[Model], field_names: list[str]) -> str:
+    def _index_name(self, unique: bool | None, model: type[Model], field_names: list[str]) -> str:
         if unique:
             if len(field_names) == 1:
                 # Example: `email = CharField(max_length=50, unique=True)`
@@ -53,4 +55,6 @@ class MysqlDDL(BaseDDL):
     def drop_unique_constraint(self, model: type[Model], field_name: str) -> str | list[str]:
         drop_unique = super().drop_unique_constraint(model, field_name)
         create_idx = self.add_index(model, [field_name])
+        if isinstance(drop_unique, (list, tuple)):
+            return [*drop_unique, create_idx]
         return [drop_unique, create_idx]

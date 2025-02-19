@@ -12,11 +12,12 @@ class InspectMySQL(Inspect):
             "tinyint": self.bool_field,
             "bigint": self.bigint_field,
             "varchar": self.char_field,
-            "char": self.char_field,
+            "char": self.uuid_field,
             "longtext": self.text_field,
             "text": self.text_field,
             "datetime": self.datetime_field,
             "float": self.float_field,
+            "double": self.float_field,
             "date": self.date_field,
             "time": self.time_field,
             "decimal": self.decimal_field,
@@ -43,6 +44,8 @@ where c.TABLE_SCHEMA = %s
             unique = index = False
             if (non_unique := row["NON_UNIQUE"]) is not None:
                 unique = not non_unique
+            elif row["COLUMN_KEY"] == "UNI":
+                unique = True
             if (index_name := row["INDEX_NAME"]) is not None:
                 index = index_name != "PRIMARY"
             columns.append(
@@ -53,10 +56,8 @@ where c.TABLE_SCHEMA = %s
                     default=row["COLUMN_DEFAULT"],
                     pk=row["COLUMN_KEY"] == "PRI",
                     comment=row["COLUMN_COMMENT"],
-                    unique=row["COLUMN_KEY"] == "UNI",
+                    unique=unique,
                     extra=row["EXTRA"],
-                    # TODO: why `unque`?
-                    unque=unique,  # type:ignore
                     index=index,
                     length=row["CHARACTER_MAXIMUM_LENGTH"],
                     max_digits=row["NUMERIC_PRECISION"],
