@@ -264,7 +264,11 @@ class Migrate:
     ) -> None:
         old_m2m_fields = cast("list[dict]", old_model_describe.get("m2m_fields", []))
         new_m2m_fields = cast("list[dict]", new_model_describe.get("m2m_fields", []))
-        new_tables: dict[str, dict] = {field["table"]: field for field in new_models.values()}
+        new_tables: dict[str, dict] = {
+            field["table"]: field
+            for field in new_models.values()
+            if field.get("managed") is not False
+        }
         for action, option, change in get_dict_diff_by_key(old_m2m_fields, new_m2m_fields):
             if (option and option[-1] == "nullable") or change[0][0] == "db_constraint":
                 continue
@@ -387,6 +391,8 @@ class Migrate:
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 
         for new_model_str, new_model_describe in new_models.items():
+            if upgrade and new_model_describe.get("managed") is False:
+                continue
             model = cls._get_model(new_model_describe["name"].split(".")[1])
             if new_model_str not in old_models:
                 if upgrade:
@@ -397,6 +403,8 @@ class Migrate:
                     pass
             else:
                 old_model_describe = cast(dict, old_models.get(new_model_str))
+                if not upgrade and old_model_describe.get("managed") is False:
+                    continue
                 # rename table
                 new_table = cast(str, new_model_describe.get("table"))
                 old_table = cast(str, old_model_describe.get("table"))
@@ -593,6 +601,8 @@ class Migrate:
                     )
 
         for old_model in old_models.keys() - new_models.keys():
+            if not upgrade and old_models[old_model].get("managed") is False:
+                continue
             cls._add_operator(cls.drop_model(old_models[old_model]["table"]), upgrade)
 
     @classmethod

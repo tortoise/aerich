@@ -295,6 +295,16 @@ aerich downgrade --fake -v 2
 aerich --app models downgrade --fake -v 2
 ```
 
+### Ignore tables
+
+You can tell aerich to ignore table by setting `managed=False` in the `Meta` class, e.g.:
+```py
+class MyModel(Model):
+    class Meta:
+        managed = False
+```
+**Note** `managed=False` does not recognized by `tortoise-orm` and `aerich init-db`, it is only for `aerich migrate`.
+
 ## License
 
 This project is licensed under the

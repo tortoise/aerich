@@ -34,15 +34,11 @@ def get_app_connection_name(config, app_name: str) -> str:
     get connection name
     :param config:
     :param app_name:
-    :return:
+    :return: the default connection name (Usally it is 'default')
     """
-    app = config.get("apps").get(app_name)
-    if not app:
-        raise BadOptionUsage(
-            option_name="--app",
-            message=f'Can\'t get app named "{app_name}"',
-        )
-    return app.get("default_connection", "default")
+    if app := config.get("apps").get(app_name):
+        return app.get("default_connection", "default")
+    raise BadOptionUsage(option_name="--app", message=f"Can't get app named {app_name!r}")
 
 
 def get_app_connection(config, app) -> BaseDBAsyncClient:
@@ -89,8 +85,9 @@ def get_models_describe(app: str) -> dict:
     """
     ret = {}
     for model in Tortoise.apps[app].values():
+        managed = getattr(model.Meta, "managed", None)
         describe = model.describe()
-        ret[describe.get("name")] = describe
+        ret[describe.get("name")] = dict(describe, managed=managed)
     return ret
 
 

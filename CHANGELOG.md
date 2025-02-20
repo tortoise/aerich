@@ -7,6 +7,7 @@
 #### Added
 - feat: support command `python -m aerich`. ([#417])
 - feat: add --fake to upgrade/downgrade. ([#398])
+- Support ignore table by settings `managed=False` in `Meta` class. ([#397])
 
 #### Fixed
 - fix: aerich migrate raises tortoise.exceptions.FieldError when `index.INDEX_TYPE` is not empty. ([#415])
@@ -17,6 +18,7 @@
 ### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
 
+[#397]: https://github.com/tortoise/aerich/pull/397
 [#398]: https://github.com/tortoise/aerich/pull/398
 [#401]: https://github.com/tortoise/aerich/pull/401
 [#404]: https://github.com/tortoise/aerich/pull/404
