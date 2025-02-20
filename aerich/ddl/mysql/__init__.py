@@ -25,10 +25,12 @@ class MysqlDDL(BaseDDL):
     )
     _ADD_INDEX_TEMPLATE = "ALTER TABLE `{table_name}` ADD {index_type}{unique}INDEX `{index_name}` ({column_names}){extra}"
     _DROP_INDEX_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`"
-    _ADD_UNIQUE_TEMPLATE = (
+    _ADD_INDEXED_UNIQUE_TEMPLATE = (
         "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`, ADD UNIQUE (`{column_name}`)"
     )
-    _DROP_UNIQUE_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{column_name}`"
+    _DROP_INDEXED_UNIQUE_TEMPLATE = (
+        "ALTER TABLE `{table_name}` DROP INDEX `{column_name}`, ADD INDEX (`{index_name}`)"
+    )
     _ADD_FK_TEMPLATE = "ALTER TABLE `{table_name}` ADD CONSTRAINT `{fk_name}` FOREIGN KEY (`{db_column}`) REFERENCES `{table}` (`{field}`) ON DELETE {on_delete}"
     _DROP_FK_TEMPLATE = "ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"
     _M2M_TABLE_TEMPLATE = (
@@ -52,9 +54,15 @@ class MysqlDDL(BaseDDL):
             index_prefix = "idx"
         return self.schema_generator._generate_index_name(index_prefix, model, field_names)
 
-    def drop_unique_constraint(self, model: type[Model], field_name: str) -> str | list[str]:
-        drop_unique = super().drop_unique_constraint(model, field_name)
-        create_idx = self.add_index(model, [field_name])
-        if isinstance(drop_unique, (list, tuple)):
-            return [*drop_unique, create_idx]
-        return [drop_unique, create_idx]
+    def alter_indexed_column_unique(
+        self, model: type[Model], field_name: str, drop: bool = False
+    ) -> list[str]:
+        """Change unique constraint for indexed field, e.g.: Field(index=True) --> Field(unique=True)"""
+        # if drop is false: Drop index and add unique index
+        # else: Drop unique index and add normal index
+        template = self._DROP_INDEXED_UNIQUE_TEMPLATE if drop else self._ADD_INDEXED_UNIQUE_TEMPLATE
+        table_name = self.get_table_name(model)
+        index_name = self._index_name(unique=False, model=model, field_names=[field_name])
+        return [
+            template.format(table_name=table_name, index_name=index_name, column_name=field_name)
+        ]

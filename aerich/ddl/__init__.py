@@ -25,8 +25,6 @@ class BaseDDL:
     )
     _ADD_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" ADD {index_type}{unique}INDEX "{index_name}" ({column_names}){extra}'
     _DROP_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" DROP INDEX IF EXISTS "{index_name}"'
-    _ADD_UNIQUE_TEMPLATE = 'CREATE UNIQUE INDEX "{column_name}" ON "{table_name}" ("{column_name}")'
-    _DROP_UNIQUE_TEMPLATE = 'DROP INDEX IF EXISTS "{column_name}"'
     _ADD_FK_TEMPLATE = 'ALTER TABLE "{table_name}" ADD CONSTRAINT "{fk_name}" FOREIGN KEY ("{db_column}") REFERENCES "{table}" ("{field}") ON DELETE {on_delete}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
     _M2M_TABLE_TEMPLATE = (
@@ -44,6 +42,10 @@ class BaseDDL:
     def __init__(self, client: BaseDBAsyncClient) -> None:
         self.client = client
         self.schema_generator = self.schema_generator_cls(client)
+
+    @staticmethod
+    def get_table_name(model: type[Model]) -> str:
+        return model._meta.db_table
 
     def create_table(self, model: type[Model]) -> str:
         schema = self.schema_generator._get_table_sql(model, True)["table_creation_string"]
@@ -111,8 +113,6 @@ class BaseDDL:
                     )
                 except NotImplementedError:
                     default = ""
-        else:
-            default = None
         return default
 
     def add_column(self, model: type[Model], field_describe: dict, is_pk: bool = False) -> str:
@@ -279,14 +279,16 @@ class BaseDDL:
             table_name=db_table, old_table_name=old_table_name, new_table_name=new_table_name
         )
 
-    def add_unique_constraint(self, model: type[Model], field_name: str) -> str:
-        return self._ADD_UNIQUE_TEMPLATE.format(
-            table_name=model._meta.db_table,
-            column_name=field_name,
-        )
-
-    def drop_unique_constraint(self, model: type[Model], field_name: str) -> str | list[str]:
-        return self._DROP_UNIQUE_TEMPLATE.format(
-            table_name=model._meta.db_table,
-            column_name=field_name,
-        )
+    def alter_indexed_column_unique(
+        self, model: type[Model], field_name: str, drop: bool = False
+    ) -> list[str]:
+        """Change unique constraint for indexed field, e.g.: Field(index=True) --> Field(unique=True)"""
+        fields = [field_name]
+        if drop:
+            drop_unique = self.drop_index(model, fields, unique=True)
+            add_normal_index = self.add_index(model, fields, unique=False)
+            return [drop_unique, add_normal_index]
+        else:
+            drop_index = self.drop_index(model, fields, unique=False)
+            add_unique_index = self.add_index(model, fields, unique=True)
+            return [drop_index, add_unique_index]

@@ -18,6 +18,7 @@ async def test_allow_duplicate() -> None:
 async def test_unique_is_true() -> None:
     with pytest.raises(IntegrityError):
         await Foo.create(name="foo")
+        await Foo.create(name="foo")
 
 
 @pytest.mark.asyncio
