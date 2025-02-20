@@ -41,8 +41,9 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install and configure Poetry
         run: |
-          python3 -m pip install -U pip poetry
+          python3 -m pip install -U pip "poetry>=2.0"
           poetry config virtualenvs.create false
+          poetry env use python${{ matrix.python-version }}
       - name: Install dependencies and check style
         run: make check
       - name: Install TortoiseORM v0.21
