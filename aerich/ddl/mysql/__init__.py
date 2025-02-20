@@ -57,12 +57,9 @@ class MysqlDDL(BaseDDL):
     def alter_indexed_column_unique(
         self, model: type[Model], field_name: str, drop: bool = False
     ) -> list[str]:
-        """Change unique constraint for indexed field, e.g.: Field(index=True) --> Field(unique=True)"""
-        # if drop is false: Drop index and add unique index
+        # if drop is false: Drop index and add unique
         # else: Drop unique index and add normal index
         template = self._DROP_INDEXED_UNIQUE_TEMPLATE if drop else self._ADD_INDEXED_UNIQUE_TEMPLATE
-        table_name = self.get_table_name(model)
-        index_name = self._index_name(unique=False, model=model, field_names=[field_name])
-        return [
-            template.format(table_name=table_name, index_name=index_name, column_name=field_name)
-        ]
+        table = self.get_table_name(model)
+        index = self._index_name(unique=False, model=model, field_names=[field_name])
+        return [template.format(table_name=table, index_name=index, column_name=field_name)]

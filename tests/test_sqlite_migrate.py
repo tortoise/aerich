@@ -64,7 +64,7 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
         assert r.returncode == 0
 
 
-M2M_WITH_CUSTOM_MODEL = """
+M2M_WITH_CUSTOM_THROUGH = """
     groups = fields.ManyToManyField("models.Group", through="foo_group")
 
 class Group(Model):
@@ -169,8 +169,7 @@ def test_sqlite_migrate(tmp_path: Path) -> None:
         assert "[tool.aerich]" in config_file.read_text()
 
         # add m2m with custom model for through
-        new = M2M_WITH_CUSTOM_MODEL
-        models_py.write_text(MODELS + new)
+        models_py.write_text(MODELS + M2M_WITH_CUSTOM_THROUGH)
         run_aerich("aerich migrate")
         run_aerich("aerich upgrade")
         migration_file_1 = list(migrations_dir.glob("1_*.py"))[0]

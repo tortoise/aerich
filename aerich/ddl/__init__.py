@@ -282,7 +282,7 @@ class BaseDDL:
     def alter_indexed_column_unique(
         self, model: type[Model], field_name: str, drop: bool = False
     ) -> list[str]:
-        """Change unique constraint for indexed field, e.g.: Field(index=True) --> Field(unique=True)"""
+        """Change unique constraint for indexed field, e.g.: Field(db_index=True) --> Field(unique=True)"""
         fields = [field_name]
         if drop:
             drop_unique = self.drop_index(model, fields, unique=True)
