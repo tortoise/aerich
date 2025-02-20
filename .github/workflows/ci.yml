@@ -41,7 +41,7 @@ jobs:
             ${{ runner.os }}-pip-
       - name: Install and configure Poetry
         run: |
-          pip install -U pip poetry
+          python3 -m pip install -U pip poetry
           poetry config virtualenvs.create false
       - name: Install dependencies and check style
         run: make check
