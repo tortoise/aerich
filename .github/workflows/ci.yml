@@ -50,7 +50,6 @@ jobs:
             pip install "poetry>=2.0"
           fi
           poetry env use python${{ matrix.python-version }}
-          poetry config virtualenvs.create false
       - name: Install dependencies and check style
         run: poetry run make check
       - name: Install TortoiseORM v0.21
