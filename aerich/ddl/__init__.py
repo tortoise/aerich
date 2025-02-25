@@ -231,7 +231,11 @@ class BaseDDL:
         pk_field = cast(dict, reference_table_describe.get("pk_field"))
         to_field = cast(str, pk_field.get("db_column"))
         to_table = cast(str, reference_table_describe.get("table"))
-        return self.schema_generator._generate_fk_name(
+        func_name = "_get_fk_name"
+        if not hasattr(self.schema_generator, func_name):
+            # For tortoise-orm<0.24.1
+            func_name = "_generate_fk_name"
+        return getattr(self.schema_generator, func_name)(
             from_table=db_table,
             from_field=db_column,
             to_table=to_table,
