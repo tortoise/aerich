@@ -43,6 +43,10 @@ class BaseDDL:
         self.client = client
         self.schema_generator = self.schema_generator_cls(client)
 
+    @staticmethod
+    def get_table_name(model: type[Model]) -> str:
+        return model._meta.db_table
+
     def create_table(self, model: type[Model]) -> str:
         schema = self.schema_generator._get_table_sql(model, True)["table_creation_string"]
         if tortoise.__version__ <= "0.23.0":
@@ -109,8 +113,6 @@ class BaseDDL:
                     )
                 except NotImplementedError:
                     default = ""
-        else:
-            default = None
         return default
 
     def add_column(self, model: type[Model], field_describe: dict, is_pk: bool = False) -> str:
@@ -276,3 +278,17 @@ class BaseDDL:
         return self._RENAME_TABLE_TEMPLATE.format(
             table_name=db_table, old_table_name=old_table_name, new_table_name=new_table_name
         )
+
+    def alter_indexed_column_unique(
+        self, model: type[Model], field_name: str, drop: bool = False
+    ) -> list[str]:
+        """Change unique constraint for indexed field, e.g.: Field(db_index=True) --> Field(unique=True)"""
+        fields = [field_name]
+        if drop:
+            drop_unique = self.drop_index(model, fields, unique=True)
+            add_normal_index = self.add_index(model, fields, unique=False)
+            return [drop_unique, add_normal_index]
+        else:
+            drop_index = self.drop_index(model, fields, unique=False)
+            add_unique_index = self.add_index(model, fields, unique=True)
+            return [drop_index, add_unique_index]

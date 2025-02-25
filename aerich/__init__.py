@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import platform
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -24,6 +25,29 @@ from aerich.utils import (
 
 if TYPE_CHECKING:
     from aerich.inspectdb import Inspect
+
+
+def _init_asyncio_patch():
+    """
+    Select compatible event loop for psycopg3.
+
+    As of Python 3.8+, the default event loop on Windows is `proactor`,
+    however psycopg3 requires the old default "selector" event loop.
+    See https://www.psycopg.org/psycopg3/docs/advanced/async.html
+    """
+    if platform.system() == "Windows":
+        try:
+            from asyncio import WindowsSelectorEventLoopPolicy
+        except ImportError:
+            pass  # Can't assign a policy which doesn't exist.
+        else:
+            from asyncio import get_event_loop_policy, set_event_loop_policy
+
+            if not isinstance(get_event_loop_policy(), WindowsSelectorEventLoopPolicy):
+                set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
+
+_init_asyncio_patch()
 
 
 class Command:

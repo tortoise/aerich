@@ -38,13 +38,12 @@ class Column(BaseModel):
     def translate(self) -> ColumnInfoDict:
         comment = default = length = index = null = pk = ""
         if self.pk:
-            pk = "pk=True, "
+            pk = "primary_key=True, "
         else:
             if self.unique:
                 index = "unique=True, "
-            else:
-                if self.index:
-                    index = "index=True, "
+            elif self.index:
+                index = "db_index=True, "
         if self.data_type in ("varchar", "VARCHAR"):
             length = f"max_length={self.length}, "
         elif self.data_type in ("decimal", "numeric"):
@@ -125,62 +124,69 @@ class Inspect:
     async def get_all_tables(self) -> list[str]:
         raise NotImplementedError
 
+    @staticmethod
+    def get_field_string(
+        field_class: str, arguments: str = "{null}{default}{comment}", **kwargs
+    ) -> str:
+        name = kwargs["name"]
+        field_params = arguments.format(**kwargs).strip().rstrip(",")
+        return f"{name} = fields.{field_class}({field_params})"
+
     @classmethod
     def decimal_field(cls, **kwargs) -> str:
-        return "{name} = fields.DecimalField({pk}{index}{length}{null}{default}{comment})".format(
-            **kwargs
-        )
+        return cls.get_field_string("DecimalField", **kwargs)
 
     @classmethod
     def time_field(cls, **kwargs) -> str:
-        return "{name} = fields.TimeField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("TimeField", **kwargs)
 
     @classmethod
     def date_field(cls, **kwargs) -> str:
-        return "{name} = fields.DateField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("DateField", **kwargs)
 
     @classmethod
     def float_field(cls, **kwargs) -> str:
-        return "{name} = fields.FloatField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("FloatField", **kwargs)
 
     @classmethod
     def datetime_field(cls, **kwargs) -> str:
-        return "{name} = fields.DatetimeField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("DatetimeField", **kwargs)
 
     @classmethod
     def text_field(cls, **kwargs) -> str:
-        return "{name} = fields.TextField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("TextField", **kwargs)
 
     @classmethod
     def char_field(cls, **kwargs) -> str:
-        return "{name} = fields.CharField({pk}{index}{length}{null}{default}{comment})".format(
-            **kwargs
-        )
+        arguments = "{pk}{index}{length}{null}{default}{comment}"
+        return cls.get_field_string("CharField", arguments, **kwargs)
 
     @classmethod
-    def int_field(cls, **kwargs) -> str:
-        return "{name} = fields.IntField({pk}{index}{default}{comment})".format(**kwargs)
+    def int_field(cls, field_class="IntField", **kwargs) -> str:
+        arguments = "{pk}{index}{default}{comment}"
+        return cls.get_field_string(field_class, arguments, **kwargs)
 
     @classmethod
     def smallint_field(cls, **kwargs) -> str:
-        return "{name} = fields.SmallIntField({pk}{index}{default}{comment})".format(**kwargs)
+        return cls.int_field("SmallIntField", **kwargs)
 
     @classmethod
     def bigint_field(cls, **kwargs) -> str:
-        return "{name} = fields.BigIntField({pk}{index}{default}{comment})".format(**kwargs)
+        return cls.int_field("BigIntField", **kwargs)
 
     @classmethod
     def bool_field(cls, **kwargs) -> str:
-        return "{name} = fields.BooleanField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("BooleanField", **kwargs)
 
     @classmethod
     def uuid_field(cls, **kwargs) -> str:
-        return "{name} = fields.UUIDField({pk}{index}{default}{comment})".format(**kwargs)
+        arguments = "{pk}{index}{default}{comment}"
+        return cls.get_field_string("UUIDField", arguments, **kwargs)
 
     @classmethod
     def json_field(cls, **kwargs) -> str:
-        return "{name} = fields.JSONField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("JSONField", **kwargs)
 
     @classmethod
     def binary_field(cls, **kwargs) -> str:
-        return "{name} = fields.BinaryField({null}{default}{comment})".format(**kwargs)
+        return cls.get_field_string("BinaryField", **kwargs)

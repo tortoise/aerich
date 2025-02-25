@@ -10,7 +10,7 @@ packages = [{ include = "aerich" }]
 include = ["CHANGELOG.md", "LICENSE", "README.md"]
 requires-python = ">=3.8"
 dependencies = [
-  "tortoise-orm (>=0.21.0,<1.0.0)",
+  "tortoise-orm (>=0.21.0,<1.0.0); python_version < '4.0'",
   "pydantic (>=2.0.2,!=2.1.0,!=2.7.0,<3.0.0)",
   "dictdiffer (>=0.9.0,<1.0.0)",
   "asyncclick (>=8.1.7,<9.0.0)",
@@ -22,7 +22,7 @@ toml = [
     "tomli-w (>=1.1.0,<2.0.0); python_version >= '3.11'",
     "tomlkit (>=0.11.4,<1.0.0); python_version < '3.11'",
 ]
-asyncmy = ["asyncmy>=0.2.9"]
+asyncmy = ["asyncmy>=0.2.9; python_version < '4.0'"]
 asyncpg = ["asyncpg"]
 
 [project.urls]
@@ -36,18 +36,15 @@ aerich = "aerich.cli:main"
 [tool.poetry]
 requires-poetry = ">=2.0"
 
-[tool.poetry.dependencies]
-python = ">=3.8,<4.0"
-
 [tool.poetry.group.dev.dependencies]
-ruff = "*"
-pytest = "*"
-pytest-xdist = "*"
+ruff = "^0.9.0"
+pytest = "^8.3.0"
+pytest-xdist = "^3.6.0"
 # Breaking change in 0.23.*
 # https://github.com/pytest-dev/pytest-asyncio/issues/706
 pytest-asyncio = "^0.21.2"
-bandit = "*"
-pytest-mock = "*"
+bandit = "^1.7.0"
+pytest-mock = "^3.14.0"
 mypy = "^1.10.0"
 
 [tool.aerich]
