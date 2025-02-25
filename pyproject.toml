@@ -80,6 +80,7 @@ module = [
     'dictdiffer.*',
     'tomlkit',
     'tomli_w',
+    'tomli',
 ]
 ignore_missing_imports = true
 
