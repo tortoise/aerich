@@ -43,16 +43,12 @@ class MysqlDDL(BaseDDL):
     _RENAME_TABLE_TEMPLATE = "ALTER TABLE `{old_table_name}` RENAME TO `{new_table_name}`"
 
     def _index_name(self, unique: bool | None, model: type[Model], field_names: list[str]) -> str:
-        if unique:
-            if len(field_names) == 1:
-                # Example: `email = CharField(max_length=50, unique=True)`
-                # Generate schema: `"email" VARCHAR(10) NOT NULL UNIQUE`
-                # Unique index key is the same as field name: `email`
-                return field_names[0]
-            index_prefix = "uid"
-        else:
-            index_prefix = "idx"
-        return self.schema_generator._generate_index_name(index_prefix, model, field_names)
+        if unique and len(field_names) == 1:
+            # Example: `email = CharField(max_length=50, unique=True)`
+            # Generate schema: `"email" VARCHAR(10) NOT NULL UNIQUE`
+            # Unique index key is the same as field name: `email`
+            return field_names[0]
+        return super()._index_name(unique, model, field_names)
 
     def alter_indexed_column_unique(
         self, model: type[Model], field_name: str, drop: bool = False
