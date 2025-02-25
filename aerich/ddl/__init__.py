@@ -182,9 +182,10 @@ class BaseDDL:
         )
 
     def _index_name(self, unique: bool | None, model: type[Model], field_names: list[str]) -> str:
-        func_name = "_get_index_name" if tortoise.__version__ >= "0.24" else "_generate_index_name"
-        # TODO: use `self.schema_generator._get_index_name` instead
-        # when drop support for tortoise-orm<0.24
+        func_name = "_get_index_name"
+        if not hasattr(self.schema_generator, func_name):
+            # For tortoise-orm<0.24.1
+            func_name = "_generate_index_name"
         return getattr(self.schema_generator, func_name)(
             "idx" if not unique else "uid", model, field_names
         )
