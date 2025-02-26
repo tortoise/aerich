@@ -5,6 +5,7 @@ import platform
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import tortoise
 from tortoise import Tortoise, generate_schema_for_client
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
@@ -24,6 +25,9 @@ from aerich.utils import (
 )
 
 if TYPE_CHECKING:
+    from tortoise import Model
+    from tortoise.fields.relational import ManyToManyFieldInstance  # NOQA:F401
+
     from aerich.inspectdb import Inspect
 
 
@@ -47,7 +51,89 @@ def _init_asyncio_patch():
                 set_event_loop_policy(WindowsSelectorEventLoopPolicy())
 
 
+def _init_tortoise_0_24_1_patch():
+    # this patch is for "tortoise-orm==0.24.1" to fix:
+    # https://github.com/tortoise/tortoise-orm/issues/1893
+    if tortoise.__version__ != "0.24.1":
+        return
+    from tortoise.backends.base.schema_generator import BaseSchemaGenerator, cast, re
+
+    def _get_m2m_tables(
+        self, model: type[Model], table_name: str, safe: bool, models_tables: list[str]
+    ) -> list[str]:
+        m2m_tables_for_create = []
+        db_table = table_name
+        for m2m_field in model._meta.m2m_fields:
+            field_object = cast("ManyToManyFieldInstance", model._meta.fields_map[m2m_field])
+            if field_object._generated or field_object.through in models_tables:
+                continue
+            backward_key, forward_key = field_object.backward_key, field_object.forward_key
+            if field_object.db_constraint:
+                backward_fk = self._create_fk_string(
+                    "",
+                    backward_key,
+                    db_table,
+                    model._meta.db_pk_column,
+                    field_object.on_delete,
+                    "",
+                )
+                forward_fk = self._create_fk_string(
+                    "",
+                    forward_key,
+                    field_object.related_model._meta.db_table,
+                    field_object.related_model._meta.db_pk_column,
+                    field_object.on_delete,
+                    "",
+                )
+            else:
+                backward_fk = forward_fk = ""
+            exists = "IF NOT EXISTS " if safe else ""
+            table_name = field_object.through
+            backward_type = self._get_pk_field_sql_type(model._meta.pk)
+            forward_type = self._get_pk_field_sql_type(field_object.related_model._meta.pk)
+            comment = ""
+            if desc := field_object.description:
+                comment = self._table_comment_generator(table=table_name, comment=desc)
+            m2m_create_string = self.M2M_TABLE_TEMPLATE.format(
+                exists=exists,
+                table_name=table_name,
+                backward_fk=backward_fk,
+                forward_fk=forward_fk,
+                backward_key=backward_key,
+                backward_type=backward_type,
+                forward_key=forward_key,
+                forward_type=forward_type,
+                extra=self._table_generate_extra(table=field_object.through),
+                comment=comment,
+            )
+            if not field_object.db_constraint:
+                m2m_create_string = m2m_create_string.replace(
+                    """,
+    ,
+    """,
+                    "",
+                )  # may have better way
+            m2m_create_string += self._post_table_hook()
+            if field_object.create_unique_index:
+                unique_index_create_sql = self._get_unique_index_sql(
+                    exists, table_name, [backward_key, forward_key]
+                )
+                if unique_index_create_sql.endswith(";"):
+                    m2m_create_string += "\n" + unique_index_create_sql
+                else:
+                    lines = m2m_create_string.splitlines()
+                    lines[-2] += ","
+                    indent = m.group() if (m := re.match(r"\s+", lines[-2])) else ""
+                    lines.insert(-1, indent + unique_index_create_sql)
+                    m2m_create_string = "\n".join(lines)
+            m2m_tables_for_create.append(m2m_create_string)
+        return m2m_tables_for_create
+
+    BaseSchemaGenerator._get_m2m_tables = _get_m2m_tables
+
+
 _init_asyncio_patch()
+_init_tortoise_0_24_1_patch()
 
 
 class Command:
