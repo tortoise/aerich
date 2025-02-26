@@ -11,7 +11,7 @@ up:
 	@poetry update
 
 deps:
-	@poetry install -E asyncpg -E asyncmy -E toml
+	@poetry install --all-extras --all-groups
 
 _style:
 	@ruff check --fix $(checkfiles)

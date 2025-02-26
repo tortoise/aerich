@@ -22,8 +22,10 @@ toml = [
     "tomli-w (>=1.1.0,<2.0.0); python_version >= '3.11'",
     "tomlkit (>=0.11.4,<1.0.0); python_version < '3.11'",
 ]
-asyncmy = ["asyncmy>=0.2.9; python_version < '4.0'"]
 asyncpg = ["asyncpg"]
+# Need asyncmy or aiomysql for MySQL
+asyncmy = ["asyncmy>=0.2.9; python_version < '4.0'"]
+mysql = ["aiomysql>=0.2.0"]
 
 [project.urls]
 homepage = "https://github.com/tortoise/aerich"
@@ -38,14 +40,18 @@ requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9.0"
+bandit = "^1.7.0"
+mypy = "^1.10.0"
+
+[tool.poetry.group.test.dependencies]
 pytest = "^8.3.0"
+pytest-mock = "^3.14.0"
 pytest-xdist = "^3.6.0"
 # Breaking change in 0.23.*
 # https://github.com/pytest-dev/pytest-asyncio/issues/706
 pytest-asyncio = "^0.21.2"
-bandit = "^1.7.0"
-pytest-mock = "^3.14.0"
-mypy = "^1.10.0"
+# required for sha256_password by asyncmy
+cryptography = {version="^44.0.1", markers="python_version != '3.9.0' and python_version != '3.9.1'"}
 
 [tool.aerich]
 tortoise_orm = "conftest.tortoise_orm"
