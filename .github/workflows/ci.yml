@@ -68,7 +68,6 @@ jobs:
           if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
             echo "Skip test for tortoise v0.24 as it does not support Python3.8"
           else
-            poetry run pip uninstall -y tortoise-orm
             poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
           fi
       - name: Install TortoiseORM develop branch
