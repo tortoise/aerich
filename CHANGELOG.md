@@ -8,13 +8,13 @@
 - feat: support command `python -m aerich`. ([#417])
 - feat: add --fake to upgrade/downgrade. ([#398])
 - Support ignore table by settings `managed=False` in `Meta` class. ([#397])
+- Support run `poetry add aerich` in project that inited by poetry 2.0 ([#424])
 
 #### Fixed
 - fix: aerich migrate raises tortoise.exceptions.FieldError when `index.INDEX_TYPE` is not empty. ([#415])
 - No migration occurs as expected when adding `unique=True` to indexed field. ([#404])
 - fix: inspectdb raise KeyError 'int2' for smallint. ([#401])
 - fix: inspectdb not match data type 'DOUBLE' and 'CHAR' for MySQL. ([#187])
-- fix: failed to run `poetry add aerich` with poetry 2.0 ([#424])
 
 ### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
