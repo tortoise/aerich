@@ -5,10 +5,11 @@
 ### [0.8.2]**(Unreleased)**
 
 #### Added
+- feat: support psycopg. ([#425])
+- Support run `poetry add aerich` in project that inited by poetry v2. ([#424])
 - feat: support command `python -m aerich`. ([#417])
 - feat: add --fake to upgrade/downgrade. ([#398])
 - Support ignore table by settings `managed=False` in `Meta` class. ([#397])
-- Support run `poetry add aerich` in project that inited by poetry v2. ([#424])
 
 #### Fixed
 - fix: aerich migrate raises tortoise.exceptions.FieldError when `index.INDEX_TYPE` is not empty. ([#415])
@@ -27,6 +28,7 @@
 [#415]: https://github.com/tortoise/aerich/pull/415
 [#417]: https://github.com/tortoise/aerich/pull/417
 [#424]: https://github.com/tortoise/aerich/pull/424
+[#425]: https://github.com/tortoise/aerich/pull/425
 
 ### [0.8.1](../../releases/tag/v0.8.1) - 2024-12-27
 
