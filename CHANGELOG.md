@@ -14,6 +14,7 @@
 - No migration occurs as expected when adding `unique=True` to indexed field. ([#404])
 - fix: inspectdb raise KeyError 'int2' for smallint. ([#401])
 - fix: inspectdb not match data type 'DOUBLE' and 'CHAR' for MySQL. ([#187])
+- fix: failed to run `poetry add aerich` with poetry 2.0 ([#424])
 
 ### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
@@ -25,6 +26,7 @@
 [#412]: https://github.com/tortoise/aerich/pull/412
 [#415]: https://github.com/tortoise/aerich/pull/415
 [#417]: https://github.com/tortoise/aerich/pull/417
+[#424]: https://github.com/tortoise/aerich/pull/424
 
 ### [0.8.1](../../releases/tag/v0.8.1) - 2024-12-27
 
