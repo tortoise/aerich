@@ -37,6 +37,9 @@ test_mysql:
 test_postgres:
 	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
 
+test_psycopg:
+	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
+
 _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 

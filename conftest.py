@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 from tortoise import Tortoise, expand_db_url
-from tortoise.backends.asyncpg.schema_generator import AsyncpgSchemaGenerator
+from tortoise.backends.base_postgres.schema_generator import BasePostgresSchemaGenerator
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.backends.sqlite.schema_generator import SqliteSchemaGenerator
 from tortoise.contrib.test import MEMORY_SQLITE
@@ -64,7 +64,7 @@ async def initialize_tests(event_loop, request) -> None:
         Migrate.ddl = MysqlDDL(client)
     elif client.schema_generator is SqliteSchemaGenerator:
         Migrate.ddl = SqliteDDL(client)
-    elif client.schema_generator is AsyncpgSchemaGenerator:
+    elif issubclass(client.schema_generator, BasePostgresSchemaGenerator):
         Migrate.ddl = PostgresDDL(client)
     Migrate.dialect = Migrate.ddl.DIALECT
     request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))

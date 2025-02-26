@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from aerich.inspectdb import Column, FieldMapDict, Inspect
@@ -60,6 +61,8 @@ from information_schema.constraint_column_usage const
 where c.table_catalog = $1
   and c.table_name = $2
   and c.table_schema = $3"""  # nosec:B608
+        if "psycopg" in str(type(self.conn)).lower():
+            sql = re.sub(r"\$[123]", "%s", sql)
         ret = await self.conn.execute_query_dict(sql, [self.database, table, self.schema])
         for row in ret:
             columns.append(

@@ -22,7 +22,9 @@ toml = [
     "tomli-w (>=1.1.0,<2.0.0); python_version >= '3.11'",
     "tomlkit (>=0.11.4,<1.0.0); python_version < '3.11'",
 ]
+# Need asyncpg or psyncopg for PostgreSQL
 asyncpg = ["asyncpg"]
+psycopg = ["psycopg[pool,binary] (>=3.0.12,<4.0.0)"]
 # Need asyncmy or aiomysql for MySQL
 asyncmy = ["asyncmy>=0.2.9; python_version < '4.0'"]
 mysql = ["aiomysql>=0.2.0"]

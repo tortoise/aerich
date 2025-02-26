@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import cast
 
 from tortoise import Model
-from tortoise.backends.asyncpg.schema_generator import AsyncpgSchemaGenerator
+from tortoise.backends.base_postgres.schema_generator import BasePostgresSchemaGenerator
 
 from aerich.ddl import BaseDDL
 
 
 class PostgresDDL(BaseDDL):
-    schema_generator_cls = AsyncpgSchemaGenerator
-    DIALECT = AsyncpgSchemaGenerator.DIALECT
+    schema_generator_cls = BasePostgresSchemaGenerator
+    DIALECT = BasePostgresSchemaGenerator.DIALECT
     _ADD_INDEX_TEMPLATE = 'CREATE {unique}INDEX IF NOT EXISTS "{index_name}" ON "{table_name}" {index_type}({column_names}){extra}'
     _DROP_INDEX_TEMPLATE = 'DROP INDEX IF EXISTS "{index_name}"'
     _ALTER_NULL_TEMPLATE = 'ALTER TABLE "{table_name}" ALTER COLUMN "{column}" {set_drop} NOT NULL'
