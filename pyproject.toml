@@ -51,7 +51,7 @@ pytest-xdist = "^3.6.0"
 # https://github.com/pytest-dev/pytest-asyncio/issues/706
 pytest-asyncio = "^0.21.2"
 # required for sha256_password by asyncmy
-cryptography = {version="^44.0.1", markers="python_version != '3.9.0' and python_version != '3.9.1'"}
+cryptography = {version="^44.0.1", python="!=3.9.0,!=3.9.1"}
 
 [tool.aerich]
 tortoise_orm = "conftest.tortoise_orm"
