@@ -89,6 +89,7 @@ jobs:
           POSTGRES_PORT: 5432
         run: poetry run make _testall
       - name: Verify aiomysql support
+        # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoise024'
         run: |
             poetry run pip uninstall -y asyncmy
@@ -99,13 +100,9 @@ jobs:
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
       - name: Verify psycopg support
+        # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoise024'
-        run: |
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            echo "Skip psycopg verify as tortoise-v0.24 does not support Python3.8"
-          else
-            poetry run make test_psycopg
-          fi
+        run: poetry run make test_psycopg
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
