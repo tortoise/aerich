@@ -8,7 +8,7 @@
 - feat: support command `python -m aerich`. ([#417])
 - feat: add --fake to upgrade/downgrade. ([#398])
 - Support ignore table by settings `managed=False` in `Meta` class. ([#397])
-- Support run `poetry add aerich` in project that inited by poetry 2.0 ([#424])
+- Support run `poetry add aerich` in project that inited by poetry v2. ([#424])
 
 #### Fixed
 - fix: aerich migrate raises tortoise.exceptions.FieldError when `index.INDEX_TYPE` is not empty. ([#415])
