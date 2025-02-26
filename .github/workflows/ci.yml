@@ -77,9 +77,7 @@ jobs:
             echo "Skip test for tortoise develop branch as it does not support Python3.8"
           else
             poetry run pip uninstall -y tortoise-orm
-            poetry run pip install --upgrade "git+https://github.com/waketzheng/tortoise-orm"
-            # TODO: uncomment after 0.24.2 released
-            # poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
+            poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
           fi
       - name: CI
         env:
