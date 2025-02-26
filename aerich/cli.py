@@ -63,7 +63,10 @@ async def cli(ctx: Context, config, app) -> None:
         add_src_path(src_folder)
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         if not app:
-            apps_config = cast(dict, tortoise_config.get("apps"))
+            try:
+                apps_config = cast(dict, tortoise_config["apps"])
+            except KeyError:
+                raise UsageError('Config must define "apps" section')
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
