@@ -68,9 +68,7 @@ jobs:
             echo "Skip test for tortoise v0.24 as it does not support Python3.8"
           else
             poetry run pip uninstall -y tortoise-orm
-            poetry run pip install --upgrade "git+https://github.com/waketzheng/tortoise-orm"
-            # TODO: uncomment after 0.24.2 released
-            # poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
+            poetry run pip install --upgrade "tortoise-orm>=0.24,!=0.24.1,<0.25"
           fi
       - name: Install TortoiseORM develop branch
         if: matrix.tortoise-orm == 'tortoisedev'
@@ -92,3 +90,15 @@ jobs:
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
         run: poetry run make _testall
+      - name: Verify aiomysql support
+        if: matrix.tortoise-orm == 'tortoise024'
+        run: |
+            poetry run pip uninstall -y asyncmy
+            poetry run pip install aiomysql
+            poetry run make test_mysql
+            poetry run pip uninstall -y aiomysql
+            poetry run pip install asyncmy
+        env:
+          MYSQL_PASS: root
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
