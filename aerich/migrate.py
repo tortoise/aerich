@@ -608,23 +608,32 @@ class Migrate:
         new_model_describe: dict[str, dict],
         upgrade: bool,
     ) -> None:
-        old_pk_field = old_model_describe.get("pk_field")
-        new_pk_field = new_model_describe.get("pk_field")
+        old_pk_field = old_model_describe.get("pk_field", {})
+        new_pk_field = new_model_describe.get("pk_field", {})
         changes = cls._exclude_extra_field_types(diff(old_pk_field, new_pk_field))
         sqls: list[str] = []
         for action, option, change in changes:
             if action == "change":
                 if option == "db_column":
                     # rename pk
-                    sqls.append(cls._rename_field(model, *change))
+                    sql = cls._rename_field(model, *change)
+                elif option == "constraints.max_length":
+                    sql = cls._modify_field(model, new_pk_field)
                 elif option == "field_type":
-                    if upgrade:
-                        model_name = model._meta.full_name.split(".")[-1]
-                        field_name = cast(dict, new_pk_field).get("name", "")
-                        msg = f"Does not support change primary_key({model_name}.{field_name}) field type, you may need to do it manually."
-                        click.secho(msg, fg=Color.yellow)
-                    return
-        for sql in sqls:
+                    if not all(field_type.endswith("IntField") for field_type in change):
+                        # Only support change field type between int fields
+                        if upgrade:
+                            model_name = model._meta.full_name.split(".")[-1]
+                            field_name = new_pk_field.get("name", "")
+                            msg = f"Does not support change primary_key({model_name}.{field_name}) field type, you may need to do it manually."
+                            click.secho(msg, fg=Color.yellow)
+                        return
+                    sql = cls._modify_field(model, new_pk_field)
+                else:
+                    # Skip option like 'constraints.ge', 'constraints.le', 'db_field_types.'
+                    continue
+                sqls.append(sql)
+        for sql in sorted(sqls, key=lambda x: "RENAME" not in x):
             cls._add_operator(sql, upgrade)
 
     @classmethod
