@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 import platform
+from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tortoise
-from tortoise import Tortoise, generate_schema_for_client
+from tortoise import Tortoise, connections, generate_schema_for_client
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import get_schema_sql
@@ -59,10 +60,9 @@ def _init_tortoise_0_24_1_patch():
     from tortoise.backends.base.schema_generator import BaseSchemaGenerator, cast, re
 
     def _get_m2m_tables(
-        self, model: type[Model], table_name: str, safe: bool, models_tables: list[str]
-    ) -> list[str]:
+        self, model: type[Model], db_table: str, safe: bool, models_tables: list[str]
+    ) -> list[str]:  # Copied from tortoise-orm
         m2m_tables_for_create = []
-        db_table = table_name
         for m2m_field in model._meta.m2m_fields:
             field_object = cast("ManyToManyFieldInstance", model._meta.fields_map[m2m_field])
             if field_object._generated or field_object.through in models_tables:
@@ -88,15 +88,15 @@ def _init_tortoise_0_24_1_patch():
             else:
                 backward_fk = forward_fk = ""
             exists = "IF NOT EXISTS " if safe else ""
-            table_name = field_object.through
+            through_table_name = field_object.through
             backward_type = self._get_pk_field_sql_type(model._meta.pk)
             forward_type = self._get_pk_field_sql_type(field_object.related_model._meta.pk)
             comment = ""
             if desc := field_object.description:
-                comment = self._table_comment_generator(table=table_name, comment=desc)
+                comment = self._table_comment_generator(table=through_table_name, comment=desc)
             m2m_create_string = self.M2M_TABLE_TEMPLATE.format(
                 exists=exists,
-                table_name=table_name,
+                table_name=through_table_name,
                 backward_fk=backward_fk,
                 forward_fk=forward_fk,
                 backward_key=backward_key,
@@ -116,7 +116,7 @@ def _init_tortoise_0_24_1_patch():
             m2m_create_string += self._post_table_hook()
             if field_object.create_unique_index:
                 unique_index_create_sql = self._get_unique_index_sql(
-                    exists, table_name, [backward_key, forward_key]
+                    exists, through_table_name, [backward_key, forward_key]
                 )
                 if unique_index_create_sql.endswith(";"):
                     m2m_create_string += "\n" + unique_index_create_sql
@@ -136,7 +136,7 @@ _init_asyncio_patch()
 _init_tortoise_0_24_1_patch()
 
 
-class Command:
+class Command(AbstractAsyncContextManager):
     def __init__(
         self,
         tortoise_config: dict,
@@ -150,6 +150,16 @@ class Command:
 
     async def init(self) -> None:
         await Migrate.init(self.tortoise_config, self.app, self.location)
+
+    async def __aenter__(self) -> Command:
+        await self.init()
+        return self
+
+    async def close(self) -> None:
+        await connections.close_all()
+
+    async def __aexit__(self, *args, **kw) -> None:
+        await self.close()
 
     async def _upgrade(self, conn, version_file, fake: bool = False) -> None:
         file_path = Path(Migrate.migrate_location, version_file)
