@@ -16,6 +16,7 @@ from tortoise.indexes import Index
 
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
+from aerich.enums import Color
 from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import (
     get_app_connection,
@@ -424,14 +425,8 @@ class Migrate:
                 )
                 old_indexes = cls._get_indexes(model, old_model_describe)
                 new_indexes = cls._get_indexes(model, new_model_describe)
-                old_pk_field = old_model_describe.get("pk_field")
-                new_pk_field = new_model_describe.get("pk_field")
                 # pk field
-                changes = diff(old_pk_field, new_pk_field)
-                for action, option, change in changes:
-                    # current only support rename pk
-                    if action == "change" and option == "name":
-                        cls._add_operator(cls._rename_field(model, *change), upgrade)
+                cls._handle_pk_field_alter(model, old_model_describe, new_model_describe, upgrade)
                 # fk fields
                 args = (old_model_describe, new_model_describe, model, old_models, new_models)
                 cls._handle_fk_fields(*args, upgrade=upgrade)
@@ -604,6 +599,33 @@ class Migrate:
             if not upgrade and old_models[old_model].get("managed") is False:
                 continue
             cls._add_operator(cls.drop_model(old_models[old_model]["table"]), upgrade)
+
+    @classmethod
+    def _handle_pk_field_alter(
+        cls,
+        model: type[Model],
+        old_model_describe: dict[str, dict],
+        new_model_describe: dict[str, dict],
+        upgrade: bool,
+    ) -> None:
+        old_pk_field = old_model_describe.get("pk_field")
+        new_pk_field = new_model_describe.get("pk_field")
+        changes = cls._exclude_extra_field_types(diff(old_pk_field, new_pk_field))
+        sqls: list[str] = []
+        for action, option, change in changes:
+            if action == "change":
+                if option == "db_column":
+                    # rename pk
+                    sqls.append(cls._rename_field(model, *change))
+                elif option == "field_type":
+                    if upgrade:
+                        model_name = model._meta.full_name.split(".")[-1]
+                        field_name = cast(dict, new_pk_field).get("name", "")
+                        msg = f"Does not support change primary_key({model_name}.{field_name}) field type, you may need to do it manually."
+                        click.secho(msg, fg=Color.yellow)
+                    return
+        for sql in sqls:
+            cls._add_operator(sql, upgrade)
 
     @classmethod
     def _handle_field_changes(
