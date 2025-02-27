@@ -939,6 +939,7 @@ def test_migrate(mocker: MockerFixture):
     """
     models.py diff with old_models.py
     - change email pk: id -> email_id
+    - change product pk field type: IntField -> BigIntField
     - change config pk field attribute: max_length=10 -> max_length=20
     - add field: Email.address
     - add fk field: Config.user
