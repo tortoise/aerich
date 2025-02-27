@@ -77,6 +77,7 @@ class Product(Model):
 
 
 class Config(Model):
+    slug = fields.CharField(primary_key=True, max_length=10)
     category: fields.ManyToManyRelation[Category] = fields.ManyToManyField("models.Category")
     categories: fields.ManyToManyRelation[Category] = fields.ManyToManyField(
         "models.Category", through="config_category_map", related_name="config_set"

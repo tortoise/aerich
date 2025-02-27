@@ -79,6 +79,7 @@ class Category(Model):
 
 
 class Product(Model):
+    id = fields.BigIntField(primary_key=True)
     categories: fields.ManyToManyRelation[Category] = fields.ManyToManyField(
         "models.Category", null=False
     )
@@ -106,6 +107,7 @@ class Product(Model):
 
 
 class Config(Model):
+    slug = fields.CharField(primary_key=True, max_length=20)
     categories: fields.ManyToManyRelation[Category] = fields.ManyToManyField(
         "models.Category", through="config_category_map", related_name="category_set"
     )

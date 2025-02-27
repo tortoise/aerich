@@ -620,8 +620,8 @@ class Migrate:
                 elif option == "constraints.max_length":
                     sql = cls._modify_field(model, new_pk_field)
                 elif option == "field_type":
+                    # Only support change field type between int fields, e.g.: IntField -> BigIntField
                     if not all(field_type.endswith("IntField") for field_type in change):
-                        # Only support change field type between int fields
                         if upgrade:
                             model_name = model._meta.full_name.split(".")[-1]
                             field_name = new_pk_field.get("name", "")
@@ -634,6 +634,7 @@ class Migrate:
                     continue
                 sqls.append(sql)
         for sql in sorted(sqls, key=lambda x: "RENAME" not in x):
+            # TODO: alter references field in m2m table
             cls._add_operator(sql, upgrade)
 
     @classmethod
