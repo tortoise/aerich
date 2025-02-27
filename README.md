@@ -230,7 +230,7 @@ class Test(Model):
     datetime = fields.DatetimeField(auto_now=True)
     decimal = fields.DecimalField(max_digits=10, decimal_places=2)
     float = fields.FloatField(null=True)
-    id = fields.IntField(pk=True)
+    id = fields.IntField(primary_key=True)
     string = fields.CharField(max_length=200, null=True)
     time = fields.TimeField(null=True)
     tinyint = fields.BooleanField(null=True)
