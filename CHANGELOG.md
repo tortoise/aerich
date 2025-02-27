@@ -5,6 +5,7 @@
 ### [0.8.2]**(Unreleased)**
 
 #### Added
+- Support changes `max_length` and int type for primary key field. ([#428])
 - feat: support psycopg. ([#425])
 - Support run `poetry add aerich` in project that inited by poetry v2. ([#424])
 - feat: support command `python -m aerich`. ([#417])
