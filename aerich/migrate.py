@@ -613,26 +613,30 @@ class Migrate:
         changes = cls._exclude_extra_field_types(diff(old_pk_field, new_pk_field))
         sqls: list[str] = []
         for action, option, change in changes:
-            if action == "change":
-                if option == "db_column":
-                    # rename pk
-                    sql = cls._rename_field(model, *change)
-                elif option == "constraints.max_length":
-                    sql = cls._modify_field(model, new_pk_field)
-                elif option == "field_type":
-                    # Only support change field type between int fields, e.g.: IntField -> BigIntField
-                    if not all(field_type.endswith("IntField") for field_type in change):
-                        if upgrade:
-                            model_name = model._meta.full_name.split(".")[-1]
-                            field_name = new_pk_field.get("name", "")
-                            msg = f"Does not support change primary_key({model_name}.{field_name}) field type, you may need to do it manually."
-                            click.secho(msg, fg=Color.yellow)
-                        return
-                    sql = cls._modify_field(model, new_pk_field)
-                else:
-                    # Skip option like 'constraints.ge', 'constraints.le', 'db_field_types.'
-                    continue
-                sqls.append(sql)
+            if action != "change":
+                continue
+            if option == "db_column":
+                # rename pk
+                sql = cls._rename_field(model, *change)
+            elif option == "constraints.max_length":
+                sql = cls._modify_field(model, new_pk_field)
+            elif option == "field_type":
+                # Only support change field type between int fields, e.g.: IntField -> BigIntField
+                if not all(field_type.endswith("IntField") for field_type in change):
+                    if upgrade:
+                        model_name = model._meta.full_name.split(".")[-1]
+                        field_name = new_pk_field.get("name", "")
+                        msg = (
+                            f"Does not support change primary_key({model_name}.{field_name}) field type,"
+                            " you may need to do it manually."
+                        )
+                        click.secho(msg, fg=Color.yellow)
+                    return
+                sql = cls._modify_field(model, new_pk_field)
+            else:
+                # Skip option like 'constraints.ge', 'constraints.le', 'db_field_types.'
+                continue
+            sqls.append(sql)
         for sql in sorted(sqls, key=lambda x: "RENAME" not in x):
             # TODO: alter references field in m2m table
             cls._add_operator(sql, upgrade)
