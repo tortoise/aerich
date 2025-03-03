@@ -1197,7 +1197,7 @@ def test_sort_all_version_files(mocker):
         ],
     )
 
-    Migrate.migrate_location = "."
+    Migrate.migrate_location = Path(".")
 
     assert Migrate.get_all_version_files() == [
         "1_datetime_update.py",
@@ -1221,7 +1221,7 @@ def test_sort_files_containing_non_migrations(mocker):
         ],
     )
 
-    Migrate.migrate_location = "."
+    Migrate.migrate_location = Path(".")
 
     assert Migrate.get_all_version_files() == [
         "1_datetime_update.py",

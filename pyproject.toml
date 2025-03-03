@@ -44,6 +44,7 @@ requires-poetry = ">=2.0"
 ruff = "^0.9.0"
 bandit = "^1.7.0"
 mypy = "^1.10.0"
+twine = "^6.1.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.0"
@@ -79,6 +80,7 @@ exclude_also = [
 [tool.mypy]
 pretty = true
 python_version = "3.8"
+check_untyped_defs = true
 exclude = [
     "tests/assets",
 ]
@@ -108,3 +110,6 @@ ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
 [tool.ruff.lint.per-file-ignores]
 # TODO: Remove this line when dropping support for Python3.8
 "aerich/inspectdb/__init__.py" = ["UP006", "UP035"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "conftest.py"]

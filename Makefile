@@ -25,6 +25,14 @@ _check:
 	@bandit -r aerich
 check: deps _check
 
+_lint: _build
+	@ruff format $(checkfiles)
+	ruff check --fix $(checkfiles)
+	mypy $(checkfiles)
+	bandit -c pyproject.toml -r $(checkfiles)
+	twine check dist/*
+lint: deps _lint
+
 test: deps
 	$(py_warn) TEST_DB=sqlite://:memory: pytest
 
@@ -43,7 +51,8 @@ test_psycopg:
 _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
-build: deps
+_build:
 	@poetry build
+build: deps _build
 
 ci: build _check _testall
