@@ -81,9 +81,9 @@ exclude_also = [
 pretty = true
 python_version = "3.8"
 check_untyped_defs = true
-exclude = [
-    "tests/assets",
-]
+warn_unused_ignores = true
+disallow_incomplete_defs = false
+exclude = ["tests/assets", "migrations"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -110,6 +110,7 @@ ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
 [tool.ruff.lint.per-file-ignores]
 # TODO: Remove this line when dropping support for Python3.8
 "aerich/inspectdb/__init__.py" = ["UP006", "UP035"]
+"aerich/_compat.py" = ["F401"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "conftest.py"]

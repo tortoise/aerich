@@ -20,7 +20,9 @@ def describe_index(idx: Index) -> Index | dict:
     # tortoise-orm>=0.24 changes Index desribe to be dict
     if tortoise.__version__ < "0.24":
         return idx
-    return idx.describe()  # type:ignore
+    if hasattr(idx, "describe"):
+        return idx.describe()
+    return idx
 
 
 # tortoise-orm>=0.21 changes IntField constraints
