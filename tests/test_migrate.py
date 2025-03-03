@@ -7,6 +7,7 @@ import tortoise
 from pytest_mock import MockerFixture
 from tortoise.indexes import Index
 
+from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
@@ -18,7 +19,7 @@ from tests.indexes import CustomIndex
 
 def describe_index(idx: Index) -> Index | dict:
     # tortoise-orm>=0.24 changes Index desribe to be dict
-    if tortoise.__version__ < "0.24":
+    if tortoise_version_less_than("0.24"):
         return idx
     if hasattr(idx, "describe"):
         return idx.describe()

@@ -4,6 +4,8 @@ from __future__ import annotations
 import sys
 from types import ModuleType
 
+import tortoise
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -19,3 +21,8 @@ def get_tomlkit() -> ModuleType:
     except ImportError:
         import tomlkit
     return tomlkit
+
+
+def tortoise_version_less_than(version: str) -> bool:
+    # The min version of tortoise is '0.11.0', so we can compare it by a `<`,
+    return tortoise.__version__ < version
