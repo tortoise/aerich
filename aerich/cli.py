@@ -8,7 +8,7 @@ import asyncclick as click
 from asyncclick import Context, UsageError
 
 from aerich import Command
-from aerich._compat import get_tomlkit, tomllib
+from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
 from aerich.utils import add_src_path, get_tortoise_config
@@ -175,7 +175,7 @@ async def history(ctx: Context) -> None:
 
 
 def _write_config(config_path, doc, table) -> None:
-    tomlkit = get_tomlkit()
+    tomlkit = imports_tomlkit()
 
     try:
         doc["tool"]["aerich"] = table

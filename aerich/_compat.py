@@ -15,7 +15,7 @@ else:
         import tomlkit as tomllib
 
 
-def get_tomlkit() -> ModuleType:
+def imports_tomlkit() -> ModuleType:
     try:
         import tomli_w as tomlkit
     except ImportError:
