@@ -270,7 +270,19 @@ class Migrate:
             if field.get("managed") is not False
         }
         for action, option, change in get_dict_diff_by_key(old_m2m_fields, new_m2m_fields):
-            if (option and option[-1] == "nullable") or change[0][0] == "db_constraint":
+            if action == "change":
+                # Example:: action = 'change'; option = [0, 'unique']; change = (False, True)
+                attr = option[-1]
+                if attr == "indexed":
+                    # Ignore changing of indexed, as it usually changed by unique
+                    continue
+                elif attr == "unique":
+                    # TODO:
+                    continue
+                elif attr == "nullable":
+                    # nullable of m2m relation is constrainted by orm framework, not by db
+                    continue
+            if change[0][0] == "db_constraint":
                 continue
             new_value = change[0][1]
             if isinstance(new_value, str):
