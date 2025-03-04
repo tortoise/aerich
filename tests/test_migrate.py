@@ -7,6 +7,7 @@ import tortoise
 from pytest_mock import MockerFixture
 from tortoise.indexes import Index
 
+from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
@@ -18,9 +19,11 @@ from tests.indexes import CustomIndex
 
 def describe_index(idx: Index) -> Index | dict:
     # tortoise-orm>=0.24 changes Index desribe to be dict
-    if tortoise.__version__ < "0.24":
+    if tortoise_version_less_than("0.24"):
         return idx
-    return idx.describe()  # type:ignore
+    if hasattr(idx, "describe"):
+        return idx.describe()
+    return idx
 
 
 # tortoise-orm>=0.21 changes IntField constraints
@@ -1197,7 +1200,7 @@ def test_sort_all_version_files(mocker):
         ],
     )
 
-    Migrate.migrate_location = "."
+    Migrate.migrate_location = Path(".")
 
     assert Migrate.get_all_version_files() == [
         "1_datetime_update.py",
@@ -1221,7 +1224,7 @@ def test_sort_files_containing_non_migrations(mocker):
         ],
     )
 
-    Migrate.migrate_location = "."
+    Migrate.migrate_location = Path(".")
 
     assert Migrate.get_all_version_files() == [
         "1_datetime_update.py",

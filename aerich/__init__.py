@@ -42,7 +42,7 @@ def _init_asyncio_patch():
     """
     if platform.system() == "Windows":
         try:
-            from asyncio import WindowsSelectorEventLoopPolicy
+            from asyncio import WindowsSelectorEventLoopPolicy  # type:ignore
         except ImportError:
             pass  # Can't assign a policy which doesn't exist.
         else:
@@ -129,7 +129,7 @@ def _init_tortoise_0_24_1_patch():
             m2m_tables_for_create.append(m2m_create_string)
         return m2m_tables_for_create
 
-    BaseSchemaGenerator._get_m2m_tables = _get_m2m_tables
+    BaseSchemaGenerator._get_m2m_tables = _get_m2m_tables  # type:ignore[attr-defined]
 
 
 _init_asyncio_patch()

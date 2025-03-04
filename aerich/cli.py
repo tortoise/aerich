@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 from typing import cast
 
@@ -9,18 +8,11 @@ import asyncclick as click
 from asyncclick import Context, UsageError
 
 from aerich import Command
+from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
 from aerich.utils import add_src_path, get_tortoise_config
 from aerich.version import __version__
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomli as tomllib
-    except ImportError:
-        import tomlkit as tomllib  # type: ignore
 
 CONFIG_DEFAULT_VALUES = {
     "src_folder": ".",
@@ -183,10 +175,7 @@ async def history(ctx: Context) -> None:
 
 
 def _write_config(config_path, doc, table) -> None:
-    try:
-        import tomli_w as tomlkit
-    except ImportError:
-        import tomlkit  # type: ignore
+    tomlkit = imports_tomlkit()
 
     try:
         doc["tool"]["aerich"] = table

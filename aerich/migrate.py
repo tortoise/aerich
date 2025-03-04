@@ -8,12 +8,12 @@ from pathlib import Path
 from typing import cast
 
 import asyncclick as click
-import tortoise
 from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import OperationalError
 from tortoise.indexes import Index
 
+from aerich._compat import tortoise_version_less_than
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
 from aerich.enums import Color
@@ -222,9 +222,8 @@ class Migrate:
 
     @classmethod
     def _handle_indexes(cls, model: type[Model], indexes: list[tuple[str] | Index]) -> list:
-        if tortoise.__version__ > "0.22.2":
-            # The min version of tortoise is '0.11.0', so we can compare it by a `>`,
-            # tortoise>0.22.2 have __eq__/__hash__ with Index class since 313ee76.
+        if not tortoise_version_less_than("0.23.0"):
+            # tortoise>=0.23.0 have __eq__/__hash__ with Index class since 313ee76.
             return indexes
         if index_classes := set(index.__class__ for index in indexes if isinstance(index, Index)):
             # Leave magic patch here to compare with older version of tortoise-orm
@@ -776,7 +775,7 @@ class Migrate:
                     extra=fields_name.extra,
                 )
             sql = fields_name.get_sql(cls.ddl.schema_generator, model, safe=True)
-            if tortoise.__version__ < "0.24":
+            if tortoise_version_less_than("0.24.0"):
                 sql = sql.replace("  ", " ")
                 if cls.dialect == "postgres" and (exists := "IF NOT EXISTS ") not in sql:
                     idx = " INDEX "

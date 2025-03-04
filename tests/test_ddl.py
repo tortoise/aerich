@@ -79,13 +79,13 @@ def test_drop_table():
 
 
 def test_add_column():
-    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name").describe(False))
+    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map["name"].describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200)"
     else:
         assert ret == 'ALTER TABLE "category" ADD "name" VARCHAR(200)'
     # add unique column
-    ret = Migrate.ddl.add_column(User, User._meta.fields_map.get("username").describe(False))
+    ret = Migrate.ddl.add_column(User, User._meta.fields_map["username"].describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `user` ADD `username` VARCHAR(20) NOT NULL UNIQUE"
     elif isinstance(Migrate.ddl, PostgresDDL):
@@ -98,10 +98,8 @@ def test_modify_column():
     if isinstance(Migrate.ddl, SqliteDDL):
         return
 
-    ret0 = Migrate.ddl.modify_column(
-        Category, Category._meta.fields_map.get("name").describe(False)
-    )
-    ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active").describe(False))
+    ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map["name"].describe(False))
+    ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map["is_active"].describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)"
         assert (
@@ -122,14 +120,14 @@ def test_modify_column():
 def test_alter_column_default():
     if isinstance(Migrate.ddl, SqliteDDL):
         return
-    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map.get("intro").describe(False))
+    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map["intro"].describe(False))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "user" ALTER COLUMN "intro" SET DEFAULT \'\''
     elif isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `user` ALTER COLUMN `intro` SET DEFAULT ''"
 
     ret = Migrate.ddl.alter_column_default(
-        Category, Category._meta.fields_map.get("created_at").describe(False)
+        Category, Category._meta.fields_map["created_at"].describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert (
@@ -142,7 +140,7 @@ def test_alter_column_default():
         )
 
     ret = Migrate.ddl.alter_column_default(
-        Product, Product._meta.fields_map.get("view_num").describe(False)
+        Product, Product._meta.fields_map["view_num"].describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0'
@@ -153,9 +151,7 @@ def test_alter_column_default():
 def test_alter_column_null():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.alter_column_null(
-        Category, Category._meta.fields_map.get("name").describe(False)
-    )
+    ret = Migrate.ddl.alter_column_null(Category, Category._meta.fields_map["name"].describe(False))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL'
 
@@ -163,10 +159,10 @@ def test_alter_column_null():
 def test_set_comment():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name").describe(False))
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map["name"].describe(False))
     assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
 
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("owner").describe(False))
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map["owner"].describe(False))
     assert ret == 'COMMENT ON COLUMN "category"."owner_id" IS \'User\''
 
 
@@ -210,7 +206,7 @@ def test_drop_index():
 
 def test_add_fk():
     ret = Migrate.ddl.add_fk(
-        Category, Category._meta.fields_map.get("owner").describe(False), User.describe(False)
+        Category, Category._meta.fields_map["owner"].describe(False), User.describe(False)
     )
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
@@ -226,7 +222,7 @@ def test_add_fk():
 
 def test_drop_fk():
     ret = Migrate.ddl.drop_fk(
-        Category, Category._meta.fields_map.get("owner").describe(False), User.describe(False)
+        Category, Category._meta.fields_map["owner"].describe(False), User.describe(False)
     )
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_110d4c63`"
