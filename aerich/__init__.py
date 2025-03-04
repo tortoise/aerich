@@ -114,7 +114,7 @@ def _init_tortoise_0_24_1_patch():
                     "",
                 )  # may have better way
             m2m_create_string += self._post_table_hook()
-            if field_object.create_unique_index:
+            if getattr(field_object, "create_unique_index", field_object.unique):
                 unique_index_create_sql = self._get_unique_index_sql(
                     exists, through_table_name, [backward_key, forward_key]
                 )
@@ -129,7 +129,7 @@ def _init_tortoise_0_24_1_patch():
             m2m_tables_for_create.append(m2m_create_string)
         return m2m_tables_for_create
 
-    BaseSchemaGenerator._get_m2m_tables = _get_m2m_tables  # type:ignore[attr-defined]
+    setattr(BaseSchemaGenerator, "_get_m2m_tables", _get_m2m_tables)
 
 
 _init_asyncio_patch()
