@@ -2,6 +2,13 @@
 
 ## 0.8
 
+### [0.8.3]**(Unreleased)**
+
+#### Fixed
+- fix: `aerich init-db` process is suspended. ([#435])
+
+[#435]: https://github.com/tortoise/aerich/pull/435
+
 ### [0.8.2](../../releases/tag/v0.8.2) - 2025-02-28
 
 #### Added
