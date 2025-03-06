@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import platform
 import shlex
 import shutil
 import subprocess
@@ -12,11 +13,16 @@ from pathlib import Path
 from tests._utils import Dialect, chdir, copy_files
 
 
-def run_aerich(cmd: str) -> None:
-    with contextlib.suppress(subprocess.TimeoutExpired):
-        if not cmd.startswith("aerich") and not cmd.startswith("poetry"):
+def run_aerich(cmd: str) -> subprocess.CompletedProcess | None:
+    if not cmd.startswith("poetry") and not cmd.startswith("python"):
+        if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
-        subprocess.run(shlex.split(cmd), timeout=2)
+        if platform.system() == "Windows":
+            cmd = "python -m " + cmd
+    r = None
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        r = subprocess.run(shlex.split(cmd), timeout=2)
+    return r
 
 
 def run_shell(cmd: str) -> subprocess.CompletedProcess:
@@ -41,6 +47,15 @@ def prepare_sqlite_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
         copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
         _get_empty_db()
         yield models_py, models_py.read_text("utf-8")
+
+
+def test_close_tortoise_connections_patch(tmp_path: Path) -> None:
+    if not Dialect.is_sqlite():
+        return
+    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+        run_aerich("aerich init -t settings.TORTOISE_ORM")
+        r = run_aerich("aerich init-db")
+        assert r is not None
 
 
 def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
