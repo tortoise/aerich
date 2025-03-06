@@ -19,6 +19,22 @@ CONFIG_DEFAULT_VALUES = {
 }
 
 
+def _patch_context_to_close_tortoise_connections_when_exit() -> None:
+    from tortoise import Tortoise, connections
+
+    origin_aexit = Context.__aexit__
+
+    async def aexit(*args, **kw) -> None:
+        await origin_aexit(*args, **kw)
+        if Tortoise._inited:
+            await connections.close_all()
+
+    Context.__aexit__ = aexit  # type:ignore[method-assign]
+
+
+_patch_context_to_close_tortoise_connections_when_exit()
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
 @click.option(
