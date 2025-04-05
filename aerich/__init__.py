@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import platform
-import warnings
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING

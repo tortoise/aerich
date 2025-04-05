@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import logging
 import os
 from collections.abc import Iterable
 from datetime import datetime
@@ -136,12 +135,12 @@ class Migrate:
 
         last_version = cls.get_last_version()
         if last_version:
-            last_version = cls.get_migration_info_for_file(last_version)
-            if not last_version.models_state:
+            last_version_info = cls.get_migration_info_for_file(last_version)
+            if not last_version_info.models_state:
                 raise RuntimeError(
                     "Old format of migration file detected, run fix_migrations to upgrade format"
                 )
-            cls._last_version_content = last_version.models_state
+            cls._last_version_content = last_version_info.models_state
 
         connection = get_app_connection(config, app)
         cls.dialect = connection.schema_generator.DIALECT
@@ -916,7 +915,7 @@ class Migrate:
         Fix old migration files to include models state for aerich 0.6.0+
         :return: List of updated migration file paths
         """
-        updated_files = []
+        updated_files: list[str] = []
         migration_files = cls.get_all_version_files()
         if not migration_files:
             return updated_files

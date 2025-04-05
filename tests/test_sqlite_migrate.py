@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import os
 import platform
 import shlex
@@ -14,15 +13,13 @@ from aerich import decompress_dict, import_py_file
 from tests._utils import Dialect, chdir, copy_files
 
 
-def run_aerich(cmd: str) -> subprocess.CompletedProcess | None:
+def run_aerich(cmd: str) -> subprocess.CompletedProcess:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
         if platform.system() == "Windows":
             cmd = "python -m " + cmd
-    r = None
-    with contextlib.suppress(subprocess.TimeoutExpired):
-        r = subprocess.run(shlex.split(cmd), timeout=2)
+    r = subprocess.run(shlex.split(cmd), timeout=2)
     return r
 
 
