@@ -13,7 +13,7 @@ from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
-from aerich.utils import get_models_describe
+from aerich.utils import get_formatted_compressed_data, get_models_describe
 from tests.indexes import CustomIndex
 
 
@@ -1236,8 +1236,12 @@ def test_sort_files_containing_non_migrations(mocker):
 
 async def test_empty_migration(mocker, tmp_path: Path) -> None:
     mocker.patch("os.listdir", return_value=[])
-    Migrate.app = "foo"
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+    Migrate.app = "models_second"
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     Migrate.migrate_location = tmp_path
 
     migration_file = await Migrate.migrate("update", True)

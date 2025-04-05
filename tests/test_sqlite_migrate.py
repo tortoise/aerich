@@ -68,8 +68,10 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
         r = run_shell("pytest -s _tests.py::test_allow_duplicate")
         assert r.returncode == 0
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
-        run_aerich("aerich migrate")  # migrations/models/1_
-        run_aerich("aerich upgrade")
+        r = run_aerich("aerich migrate")  # migrations/models/1_
+        assert r.returncode == 0
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
         r = run_shell("pytest _tests.py::test_unique_is_true")
         assert r.returncode == 0
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))

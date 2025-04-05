@@ -5,12 +5,12 @@ import os
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, Callable, cast
 
 import asyncclick as click
 from dictdiffer import diff
+from pydantic import BaseModel
 from tortoise import BaseDBAsyncClient, Model, Tortoise
-from tortoise.exceptions import OperationalError
 from tortoise.indexes import Index
 
 from aerich._compat import tortoise_version_less_than
@@ -19,9 +19,12 @@ from aerich.ddl import BaseDDL
 from aerich.enums import Color
 from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import (
+    decompress_dict,
     get_app_connection,
     get_dict_diff_by_key,
+    get_formatted_compressed_data,
     get_models_describe,
+    import_py_file,
     is_default_function,
 )
 
@@ -36,7 +39,18 @@ async def upgrade(db: BaseDBAsyncClient) -> str:
 async def downgrade(db: BaseDBAsyncClient) -> str:
     return \"\"\"
         {downgrade_sql}\"\"\"
+
+
+MODELS_STATE = ( 
+    {models_state}
+)
 """
+
+
+class MigrationFile(BaseModel):
+    upgrade: Callable[[BaseDBAsyncClient], str]
+    downgrade: Callable[[BaseDBAsyncClient], str]
+    models_state: dict[str, Any] | None
 
 
 class Migrate:
@@ -73,7 +87,7 @@ class Migrate:
                 return False
             return get_file_version(file_name).isdigit()
 
-        files = filter(is_version_file, os.listdir(cls.migrate_location))
+        files = list(filter(is_version_file, os.listdir(cls.migrate_location)))
         return sorted(files, key=lambda x: int(get_file_version(x)))
 
     @classmethod
@@ -81,11 +95,24 @@ class Migrate:
         return Tortoise.apps[cls.app].get(model)  # type: ignore
 
     @classmethod
-    async def get_last_version(cls) -> Aerich | None:
-        try:
-            return await Aerich.filter(app=cls.app).first()
-        except OperationalError:
+    def get_last_version(cls) -> str | None:
+        migrations = cls.get_all_version_files()
+        if not migrations:
             return None
+        return migrations[-1]
+
+    @classmethod
+    def get_migration_info_for_file(cls, file_path: str) -> MigrationFile:
+        module = import_py_file(cls.migrate_location / file_path)
+        model_state_str = getattr(module, "MODELS_STATE", None)
+
+        model_state = decompress_dict(model_state_str) if model_state_str else None
+
+        return MigrationFile(
+            upgrade=module.upgrade,
+            downgrade=module.downgrade,
+            models_state=model_state,
+        )
 
     @classmethod
     async def _get_db_version(cls, connection: BaseDBAsyncClient) -> None:
@@ -95,37 +122,42 @@ class Migrate:
             cls._db_version = ret[1][0].get("version")
 
     @classmethod
-    async def load_ddl_class(cls) -> type[BaseDDL]:
+    def load_ddl_class(cls) -> type[BaseDDL]:
         ddl_dialect_module = importlib.import_module(f"aerich.ddl.{cls.dialect}")
         return getattr(ddl_dialect_module, f"{cls.dialect.capitalize()}DDL")
 
     @classmethod
     async def init(cls, config: dict, app: str, location: str) -> None:
         await Tortoise.init(config=config)
-        last_version = await cls.get_last_version()
-        cls.app = app
         cls.migrate_location = Path(location, app)
+        cls.app = app
+
+        last_version = cls.get_last_version()
         if last_version:
-            cls._last_version_content = cast(dict, last_version.content)
+            last_version = cls.get_migration_info_for_file(last_version)
+            if not last_version.models_state:
+                raise RuntimeError(
+                    "Old format of migration file detected, run fix_migrations to upgrade format"
+                )
+            cls._last_version_content = last_version.models_state
 
         connection = get_app_connection(config, app)
         cls.dialect = connection.schema_generator.DIALECT
-        cls.ddl_class = await cls.load_ddl_class()
+        cls.ddl_class = cls.load_ddl_class()
         cls.ddl = cls.ddl_class(connection)
         await cls._get_db_version(connection)
 
     @classmethod
-    async def _get_last_version_num(cls) -> int | None:
-        last_version = await cls.get_last_version()
+    def _get_last_version_num(cls) -> int | None:
+        last_version = cls.get_last_version()
         if not last_version:
             return None
-        version = last_version.version
-        return int(version.split("_", 1)[0])
+        return int(last_version.split("_", 1)[0])
 
     @classmethod
-    async def generate_version(cls, name: str | None = None) -> str:
+    def generate_version(cls, name: str | None = None) -> str:
         now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
-        last_version_num = await cls._get_last_version_num()
+        last_version_num = cls._get_last_version_num()
         if last_version_num is None:
             return f"0_{now}_init.py"
         version = f"{last_version_num + 1}_{now}_{name}.py"
@@ -134,8 +166,8 @@ class Migrate:
         return version
 
     @classmethod
-    async def _generate_diff_py(cls, name) -> str:
-        version = await cls.generate_version(name)
+    def _generate_diff_py(cls, name) -> str:
+        version = cls.generate_version(name)
         # delete if same version exists
         for version_file in cls.get_all_version_files():
             if version_file.startswith(version.split("_")[0]):
@@ -170,7 +202,7 @@ class Migrate:
         :return:
         """
         if empty:
-            return await cls._generate_diff_py(name)
+            return cls._generate_diff_py(name)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
         cls.diff_models(last_version, new_version_content)
@@ -181,7 +213,7 @@ class Migrate:
         if not cls.upgrade_operators:
             return ""
 
-        return await cls._generate_diff_py(name)
+        return cls._generate_diff_py(name)
 
     @classmethod
     def _get_diff_file_content(cls) -> str:
@@ -194,9 +226,12 @@ class Migrate:
                 return ""
             return ";\n        ".join(lines) + ";"
 
+        compressed_model_state = get_formatted_compressed_data(get_models_describe(cls.app))
+
         return MIGRATE_TEMPLATE.format(
             upgrade_sql=join_lines(cls.upgrade_operators),
             downgrade_sql=join_lines(cls.downgrade_operators),
+            models_state=compressed_model_state,
         )
 
     @classmethod

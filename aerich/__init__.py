@@ -19,8 +19,10 @@ from aerich.inspectdb.sqlite import InspectSQLite
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import (
+    decompress_dict,
     get_app_connection,
     get_app_connection_name,
+    get_formatted_compressed_data,
     get_models_describe,
     import_py_file,
 )
@@ -167,10 +169,16 @@ class Command(AbstractAsyncContextManager):
         upgrade = m.upgrade
         if not fake:
             await conn.execute_script(await upgrade(conn))
+
+        model_state_str = getattr(m, "MODELS_STATE", None)
+        if model_state_str:
+            model_state = decompress_dict(model_state_str)
+        else:
+            model_state = get_models_describe(self.app)
         await Aerich.create(
             version=version_file,
             app=self.app,
-            content=get_models_describe(self.app),
+            content=model_state,
         )
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
@@ -194,7 +202,7 @@ class Command(AbstractAsyncContextManager):
     async def downgrade(self, version: int, delete: bool, fake: bool = False) -> list[str]:
         ret: list[str] = []
         if version == -1:
-            specified_version = await Migrate.get_last_version()
+            specified_version = await Aerich.filter(app=self.app).order_by("-id").first()
         else:
             specified_version = await Aerich.filter(
                 app=self.app, version__startswith=f"{version}_"
@@ -204,7 +212,7 @@ class Command(AbstractAsyncContextManager):
         if version == -1:
             versions = [specified_version]
         else:
-            versions = await Aerich.filter(app=self.app, pk__gte=specified_version.pk)
+            versions = await Aerich.filter(app=self.app, pk__gt=specified_version.pk)
         for version_obj in versions:
             file = version_obj.version
             async with in_transaction(
@@ -270,13 +278,23 @@ class Command(AbstractAsyncContextManager):
 
         schema = get_schema_sql(connection, safe)
 
-        version = await Migrate.generate_version()
+        await Migrate.init(
+            config=self.tortoise_config,
+            app=app,
+            location=location,
+        )
+        version = Migrate.generate_version()
+        model_state = get_models_describe(app)
         await Aerich.create(
             version=version,
             app=app,
-            content=get_models_describe(app),
+            content=model_state,
         )
         version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(upgrade_sql=schema, downgrade_sql="")
+        content = MIGRATE_TEMPLATE.format(
+            upgrade_sql=schema,
+            downgrade_sql="",
+            models_state=get_formatted_compressed_data(model_state),
+        )
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)

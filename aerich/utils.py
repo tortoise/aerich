@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
+import json
 import os
 import re
 import sys
+import zlib
 from collections.abc import Generator
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 from asyncclick import BadOptionUsage, ClickException, Context
 from dictdiffer import diff
@@ -84,6 +88,12 @@ def get_models_describe(app: str) -> dict:
     :return:
     """
     ret = {}
+    if app not in Tortoise.apps:
+        raise BadOptionUsage(
+            option_name="--app",
+            message=f"Can't find app named {app}",
+        )
+
     for model in Tortoise.apps[app].values():
         managed = getattr(model.Meta, "managed", None)
         describe = model.describe()
@@ -141,3 +151,34 @@ def get_dict_diff_by_key(
         if additions:
             for index in sorted(additions):
                 yield from diff([], [new_fields[index]])  # add
+
+
+def compress_dict(dictionary: dict[str, Any]) -> str:
+    json_str = json.dumps(dictionary)
+    compressed_bytes = zlib.compress(json_str.encode("utf-8"))
+    base64_str = base64.b64encode(compressed_bytes).decode("ascii")
+
+    return base64_str
+
+
+def get_formatted_compressed_data(dictionary: dict[str, Any], row_length: int = 70) -> str:
+    compressed_str = compress_dict(dictionary)
+
+    formatted_parts = []
+    current_cursor = 0
+    while True:
+        part = compressed_str[current_cursor : current_cursor + row_length]
+        if not part:
+            break
+        formatted_parts.append(f'"{part}"')
+        current_cursor += row_length
+
+    return "\n\t".join(formatted_parts)
+
+
+def decompress_dict(compressed_str: str) -> dict[str, Any]:
+    compressed_bytes = base64.b64decode(compressed_str)
+    json_bytes = zlib.decompress(compressed_bytes)
+    dictionary = json.loads(json_bytes.decode("utf-8"))
+
+    return dictionary
