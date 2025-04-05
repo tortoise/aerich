@@ -298,3 +298,10 @@ class Command(AbstractAsyncContextManager):
         )
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
+
+    async def fix_migrations(self) -> list[str]:
+        """
+        Fix migration files to include models state for aerich 0.6.0+
+        :return: List of updated migration files
+        """
+        return await Migrate.fix_migrations(self.tortoise_config)

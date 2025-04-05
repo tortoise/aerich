@@ -907,3 +907,65 @@ class Migrate:
                 cls.downgrade_operators.append(_downgrade_fk_m2m_operator)
             else:
                 cls.downgrade_operators.insert(0, _downgrade_fk_m2m_operator)
+
+    @classmethod
+    async def fix_migrations(cls, config: dict[str, Any]) -> list[str]:
+        """
+        Fix old migration files to include models state for aerich 0.6.0+
+        :return: List of updated migration file paths
+        """
+        updated_files = []
+        migration_files = cls.get_all_version_files()
+        if not migration_files:
+            return updated_files
+
+        connection = get_app_connection(config, cls.app)
+
+        # Get model state from Aerich table for each migration
+        for file_name in migration_files:
+            file_path = cls.migrate_location / file_name
+            # Check if file already has MODELS_STATE
+            migration_info = import_py_file(file_path)
+            if getattr(migration_info, "MODELS_STATE", None):
+                # File is already in the new format
+                continue
+
+            # Get version number for this file
+            version = file_name.split("_")[0]
+
+            # Find the corresponding record in the Aerich table
+            aerich_models = await Aerich.filter(version=version, app=cls.app).first()
+            if not aerich_models:
+                click.secho(
+                    f"⚠️ Warning: No matching record for migration {file_name} in Aerich table. Skipping.",
+                    fg=Color.yellow,
+                )
+                continue
+
+            # Get models state from the content column
+            models_state = aerich_models.content
+            if not models_state:
+                click.secho(
+                    f"⚠️ Warning: No content found for migration {file_name}. Skipping.",
+                    fg=Color.yellow,
+                )
+                continue
+
+            upgrade_sql = migration_info.upgrade(connection)
+            downgrade_sql = migration_info.downgrade(connection)
+
+            # Format models state for inclusion in the template
+            formatted_models_state = get_formatted_compressed_data(models_state)
+
+            # Generate new content with the template
+            new_content = MIGRATE_TEMPLATE.format(
+                upgrade_sql=upgrade_sql.strip(),
+                downgrade_sql=downgrade_sql.strip(),
+                models_state=formatted_models_state,
+            )
+
+            # Write the new content to the file
+            file_path.write_text(new_content, encoding="utf-8")
+            updated_files.append(str(file_path))
+
+        return updated_files

@@ -81,6 +81,35 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
         assert r.returncode == 0
 
 
+def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
+    if not Dialect.is_sqlite():
+        return
+    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+        migration_directory = tmp_path / "migrations"
+        assert not migration_directory.exists()
+        models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
+        run_aerich("aerich init -t settings.TORTOISE_ORM")
+        assert migration_directory.exists()
+        app_migrations = migration_directory / "models"
+        assert app_migrations.exists()
+        created_migrations = os.listdir(app_migrations)
+        assert len(created_migrations) == 1
+        r = run_shell("pytest -s _tests.py::test_allow_duplicate")
+        assert r.returncode == 0
+        models_py.write_text(models_text.replace("db_index=False", "unique=True"))
+        r = run_aerich("aerich migrate")  # migrations/models/1_
+        assert r.returncode == 0
+        created_migrations = os.listdir(app_migrations)
+        assert len(created_migrations) == 2
+        r = run_shell("pytest _tests.py::test_unique_is_true")
+        assert r.returncode == 0
+        models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
+        run_aerich("aerich migrate")  # migrations/models/2_
+        run_aerich("aerich upgrade")
+        r = run_shell("pytest -s _tests.py::test_allow_duplicate")
+        assert r.returncode == 0
+
+
 M2M_WITH_CUSTOM_THROUGH = """
     groups = fields.ManyToManyField("models.Group", through="foo_group")
 

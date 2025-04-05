@@ -221,7 +221,7 @@ def _write_config(config_path, doc, table) -> None:
     help="Folder of the source, relative to the project root.",
 )
 @click.pass_context
-async def init(ctx: Context, tortoise_orm, location, src_folder) -> None:
+def init(ctx: Context, tortoise_orm, location, src_folder) -> None:
     config_file = ctx.obj["config_file"]
 
     if os.path.isabs(src_folder):
@@ -288,6 +288,22 @@ async def inspectdb(ctx: Context, table: list[str]) -> None:
     command = ctx.obj["command"]
     ret = await command.inspectdb(table)
     click.secho(ret)
+
+
+@cli.command(help="Fix migration files to include models state for aerich 0.6.0+.")
+@click.pass_context
+async def fix_migrations(ctx: Context) -> None:
+    command = ctx.obj["command"]
+    updated_files = await command.fix_migrations()
+    if not updated_files:
+        click.secho(
+            "No migration files to update. All files are already in the correct format.",
+            fg=Color.green,
+        )
+    else:
+        click.secho(f"Updated {len(updated_files)} migration files:", fg=Color.green)
+        for file in updated_files:
+            click.echo(f"  - {file}")
 
 
 def main() -> None:
