@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 from collections.abc import Iterable
 from datetime import datetime
@@ -11,6 +12,7 @@ import asyncclick as click
 from dictdiffer import diff
 from pydantic import BaseModel
 from tortoise import BaseDBAsyncClient, Model, Tortoise
+from tortoise.exceptions import OperationalError
 from tortoise.indexes import Index
 
 from aerich._compat import tortoise_version_less_than
@@ -919,7 +921,19 @@ class Migrate:
         if not migration_files:
             return updated_files
 
+        await Tortoise.init(config=config)
         connection = get_app_connection(config, cls.app)
+
+        try:
+            await Aerich.first()
+        except OperationalError:
+            click.secho(
+                "⚠️ Warning: Aerich table not found. "
+                "fix-migrations can only be applied by using "
+                "existing database with all migrations applied.",
+                fg=Color.yellow,
+            )
+            return updated_files
 
         # Get model state from Aerich table for each migration
         for file_name in migration_files:
@@ -930,11 +944,8 @@ class Migrate:
                 # File is already in the new format
                 continue
 
-            # Get version number for this file
-            version = file_name.split("_")[0]
-
             # Find the corresponding record in the Aerich table
-            aerich_models = await Aerich.filter(version=version, app=cls.app).first()
+            aerich_models = await Aerich.filter(version=file_name, app=cls.app).first()
             if not aerich_models:
                 click.secho(
                     f"⚠️ Warning: No matching record for migration {file_name} in Aerich table. Skipping.",
@@ -951,8 +962,8 @@ class Migrate:
                 )
                 continue
 
-            upgrade_sql = migration_info.upgrade(connection)
-            downgrade_sql = migration_info.downgrade(connection)
+            upgrade_sql = await migration_info.upgrade(connection)
+            downgrade_sql = await migration_info.downgrade(connection)
 
             # Format models state for inclusion in the template
             formatted_models_state = get_formatted_compressed_data(models_state)

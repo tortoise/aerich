@@ -10,6 +10,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+from aerich import decompress_dict, import_py_file
 from tests._utils import Dialect, chdir, copy_files
 
 
@@ -45,6 +46,27 @@ def prepare_sqlite_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
         copy_files(*(asset_dir / f for f in files), target_dir=Path())
         models_py, settings_py, test_py = (Path(f) for f in files)
         copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
+        _get_empty_db()
+        yield models_py, models_py.read_text("utf-8")
+
+
+@contextmanager
+def prepare_sqlite_old_style_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
+    test_dir = Path(__file__).parent
+    asset_dir = test_dir / "assets" / "sqlite_old_style"
+    with chdir(tmp_path):
+        files = ("models.py", "settings.py", "_tests.py", "pyproject.toml", "example_db.sqlite3")
+        copy_files(*(asset_dir / f for f in files), target_dir=Path())
+        models_py = Path(files[0])
+        copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
+
+        migrations_source = asset_dir / "_migrations"
+        migrations_target = Path("migrations")
+        if migrations_source.exists():
+            if migrations_target.exists():
+                shutil.rmtree(migrations_target)
+            shutil.copytree(migrations_source, migrations_target)
+
         _get_empty_db()
         yield models_py, models_py.read_text("utf-8")
 
@@ -107,6 +129,43 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         run_aerich("aerich upgrade")
         r = run_shell("pytest -s _tests.py::test_allow_duplicate")
         assert r.returncode == 0
+
+
+def test_sqlite_fix_migrations(tmp_path: Path) -> None:
+    if not Dialect.is_sqlite():
+        return
+    with prepare_sqlite_old_style_project(tmp_path) as (models_py, models_text):
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 1
+
+        r = run_aerich("aerich fix-migrations")
+        assert r.returncode == 0
+
+        migrations_dir = tmp_path / "migrations" / "models"
+
+        migration_files = list(migrations_dir.glob("*.py"))
+
+        for file in migration_files:
+            imported_file = import_py_file(migrations_dir / file)
+
+            models_state = getattr(imported_file, "MODELS_STATE", None)
+            assert models_state is not None
+
+            parsed_state = decompress_dict(models_state)
+            assert isinstance(parsed_state, dict)
+
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
+
+        models_py.write_text(models_text.replace("db_index=False", "unique=True"))
+        r = run_aerich("aerich migrate")
+        assert r.returncode == 0
+
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
+
+        created_migrations = migrations_dir.glob("*.py")
+        assert len(list(created_migrations)) == 3, created_migrations
 
 
 M2M_WITH_CUSTOM_THROUGH = """

@@ -79,7 +79,7 @@ async def cli(ctx: Context, config, app) -> None:
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
-        if invoked_subcommand not in ("init-db", "init-migrations"):
+        if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx

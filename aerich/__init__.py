@@ -337,4 +337,6 @@ class Command(AbstractAsyncContextManager):
         Fix migration files to include models state for aerich 0.6.0+
         :return: List of updated migration files
         """
+        Migrate.app = self.app
+        Migrate.migrate_location = Path(self.location, self.app)
         return await Migrate.fix_migrations(self.tortoise_config)
