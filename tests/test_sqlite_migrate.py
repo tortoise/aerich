@@ -89,22 +89,21 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         assert not migration_directory.exists()
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
+        run_aerich("aerich init-migrations")
         assert migration_directory.exists()
         app_migrations = migration_directory / "models"
         assert app_migrations.exists()
-        created_migrations = os.listdir(app_migrations)
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 1
-        r = run_shell("pytest -s _tests.py::test_allow_duplicate")
-        assert r.returncode == 0
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
         r = run_aerich("aerich migrate")  # migrations/models/1_
         assert r.returncode == 0
-        created_migrations = os.listdir(app_migrations)
-        assert len(created_migrations) == 2
-        r = run_shell("pytest _tests.py::test_unique_is_true")
-        assert r.returncode == 0
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
+        assert len(created_migrations) == 2, created_migrations
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich migrate")  # migrations/models/2_
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
+        assert len(created_migrations) == 3, created_migrations
         run_aerich("aerich upgrade")
         r = run_shell("pytest -s _tests.py::test_allow_duplicate")
         assert r.returncode == 0

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import warnings
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -290,6 +291,38 @@ class Command(AbstractAsyncContextManager):
             app=app,
             content=model_state,
         )
+        version_file = Path(dirname, version)
+        content = MIGRATE_TEMPLATE.format(
+            upgrade_sql=schema,
+            downgrade_sql="",
+            models_state=get_formatted_compressed_data(model_state),
+        )
+        with open(version_file, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    async def init_migrations(self, safe: bool) -> None:
+        location = self.location
+        app = self.app
+        dirname = Path(location, app)
+        if not dirname.exists():
+            dirname.mkdir(parents=True)
+        else:
+            # If directory is empty, go ahead, otherwise raise FileExistsError
+            for unexpected_file in dirname.glob("*"):
+                raise FileExistsError(str(unexpected_file))
+
+        await Tortoise.init(config=self.tortoise_config)
+        connection = get_app_connection(self.tortoise_config, app)
+
+        schema = get_schema_sql(connection, safe)
+
+        await Migrate.init(
+            config=self.tortoise_config,
+            app=app,
+            location=location,
+        )
+        version = Migrate.generate_version()
+        model_state = get_models_describe(app)
         version_file = Path(dirname, version)
         content = MIGRATE_TEMPLATE.format(
             upgrade_sql=schema,

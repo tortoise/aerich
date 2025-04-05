@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 from typing import cast
 
@@ -78,7 +79,7 @@ async def cli(ctx: Context, config, app) -> None:
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
-        if invoked_subcommand != "init-db":
+        if invoked_subcommand not in ("init-db", "init-migrations"):
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
@@ -262,11 +263,42 @@ def init(ctx: Context, tortoise_orm, location, src_folder) -> None:
 )
 @click.pass_context
 async def init_db(ctx: Context, safe: bool) -> None:
+    warnings.warn(
+        "init_db is deprecated, use init_migrations + upgrade instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     command = ctx.obj["command"]
     app = command.app
     dirname = Path(command.location, app)
     try:
         await command.init_db(safe)
+        click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
+        click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
+    except FileExistsError:
+        return click.secho(
+            f"App {app} is already initialized. Delete {dirname} and try again.", fg=Color.yellow
+        )
+
+
+@cli.command(help="Generate app migration folder and your first migration.")
+@click.option(
+    "-s",
+    "--safe",
+    type=bool,
+    is_flag=True,
+    default=True,
+    help="Create tables only when they do not already exist.",
+    show_default=True,
+)
+@click.pass_context
+async def init_migrations(ctx: Context, safe: bool) -> None:
+    command = ctx.obj["command"]
+    app = command.app
+    dirname = Path(command.location, app)
+    try:
+        await command.init_migrations(safe)
         click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
         click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
     except FileExistsError:
