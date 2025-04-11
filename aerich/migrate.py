@@ -172,7 +172,7 @@ class Migrate:
         if empty:
             return await cls._generate_diff_py(name)
         new_version_content = get_models_describe(cls.app)
-        last_version = cast(dict, cls._last_version_content)
+        last_version = cast(dict, cls._last_version_content) or {}
         cls.diff_models(last_version, new_version_content)
         cls.diff_models(new_version_content, last_version, False)
 
