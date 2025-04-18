@@ -256,13 +256,6 @@ class Command(AbstractAsyncContextManager):
     async def init_db(self, safe: bool) -> None:
         location = self.location
         app = self.app
-        dirname = Path(location, app)
-        if not dirname.exists():
-            dirname.mkdir(parents=True)
-        else:
-            # If directory is empty, go ahead, otherwise raise FileExistsError
-            for unexpected_file in dirname.glob("*"):
-                raise FileExistsError(str(unexpected_file))
 
         await Tortoise.init(config=self.tortoise_config)
         connection = get_app_connection(self.tortoise_config, app)
