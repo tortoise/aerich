@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, Dict, TypedDict
+from typing import Any, Callable, TypedDict
 
 from pydantic import BaseModel
 from tortoise import BaseDBAsyncClient
@@ -17,8 +17,7 @@ class ColumnInfoDict(TypedDict):
     comment: str
 
 
-# TODO: use dict to replace typing.Dict when dropping support for Python3.8
-FieldMapDict = Dict[str, Callable[..., str]]
+FieldMapDict = dict[str, Callable[..., str]]
 
 
 class Column(BaseModel):
