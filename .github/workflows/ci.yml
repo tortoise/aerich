@@ -20,14 +20,11 @@ jobs:
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         tortoise-orm:
-          - tortoise021
-          - tortoise022
-          - tortoise023
           - tortoise024
-          # TODO: add dev back when drop python3.8 support
-          # - tortoisedev
+          - tortoise025
+          - tortoisedev
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
@@ -44,41 +41,21 @@ jobs:
       - name: Install and configure Poetry
         run: |
           pip install -U pip
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            # poetry2.0+ does not support installed by python3.8, but can manage project using py38
-            python3.12 -m pip install "poetry>=2.0"
-          else
-            pip install "poetry>=2.0"
-          fi
+          pip install "poetry>=2.0"
           poetry env use python${{ matrix.python-version }}
       - name: Install dependencies and check style
         run: poetry run make check
-      - name: Install TortoiseORM v0.21
-        if: matrix.tortoise-orm == 'tortoise021'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.21,<0.22"
-      - name: Install TortoiseORM v0.22
-        if: matrix.tortoise-orm == 'tortoise022'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.22,<0.23"
-      - name: Install TortoiseORM v0.23
-        if: matrix.tortoise-orm == 'tortoise023'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.23,<0.24"
       - name: Install TortoiseORM v0.24
         if: matrix.tortoise-orm == 'tortoise024'
-        run: |
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            echo "Skip test for tortoise v0.24 as it does not support Python3.8"
-          else
-            poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
-          fi
+        run: poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
+      - name: Install TortoiseORM v0.25
+        if: matrix.tortoise-orm == 'tortoise025'
+        run: poetry run pip install --upgrade "tortoise-orm>=0.25,<0.26"
       - name: Install TortoiseORM develop branch
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            echo "Skip test for tortoise develop branch as it does not support Python3.8"
-          else
-            poetry run pip uninstall -y tortoise-orm
-            poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-          fi
+          poetry run pip uninstall -y tortoise-orm
+          poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
       - name: CI
         env:
           MYSQL_PASS: root
@@ -90,7 +67,7 @@ jobs:
         run: poetry run make _testall
       - name: Verify aiomysql support
         # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoise024'
+        if: matrix.tortoise-orm == 'tortoisedev'
         run: |
             poetry run pip uninstall -y asyncmy
             poetry run make test_mysql
@@ -101,7 +78,7 @@ jobs:
           MYSQL_PORT: 3306
       - name: Verify psycopg support
         # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoise024'
+        if: matrix.tortoise-orm == 'tortoisedev'
         run: poetry run make test_psycopg
         env:
           POSTGRES_PASS: 123456
