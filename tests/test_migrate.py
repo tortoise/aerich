@@ -938,7 +938,7 @@ old_models_describe = {
 }
 
 
-def test_migrate(mocker: MockerFixture):
+def test_migrate(mocker: MockerFixture, capsys):
     """
     models.py diff with old_models.py
     - change email pk: id -> email_id
@@ -980,6 +980,7 @@ def test_migrate(mocker: MockerFixture):
         Migrate.diff_models(old_models_describe, models_describe)
         Migrate.diff_models(models_describe, old_models_describe, False)
         Migrate._merge_operators()
+    warning_msg = "Aerich does not handle 'unique' attribution for m2m field. You may need to change the constraints in db manually."
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
@@ -1080,6 +1081,7 @@ def test_migrate(mocker: MockerFixture):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
+        assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = {
@@ -1183,6 +1185,7 @@ def test_migrate(mocker: MockerFixture):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
+        assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []

@@ -1,13 +1,20 @@
 # ChangeLog
 
-## 0.8
+## 0.9
+### [0.9.0]**(Unreleased)**
 
-### [0.8.3]**(Unreleased)**
+### Changed
+- Drop support for Python3.8. ([#446])
 
 #### Fixed
+- fix: m2m migrate raises TypeError. ([#448])
 - fix: `aerich init-db` process is suspended. ([#435])
 
+[#448]: https://github.com/tortoise/aerich/pull/448
+[#446]: https://github.com/tortoise/aerich/pull/446
 [#435]: https://github.com/tortoise/aerich/pull/435
+
+## 0.8
 
 ### [0.8.2](../../releases/tag/v0.8.2) - 2025-02-28
 

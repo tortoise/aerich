@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import importlib
 import os
 from collections.abc import Iterable
@@ -276,14 +277,20 @@ class Migrate:
                 if attr == "indexed":
                     # Ignore changing of indexed, as it usually changed by unique
                     continue
-                elif attr == "unique":
-                    # TODO:
-                    continue
                 elif attr == "nullable":
                     # nullable of m2m relation is constrainted by orm framework, not by db
                     continue
-            if change[0][0] == "db_constraint":
-                continue
+                elif attr in ("unique", "db_constraint"):
+                    # TODO: handle 'unique'
+                    if upgrade:
+                        click.secho(
+                            f"Aerich does not handle {attr!r} attribution for m2m field. You may need to change the constraints in db manually.",
+                            fg=Color.yellow,
+                        )
+                    continue
+            with contextlib.suppress(TypeError, KeyError):
+                if change[0][0] == "db_constraint":
+                    continue
             new_value = change[0][1]
             if isinstance(new_value, str):
                 for new_m2m_field in new_m2m_fields:
