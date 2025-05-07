@@ -250,8 +250,10 @@ class Command(AbstractAsyncContextManager):
         inspect = cls(connection, tables)
         return await inspect.inspect()
 
-    async def migrate(self, name: str = "update", empty: bool = False) -> str:
-        return await Migrate.migrate(name, empty)
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: bool = False
+    ) -> str:
+        return await Migrate.migrate(name, empty, no_input)
 
     async def init_db(self, safe: bool) -> None:
         location = self.location

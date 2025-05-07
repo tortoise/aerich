@@ -4,13 +4,24 @@ import importlib.util
 import os
 import re
 import sys
-from collections.abc import Generator
+from collections.abc import Awaitable, Callable, Generator
 from pathlib import Path
 from types import ModuleType
+from typing import TypeVar
 
+from anyio import from_thread
 from asyncclick import BadOptionUsage, ClickException, Context
 from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Tortoise
+
+if sys.version_info >= (3, 11):
+    from typing import ParamSpec, TypeVarTuple, Unpack
+else:
+    from typing_extensions import ParamSpec, TypeVarTuple, Unpack
+
+T_Retval = TypeVar("T_Retval")
+PosArgsT = TypeVarTuple("PosArgsT")
+P = ParamSpec("P")
 
 
 def add_src_path(path: str) -> str:
@@ -141,3 +152,22 @@ def get_dict_diff_by_key(
         if additions:
             for index in sorted(additions):
                 yield from diff([], [new_fields[index]])  # add
+
+
+def run_async(
+    async_func: Callable[[Unpack[PosArgsT]], Awaitable[T_Retval]],
+    *args: Unpack[PosArgsT],
+) -> T_Retval:
+    """Run async function in worker thread and get the result of it"""
+    # `asyncio.run(async_func())` can get the result of async function,
+    # but it will close the running loop.
+    result: list[T_Retval] = []
+
+    async def runner() -> None:
+        res = await async_func(*args)
+        result.append(res)
+
+    with from_thread.start_blocking_portal() as portal:
+        portal.call(runner)
+
+    return result[0]
