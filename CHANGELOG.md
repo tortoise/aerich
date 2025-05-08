@@ -3,13 +3,18 @@
 ## 0.9
 ### [0.9.0]**(Unreleased)**
 
+#### Added
+- Support `--no-input` for aerich migrate. ([#450])
+
 ### Changed
 - Drop support for Python3.8. ([#446])
 
 #### Fixed
 - fix: m2m migrate raises TypeError. ([#448])
 - fix: `aerich init-db` process is suspended. ([#435])
+- fix: migration will incorrectly remove constraints with index deletions. ([#450])
 
+[#450]: https://github.com/tortoise/aerich/pull/450
 [#448]: https://github.com/tortoise/aerich/pull/448
 [#446]: https://github.com/tortoise/aerich/pull/446
 [#435]: https://github.com/tortoise/aerich/pull/435
