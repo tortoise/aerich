@@ -98,6 +98,7 @@ def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_d
 
 @pytest.fixture
 def new_aerich_project(tmp_path: Path):
+    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/fake/
     asset_dir = TEST_DIR / "assets" / "fake"
     models_py = TEST_DIR / "models.py"
     with _new_aerich_project(tmp_path, asset_dir, models_py):
@@ -106,6 +107,7 @@ def new_aerich_project(tmp_path: Path):
 
 @pytest.fixture
 def tmp_aerich_project(tmp_path: Path):
+    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/remove_constraint/
     asset_dir = TEST_DIR / "assets" / "remove_constraint"
     models_py = asset_dir / "models.py"
     with _new_aerich_project(tmp_path, asset_dir, models_py):
