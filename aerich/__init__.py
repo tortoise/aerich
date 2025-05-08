@@ -252,7 +252,7 @@ class Command(AbstractAsyncContextManager):
 
     async def migrate(
         self, name: str = "update", empty: bool = False, no_input: bool = False
-    ) -> str:
+    ) -> str | None:
         return await Migrate.migrate(name, empty, no_input)
 
     async def init_db(self, safe: bool) -> None:

@@ -94,8 +94,10 @@ async def cli(ctx: Context, config, app) -> None:
 async def migrate(ctx: Context, name, empty, no_input) -> None:
     command = ctx.obj["command"]
     ret = await command.migrate(name, empty, no_input)
-    if not ret:
+    if ret is None:
         return click.secho("No changes detected", fg=Color.yellow)
+    elif not ret:
+        return click.secho("Please check the content of existing migration files", fg=Color.yellow)
     click.secho(f"Success creating migration file {ret}", fg=Color.green)
 
 
