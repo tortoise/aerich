@@ -405,7 +405,13 @@ class Migrate:
         :return:
         """
         _aerich = f"{cls.app}.{cls._aerich}"
-        old_models.pop(_aerich, None)
+        try:
+            old_models.pop(_aerich, None)
+        except AttributeError:
+            # Invalid use when app migration directory exists but aerich table not exist
+            raise click.UsageError(
+                "You may need to run `aerich init-db` first to initialize the database."
+            )
         new_models.pop(_aerich, None)
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 
