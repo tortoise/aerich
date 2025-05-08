@@ -258,6 +258,10 @@ class Command(AbstractAsyncContextManager):
     async def init_db(self, safe: bool) -> None:
         location = self.location
         app = self.app
+
+        await Tortoise.init(config=self.tortoise_config)
+        connection = get_app_connection(self.tortoise_config, app)
+
         dirname = Path(location, app)
         if not dirname.exists():
             dirname.mkdir(parents=True)
@@ -266,8 +270,6 @@ class Command(AbstractAsyncContextManager):
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
 
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
         await generate_schema_for_client(connection, safe)
 
         schema = get_schema_sql(connection, safe)
