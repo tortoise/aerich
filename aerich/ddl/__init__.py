@@ -25,6 +25,7 @@ class BaseDDL:
     )
     _ADD_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" ADD {index_type}{unique}INDEX "{index_name}" ({column_names}){extra}'
     _DROP_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" DROP INDEX IF EXISTS "{index_name}"'
+    _DROP_CONSTRAINT_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT IF EXISTS "{name}"'
     _ADD_FK_TEMPLATE = 'ALTER TABLE "{table_name}" ADD CONSTRAINT "{fk_name}" FOREIGN KEY ("{db_column}") REFERENCES "{table}" ("{field}") ON DELETE {on_delete}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
     _M2M_TABLE_TEMPLATE = (
@@ -222,6 +223,12 @@ class BaseDDL:
 
     def drop_index_by_name(self, model: type[Model], index_name: str) -> str:
         return self.drop_index(model, [], name=index_name)
+
+    def drop_unique_constraint(self, model: type[Model], name: str) -> str:
+        return self._DROP_CONSTRAINT_TEMPLATE.format(
+            table_name=model._meta.db_table,
+            name=name,
+        )
 
     def _generate_fk_name(
         self, db_table: str, field_describe: dict, reference_table_describe: dict

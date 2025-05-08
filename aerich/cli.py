@@ -89,10 +89,11 @@ async def cli(ctx: Context, config, app) -> None:
 @cli.command(help="Generate a migration file for the current state of the models.")
 @click.option("--name", default="update", show_default=True, help="Migration name.")
 @click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
+@click.option("--no-input", default=False, is_flag=True, help="Do not ask for prompt.")
 @click.pass_context
-async def migrate(ctx: Context, name, empty) -> None:
+async def migrate(ctx: Context, name, empty, no_input) -> None:
     command = ctx.obj["command"]
-    ret = await command.migrate(name, empty)
+    ret = await command.migrate(name, empty, no_input)
     if not ret:
         return click.secho("No changes detected", fg=Color.yellow)
     click.secho(f"Success creating migration file {ret}", fg=Color.green)
