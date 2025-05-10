@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import anyio
 import pytest
 import tortoise
 from pytest_mock import MockerFixture
@@ -13,7 +14,9 @@ from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
+from aerich.models import Aerich
 from aerich.utils import get_models_describe
+from tests._utils import chdir
 from tests.indexes import CustomIndex
 
 
@@ -1237,13 +1240,72 @@ def test_sort_files_containing_non_migrations(mocker):
     ]
 
 
-async def test_empty_migration(mocker, tmp_path: Path) -> None:
-    mocker.patch("os.listdir", return_value=[])
+@pytest.fixture
+def tmp_migrate_dir(tmp_path):
     Migrate.app = "foo"
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
     Migrate.migrate_location = tmp_path
+    with chdir(tmp_path):
+        yield
 
-    migration_file = await Migrate.migrate("update", True)
 
-    f = tmp_path / migration_file
-    assert f.read_text() == expected_content
+async def test_empty_migration(mocker, tmp_migrate_dir) -> None:
+    mocker.patch("os.listdir", return_value=[])
+    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+
+    migration_file = await Migrate.migrate("update", True, no_input=True)
+    assert Path(migration_file).read_text() == expected_content
+
+
+async def test_remove_conflicts_empty(mocker, tmp_migrate_dir) -> None:
+    # empty migration
+    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+    pre_migrate_file = Path("0_datetime_name.py")
+    pre_migrate_file.write_text("Invalid migration content")
+    mocker.patch("asyncclick.prompt", side_effect=(False,))
+    migration_file = await Migrate.migrate("update", empty=True)
+    assert pre_migrate_file.exists()
+    assert migration_file is None
+
+    mocker.patch("asyncclick.prompt", side_effect=(True,))
+    migration_file = await Migrate.migrate("update", empty=True)
+    assert not pre_migrate_file.exists()
+    assert migration_file and migration_file.startswith("0_")
+    assert Path(migration_file).read_text() == expected_content
+
+    await anyio.sleep(1)  # ensure new migration filename to be generated
+    new_migration_file = await Migrate.migrate("update", empty=True, no_input=True)
+    assert not Path(migration_file).exists()
+    assert new_migration_file.startswith("0_")
+    assert Path(new_migration_file).read_text() == expected_content
+
+
+async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
+    from tests.models import NewModel
+
+    # normal migration
+    mocker.patch("aerich.migrate.get_models_describe", return_value={})
+    mocker.patch("aerich.utils.get_models_describe", return_value={})
+    Migrate._last_version_content = {}
+    init_file = Path("0_datetime_init.py")
+    init_file.touch()
+    pre_migrate_file = Path("1_datetime_name.py")
+    pre_migrate_file.write_text("Invalid migration content")
+    mocker.patch("asyncclick.prompt", side_effect=(False,))
+    migration_file = await Migrate.migrate("update", empty=False)
+    assert pre_migrate_file.exists()
+    assert migration_file == ""
+
+    models_describe = {"foo.NewModel": get_models_describe("models")["models.NewModel"]}
+    last_version = Aerich(app="foo", content="{}", version=init_file.name)
+    mocker.patch("asyncclick.prompt", side_effect=(True,))
+    mocker.patch("aerich.migrate.get_models_describe", return_value=models_describe)
+    mocker.patch("aerich.migrate.Migrate.get_last_version", return_value=last_version)
+    mocker.patch("aerich.migrate.Migrate._get_model", return_value=NewModel)
+    migration_file = await Migrate.migrate("update", empty=False)
+    assert not pre_migrate_file.exists()
+    assert migration_file and migration_file.startswith("1_")
+
+    await anyio.sleep(1)  # ensure new migration filename to be generated
+    new_migration_file = await Migrate.migrate("update", empty=True, no_input=True)
+    assert not Path(migration_file).exists()
+    assert new_migration_file and new_migration_file.startswith("1_")

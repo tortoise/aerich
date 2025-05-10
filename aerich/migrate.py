@@ -138,7 +138,7 @@ class Migrate:
         return version
 
     @classmethod
-    async def _generate_diff_py(cls, name, no_input: bool = False) -> str:
+    async def _generate_diff_py(cls, name, no_input: bool = False) -> str | None:
         content = cls._get_diff_file_content()
         version = await cls.generate_version(name)  # '<num>_<date>_<name>.py'
         conflict_files = [
@@ -159,8 +159,8 @@ class Migrate:
                 show_choices=True,
             )
             if not overwrite:
-                return ""
-            # delete if same version exists
+                return None
+            # delete same version files
             for version_file in conflict_files:
                 os.unlink(Path(cls.migrate_location, version_file))
 
@@ -185,7 +185,7 @@ class Migrate:
 
     @overload
     @classmethod
-    async def migrate(cls, name: str, empty: Literal[True], no_input: bool = False) -> str: ...
+    async def migrate(cls, name: str, empty: bool, no_input: Literal[True]) -> str: ...
 
     @overload
     @classmethod
@@ -200,7 +200,7 @@ class Migrate:
         :return:
         """
         if empty:
-            return await cls._generate_diff_py(name)
+            return await cls._generate_diff_py(name, no_input=no_input)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
         cls.diff_models(last_version, new_version_content, no_input=no_input)
@@ -209,7 +209,7 @@ class Migrate:
         cls._merge_operators()
 
         if not cls.upgrade_operators:
-            return None
+            return ""
 
         return await cls._generate_diff_py(name, no_input=no_input)
 
