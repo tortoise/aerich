@@ -1,61 +1,50 @@
 from __future__ import annotations
 
+import shutil
+import time
 from pathlib import Path
 
-import anyio
 import pytest
-from asyncclick.testing import CliRunner
 
-from aerich.cli import cli
-from aerich.migrate import Migrate
-from tests._utils import chdir
-
-MODEL_TEXT = """from tortoise import Model, fields
-class NewModel(Model):
-    name = fields.CharField(10)
-"""
-SETTINGS = """TORTOISE_ORM = {
-    "connections": {"default": 'sqlite://db.sqlite3'},
-    "apps": {"models": {"models": ["models", "aerich.models"]},},
-}"""
+from tests._utils import chdir, run_shell
 
 
 @pytest.fixture
 def new_project(tmp_path):
+    asset_dir = Path(__file__).parent / "assets" / "migrate_no_input"
     with chdir(tmp_path):
-        Path("models.py").write_text(MODEL_TEXT)
-        Path("settings.py").write_text(SETTINGS)
-        yield
+        for file in asset_dir.glob("*.py"):
+            shutil.copy(file, file.name)
+        run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
+        run_shell("aerich init-db", capture_output=False)
+        yield tmp_path
 
 
-async def test_migrate_command_output(mocker, new_project) -> None:
-    runner = CliRunner()
-    result = await runner.invoke(cli, ["init", "-t", "settings.TORTOISE_ORM"])
-    assert not result.exception
-    result = await runner.invoke(cli, ["init-db"])
-    assert not result.exception
-    result = await runner.invoke(cli, ["migrate"])
-    assert not result.exception
-    assert "No changes detected" in result.output
-    result = await runner.invoke(cli, ["migrate", "--empty"], input="False\n")
-    assert not result.exception
-    assert "success" in result.output.lower()
-    empty_migration_files = list(Path(Migrate.migrate_location).glob("1_*.py"))
+def test_empty_migrate_with_no_input(mocker, new_project) -> None:
+    output = run_shell("aerich migrate", cwd=new_project)
+    assert "No changes detected" in output
+    output = run_shell("aerich migrate --empty", cwd=new_project)
+    assert "Success" in output
+    migrate_dir = Path("migrations/models")
+    empty_migration_files = list(migrate_dir.glob("1_*.py"))
     assert len(empty_migration_files) == 1
-    await anyio.Path("models.py").write_text(MODEL_TEXT + "    age=fields.IntField()\n")
-    await anyio.lowlevel.checkpoint()
-    result = await runner.invoke(cli, ["migrate", "--empty"], input="False\n")
-    assert not result.exception
-    warning_msg = (
-        "Aborted! You may need to run `aerich heads` to list avaliable unapplied migrations."
-    )
-    assert warning_msg in result.output
-    assert list(Path(Migrate.migrate_location).glob("1_*.py")) == empty_migration_files
-    await anyio.sleep(1)  # ensure new migration filename generated.
-    result = await runner.invoke(cli, ["migrate", "--empty"], input="True\n")
-    new_empty_migration_files = list(Path(Migrate.migrate_location).glob("1_*.py"))
+    time.sleep(1)  # ensure new migration filename generated.
+    run_shell("aerich migrate --empty --no-input", cwd=new_project)
+    new_empty_migration_files = list(migrate_dir.glob("1_*.py"))
     assert len(new_empty_migration_files) == 1
     assert empty_migration_files != new_empty_migration_files
-    result = await runner.invoke(cli, ["migrate"], input="False\n")
-    assert not result.exception
-    assert warning_msg in result.output
+
+
+@pytest.fixture
+async def project_with_unapplied_migrations(new_project):
+    models_py = Path("models.py")
+    text = models_py.read_text()
+    if "age" not in text:
+        models_py.write_text(text + "    age=fields.IntField()\n")
+    run_shell("aerich migrate", cwd=new_project)
+
+
+def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations) -> None:
+    # CliRunner change the entire interpreter state, so run it in subprocess
+    output = run_shell("pytest _tests.py")
+    assert "1 passed" in output

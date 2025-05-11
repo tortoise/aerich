@@ -462,7 +462,7 @@ class Migrate:
             # Invalid use when app migration directory exists but aerich table not exist
             raise click.UsageError(
                 "You may need to run `aerich init-db` first to initialize the database."
-            )
+            ) from None
         new_models.pop(_aerich, None)
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 

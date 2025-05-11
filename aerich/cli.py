@@ -74,7 +74,7 @@ async def cli(ctx: Context, config, app) -> None:
             try:
                 apps_config = cast(dict, tortoise_config["apps"])
             except KeyError:
-                raise UsageError('Config must define "apps" section')
+                raise UsageError('Config must define "apps" section') from None
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
