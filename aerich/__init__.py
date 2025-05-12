@@ -4,7 +4,7 @@ import os
 import platform
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
 import tortoise
 from tortoise import Tortoise, connections, generate_schema_for_client
@@ -250,9 +250,20 @@ class Command(AbstractAsyncContextManager):
         inspect = cls(connection, tables)
         return await inspect.inspect()
 
+    @overload
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: Literal[True] = True
+    ) -> str: ...
+
+    @overload
     async def migrate(
         self, name: str = "update", empty: bool = False, no_input: bool = False
-    ) -> str:
+    ) -> str | None: ...
+
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: bool = False
+    ) -> str | None:
+        # return None if same version migration file already exists, and new one not generated
         return await Migrate.migrate(name, empty, no_input)
 
     async def init_db(self, safe: bool) -> None:

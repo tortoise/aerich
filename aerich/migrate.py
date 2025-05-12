@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast, overload
 
 import asyncclick as click
 from dictdiffer import diff
@@ -138,14 +138,32 @@ class Migrate:
         return version
 
     @classmethod
-    async def _generate_diff_py(cls, name) -> str:
-        version = await cls.generate_version(name)
-        # delete if same version exists
-        for version_file in cls.get_all_version_files():
-            if version_file.startswith(version.split("_")[0]):
+    async def _generate_diff_py(cls, name, no_input: bool = False) -> str | None:
+        content = cls._get_diff_file_content()
+        version = await cls.generate_version(name)  # '<num>_<date>_<name>.py'
+        conflict_files = [
+            version_file
+            for version_file in cls.get_all_version_files()
+            if version_file.startswith(version.split("_")[0])
+        ]
+        if conflict_files:
+            if len(conflict_files) == 1:
+                file = Path(cls.migrate_location, conflict_files[0])
+                tip = f"Miration file exists({file}). Do you want to remove it?"
+            else:
+                tip = f"Miration file exists({conflict_files}). Do you want to remove them?"
+            overwrite = no_input or click.prompt(
+                tip,
+                default=False,
+                type=bool,
+                show_choices=True,
+            )
+            if not overwrite:
+                return None
+            # delete same version files
+            for version_file in conflict_files:
                 os.unlink(Path(cls.migrate_location, version_file))
 
-        content = cls._get_diff_file_content()
         Path(cls.migrate_location, version).write_text(content, encoding="utf-8")
         return version
 
@@ -165,8 +183,16 @@ class Migrate:
             )
         ]
 
+    @overload
     @classmethod
-    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str:
+    async def migrate(cls, name: str, empty: bool, no_input: Literal[True]) -> str: ...
+
+    @overload
+    @classmethod
+    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None: ...
+
+    @classmethod
+    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None:
         """
         diff old models and new models to generate diff content
         :param name: str name for migration
@@ -174,7 +200,7 @@ class Migrate:
         :return:
         """
         if empty:
-            return await cls._generate_diff_py(name)
+            return await cls._generate_diff_py(name, no_input=no_input)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
         cls.diff_models(last_version, new_version_content, no_input=no_input)
@@ -185,7 +211,7 @@ class Migrate:
         if not cls.upgrade_operators:
             return ""
 
-        return await cls._generate_diff_py(name)
+        return await cls._generate_diff_py(name, no_input=no_input)
 
     @classmethod
     def _get_diff_file_content(cls) -> str:
@@ -436,7 +462,7 @@ class Migrate:
             # Invalid use when app migration directory exists but aerich table not exist
             raise click.UsageError(
                 "You may need to run `aerich init-db` first to initialize the database."
-            )
+            ) from None
         new_models.pop(_aerich, None)
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 
