@@ -1,22 +1,26 @@
 # ChangeLog
 
 ## 0.9
-### [0.9.0]**(Unreleased)**
+### [0.9.0](../../releases/tag/v0.9.0) - 2025-05-12
 
 #### Added
 - Support `--no-input` for aerich migrate. ([#450])
 
 ### Changed
 - Drop support for Python3.8. ([#446])
+- Ask confirm before delete same version migration file. ([#451])
 
 #### Fixed
 - fix: m2m migrate raises TypeError. ([#448])
 - fix: `aerich init-db` process is suspended. ([#435])
 - fix: migration will incorrectly remove constraints with index deletions. ([#450])
+- fix: aerich migrate crashes without init-db & aerich init-db should create folder after validating app. ([#443])
 
+[#451]: https://github.com/tortoise/aerich/pull/451
 [#450]: https://github.com/tortoise/aerich/pull/450
 [#448]: https://github.com/tortoise/aerich/pull/448
 [#446]: https://github.com/tortoise/aerich/pull/446
+[#443]: https://github.com/tortoise/aerich/pull/443
 [#435]: https://github.com/tortoise/aerich/pull/435
 
 ## 0.8
