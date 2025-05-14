@@ -36,6 +36,16 @@ def _patch_context_to_close_tortoise_connections_when_exit() -> None:
 _patch_context_to_close_tortoise_connections_when_exit()
 
 
+def _check_aerich_models_included(tortoise_config: dict, e: Exception | None = None) -> None:
+    all_models = [
+        m for model in tortoise_config.get("apps", {}).values() for m in model.get("models", [])
+    ]
+    if all_models and "aerich.models" not in all_models:
+        raise UsageError(
+            "You have to add 'aerich.models' in the models of your tortoise config"
+        ) from e
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
 @click.option(
@@ -79,7 +89,9 @@ async def cli(ctx: Context, config, app) -> None:
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
-        if invoked_subcommand != "init-db":
+        if invoked_subcommand == "init-db":
+            _check_aerich_models_included(tortoise_config)
+        else:
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
@@ -87,15 +99,7 @@ async def cli(ctx: Context, config, app) -> None:
             try:
                 await command.init()
             except ConfigurationError as e:
-                all_models = [
-                    m
-                    for model in tortoise_config.get("apps", {}).values()
-                    for m in model.get("models", [])
-                ]
-                if all_models and "aerich.models" not in all_models:
-                    raise UsageError(
-                        "You have to add 'aerich.models' in the models of your tortoise config"
-                    ) from e
+                _check_aerich_models_included(tortoise_config, e)
                 raise e
 
 
