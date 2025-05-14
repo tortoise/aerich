@@ -6,6 +6,7 @@ from typing import cast
 
 import asyncclick as click
 from asyncclick import Context, UsageError
+from tortoise.exceptions import ConfigurationError
 
 from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
@@ -83,7 +84,19 @@ async def cli(ctx: Context, config, app) -> None:
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
-            await command.init()
+            try:
+                await command.init()
+            except ConfigurationError as e:
+                all_models = [
+                    m
+                    for model in tortoise_config.get("apps", {}).values()
+                    for m in model.get("models", [])
+                ]
+                if all_models and "aerich.models" not in all_models:
+                    raise UsageError(
+                        "You have to add 'aerich.models' in the models of your tortoise config"
+                    ) from e
+                raise e
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")
