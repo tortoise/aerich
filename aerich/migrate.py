@@ -367,7 +367,7 @@ class Migrate:
         model: type[Model],
         old_models: dict,
         new_models: dict,
-        upgrade=True,
+        upgrade: bool = True,
     ) -> None:
         old_fk_fields = cast("list[dict]", old_model_describe.get(key))
         new_fk_fields = cast("list[dict]", new_model_describe.get(key))
@@ -391,6 +391,28 @@ class Migrate:
                 ref_describe = cast(dict, old_models[old_fk_field["python_type"]])
                 sql = cls._drop_fk(model, old_fk_field, ref_describe)
                 cls._add_operator(sql, upgrade, fk_m2m_index=True)
+        # alter
+        for field_name in set(old_fk_fields_name) & set(new_fk_fields_name):
+            old_fk_field = cls.get_field_by_name(field_name, old_fk_fields)
+            new_fk_field = cls.get_field_by_name(field_name, new_fk_fields)
+            for option, attr, old_new in diff(old_fk_field, new_fk_field):
+                if upgrade:
+                    print(f"{option = };{attr=};{old_new=};")
+                    print(f"{field_name=}; {new_fk_field=}")
+                if option != "change":
+                    continue
+                if attr == "on_delete":
+                    # TODO: add operator for on delete changing
+                    pass
+                elif attr in ("nullable", "description"):
+                    # Nullable/Description is handled by cls._handle_field_changes
+                    pass
+                elif upgrade:
+                    msg = (
+                        f"Aerich does not handle {attr!r} changes for {key},"
+                        " you may need to do it manually."
+                    )
+                    click.secho(msg, fg=Color.yellow)
 
     @classmethod
     def _handle_fk_fields(
