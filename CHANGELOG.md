@@ -1,6 +1,14 @@
 # ChangeLog
 
 ## 0.9
+
+### [0.9.1]**(Unreleased)**
+
+#### Fixed
+- fix: cryptic error message when 'aerich.models' not included. ([#454])
+
+[#454]: https://github.com/tortoise/aerich/pull/454
+
 ### [0.9.0](../../releases/tag/v0.9.0) - 2025-05-12
 
 #### Added

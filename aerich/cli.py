@@ -6,6 +6,7 @@ from typing import cast
 
 import asyncclick as click
 from asyncclick import Context, UsageError
+from tortoise.exceptions import ConfigurationError
 
 from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
@@ -35,6 +36,16 @@ def _patch_context_to_close_tortoise_connections_when_exit() -> None:
 _patch_context_to_close_tortoise_connections_when_exit()
 
 
+def _check_aerich_models_included(tortoise_config: dict, e: Exception | None = None) -> None:
+    all_models = [
+        m for model in tortoise_config.get("apps", {}).values() for m in model.get("models", [])
+    ]
+    if all_models and "aerich.models" not in all_models:
+        raise UsageError(
+            "You have to add 'aerich.models' in the models of your tortoise config"
+        ) from e
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
 @click.option(
@@ -46,7 +57,7 @@ _patch_context_to_close_tortoise_connections_when_exit()
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
-async def cli(ctx: Context, config, app) -> None:
+async def cli(ctx: Context, config: str, app: str) -> None:
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
 
@@ -78,12 +89,18 @@ async def cli(ctx: Context, config, app) -> None:
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         ctx.obj["command"] = command
-        if invoked_subcommand != "init-db":
+        if invoked_subcommand == "init-db":
+            _check_aerich_models_included(tortoise_config)
+        else:
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
-            await command.init()
+            try:
+                await command.init()
+            except ConfigurationError as e:
+                _check_aerich_models_included(tortoise_config, e)
+                raise e
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")
@@ -91,7 +108,7 @@ async def cli(ctx: Context, config, app) -> None:
 @click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
 @click.option("--no-input", default=False, is_flag=True, help="Do not ask for prompt.")
 @click.pass_context
-async def migrate(ctx: Context, name, empty, no_input) -> None:
+async def migrate(ctx: Context, name: str, empty: bool, no_input: bool) -> None:
     command = ctx.obj["command"]
     ret = await command.migrate(name, empty, no_input)
     if ret is None:
@@ -123,15 +140,12 @@ async def upgrade(ctx: Context, in_transaction: bool, fake: bool) -> None:
     command = ctx.obj["command"]
     migrated = await command.upgrade(run_in_transaction=in_transaction, fake=fake)
     if not migrated:
-        click.secho("No upgrade items found", fg=Color.yellow)
-    else:
-        for version_file in migrated:
-            if fake:
-                click.echo(
-                    f"Upgrading to {version_file}... " + click.style("FAKED", fg=Color.green)
-                )
-            else:
-                click.secho(f"Success upgrading to {version_file}", fg=Color.green)
+        return click.secho("No upgrade items found", fg=Color.yellow)
+    for version_file in migrated:
+        if fake:
+            click.echo(f"Upgrading to {version_file}... " + click.style("FAKED", fg=Color.green))
+        else:
+            click.secho(f"Success upgrading to {version_file}", fg=Color.green)
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -196,7 +210,7 @@ async def history(ctx: Context) -> None:
         click.secho(version, fg=Color.green)
 
 
-def _write_config(config_path, doc, table) -> None:
+def _write_config(config_path: Path, doc: dict, table: dict) -> None:
     tomlkit = imports_tomlkit()
 
     try:
@@ -227,7 +241,7 @@ def _write_config(config_path, doc, table) -> None:
     help="Folder of the source, relative to the project root.",
 )
 @click.pass_context
-async def init(ctx: Context, tortoise_orm, location, src_folder) -> None:
+async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) -> None:
     config_file = ctx.obj["config_file"]
 
     if os.path.isabs(src_folder):

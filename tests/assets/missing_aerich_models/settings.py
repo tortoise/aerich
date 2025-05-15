@@ -1,0 +1,23 @@
+import os
+from datetime import date
+
+from tortoise.contrib.test import MEMORY_SQLITE
+
+DB_URL = (
+    _u.replace("\\{\\}", f"aerich_missing_models_{date.today():%Y%m%d}")
+    if (_u := os.getenv("TEST_DB"))
+    else MEMORY_SQLITE
+)
+
+TORTOISE_ORM = {
+    "connections": {
+        "default": DB_URL.replace(MEMORY_SQLITE, "sqlite://db.sqlite3"),
+    },
+    "apps": {"models": {"models": ["models", "aerich.models"]}},
+}
+TORTOISE_ORM_NO_AERICH_MODELS = {
+    **TORTOISE_ORM,
+    "apps": {
+        "models": {"models": ["models"]},
+    },
+}
