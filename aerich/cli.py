@@ -57,7 +57,7 @@ def _check_aerich_models_included(tortoise_config: dict, e: Exception | None = N
 )
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
-async def cli(ctx: Context, config, app) -> None:
+async def cli(ctx: Context, config: str, app: str) -> None:
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
 
@@ -108,7 +108,7 @@ async def cli(ctx: Context, config, app) -> None:
 @click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
 @click.option("--no-input", default=False, is_flag=True, help="Do not ask for prompt.")
 @click.pass_context
-async def migrate(ctx: Context, name, empty, no_input) -> None:
+async def migrate(ctx: Context, name: str, empty: bool, no_input: bool) -> None:
     command = ctx.obj["command"]
     ret = await command.migrate(name, empty, no_input)
     if ret is None:
@@ -140,15 +140,12 @@ async def upgrade(ctx: Context, in_transaction: bool, fake: bool) -> None:
     command = ctx.obj["command"]
     migrated = await command.upgrade(run_in_transaction=in_transaction, fake=fake)
     if not migrated:
-        click.secho("No upgrade items found", fg=Color.yellow)
-    else:
-        for version_file in migrated:
-            if fake:
-                click.echo(
-                    f"Upgrading to {version_file}... " + click.style("FAKED", fg=Color.green)
-                )
-            else:
-                click.secho(f"Success upgrading to {version_file}", fg=Color.green)
+        return click.secho("No upgrade items found", fg=Color.yellow)
+    for version_file in migrated:
+        if fake:
+            click.echo(f"Upgrading to {version_file}... " + click.style("FAKED", fg=Color.green))
+        else:
+            click.secho(f"Success upgrading to {version_file}", fg=Color.green)
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -213,7 +210,7 @@ async def history(ctx: Context) -> None:
         click.secho(version, fg=Color.green)
 
 
-def _write_config(config_path, doc, table) -> None:
+def _write_config(config_path: Path, doc: dict, table: dict) -> None:
     tomlkit = imports_tomlkit()
 
     try:
@@ -244,7 +241,7 @@ def _write_config(config_path, doc, table) -> None:
     help="Folder of the source, relative to the project root.",
 )
 @click.pass_context
-async def init(ctx: Context, tortoise_orm, location, src_folder) -> None:
+async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) -> None:
     config_file = ctx.obj["config_file"]
 
     if os.path.isabs(src_folder):

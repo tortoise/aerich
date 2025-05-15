@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, overload
 
 import tortoise
-from tortoise import Tortoise, connections, generate_schema_for_client
+from tortoise import BaseDBAsyncClient, Tortoise, connections
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
-from tortoise.utils import get_schema_sql
+from tortoise.utils import generate_schema_for_client, get_schema_sql
 
 from aerich.exceptions import DowngradeError
 from aerich.inspectdb.mysql import InspectMySQL
@@ -27,12 +27,12 @@ from aerich.utils import (
 
 if TYPE_CHECKING:
     from tortoise import Model
-    from tortoise.fields.relational import ManyToManyFieldInstance  # NOQA:F401
+    from tortoise.fields.relational import ManyToManyFieldInstance
 
     from aerich.inspectdb import Inspect
 
 
-def _init_asyncio_patch():
+def _init_asyncio_patch() -> None:
     """
     Select compatible event loop for psycopg3.
 
@@ -52,15 +52,22 @@ def _init_asyncio_patch():
                 set_event_loop_policy(WindowsSelectorEventLoopPolicy())
 
 
-def _init_tortoise_0_24_1_patch():
+def _init_tortoise_0_24_1_patch() -> None:
     # this patch is for "tortoise-orm==0.24.1" to fix:
     # https://github.com/tortoise/tortoise-orm/issues/1893
     if tortoise.__version__ != "0.24.1":
         return
-    from tortoise.backends.base.schema_generator import BaseSchemaGenerator, cast, re
+    import re
+    from typing import cast
+
+    from tortoise.backends.base.schema_generator import BaseSchemaGenerator
 
     def _get_m2m_tables(
-        self, model: type[Model], db_table: str, safe: bool, models_tables: list[str]
+        self: BaseSchemaGenerator,
+        model: type[Model],
+        db_table: str,
+        safe: bool,
+        models_tables: list[str],
     ) -> list[str]:  # Copied from tortoise-orm
         m2m_tables_for_create = []
         for m2m_field in model._meta.m2m_fields:
@@ -161,7 +168,9 @@ class Command(AbstractAsyncContextManager):
     async def __aexit__(self, *args, **kw) -> None:
         await self.close()
 
-    async def _upgrade(self, conn, version_file, fake: bool = False) -> None:
+    async def _upgrade(
+        self, conn: BaseDBAsyncClient, version_file: str, fake: bool = False
+    ) -> None:
         file_path = Path(Migrate.migrate_location, version_file)
         m = import_py_file(file_path)
         upgrade = m.upgrade
