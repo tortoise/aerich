@@ -149,9 +149,9 @@ class Migrate:
         if conflict_files:
             if len(conflict_files) == 1:
                 file = Path(cls.migrate_location, conflict_files[0])
-                tip = f"Miration file exists({file}). Do you want to remove it?"
+                tip = f"Migration file exists({file}). Do you want to remove it?"
             else:
-                tip = f"Miration file exists({conflict_files}). Do you want to remove them?"
+                tip = f"Migration file exists({conflict_files}). Do you want to remove them?"
             overwrite = no_input or click.prompt(
                 tip,
                 default=False,
