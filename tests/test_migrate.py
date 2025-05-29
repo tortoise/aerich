@@ -1222,7 +1222,7 @@ def test_sort_files_containing_non_migrations(mocker):
         return_value=[
             "1_datetime_update.py",
             "11_datetime_update.py",
-            "10_datetime_update.py",
+            "10_datetime_update.pyc",
             "2_datetime_update.py",
             "not_a_migration.py",
             "999.py",

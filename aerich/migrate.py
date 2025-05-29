@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
-import os
+import pkgutil
 import re
 from collections.abc import Iterable
 from datetime import datetime
@@ -24,8 +24,9 @@ from aerich.utils import (
     get_app_connection,
     get_dict_diff_by_key,
     get_models_describe,
-    import_py_file,
+    import_py_module,
     is_default_function,
+    py_module_path,
     run_async,
 )
 
@@ -66,19 +67,21 @@ class Migrate:
         return next(filter(lambda x: x.get("name") == name, fields))
 
     @classmethod
-    def get_all_version_files(cls) -> list[str]:
-        def get_file_version(file_name: str) -> str:
-            return file_name.split("_")[0]
+    def get_all_version_modules(cls) -> list[pkgutil.ModuleInfo]:
+        def get_file_version(module: pkgutil.ModuleInfo) -> str:
+            return module.name.split("_")[0]
 
-        def is_version_file(file_name: str) -> bool:
-            if not file_name.endswith("py"):
+        def is_version_file(module: pkgutil.ModuleInfo) -> bool:
+            if "_" not in module.name:
                 return False
-            if "_" not in file_name:
-                return False
-            return get_file_version(file_name).isdigit()
+            return get_file_version(module).isdigit()
 
-        files = filter(is_version_file, os.listdir(cls.migrate_location))
+        files = filter(is_version_file, pkgutil.iter_modules([str(cls.migrate_location)]))
         return sorted(files, key=lambda x: int(get_file_version(x)))
+
+    @classmethod
+    def get_all_version_files(cls) -> list[str]:
+        return [m.name + ".py" for m in cls.get_all_version_modules()]
 
     @classmethod
     def _get_model(cls, model: str) -> type[Model]:
@@ -141,17 +144,17 @@ class Migrate:
     async def _generate_diff_py(cls, name, no_input: bool = False) -> str | None:
         content = cls._get_diff_file_content()
         version = await cls.generate_version(name)  # '<num>_<date>_<name>.py'
-        conflict_files = [
-            version_file
-            for version_file in cls.get_all_version_files()
-            if version_file.startswith(version.split("_")[0])
+        conflict_modules = [
+            version_module
+            for version_module in cls.get_all_version_modules()
+            if version_module.name.startswith(version.split("_")[0])
         ]
-        if conflict_files:
-            if len(conflict_files) == 1:
-                file = Path(cls.migrate_location, conflict_files[0])
+        if conflict_modules:
+            if len(conflict_modules) == 1:
+                file = py_module_path(conflict_modules[0])
                 tip = f"Migration file exists({file}). Do you want to remove it?"
             else:
-                tip = f"Migration file exists({conflict_files}). Do you want to remove them?"
+                tip = f"Migration file exists({[py_module_path(m) for m in conflict_modules]}). Do you want to remove them?"
             overwrite = no_input or click.prompt(
                 tip,
                 default=False,
@@ -161,8 +164,8 @@ class Migrate:
             if not overwrite:
                 return None
             # delete same version files
-            for version_file in conflict_files:
-                os.unlink(Path(cls.migrate_location, version_file))
+            for version_module in conflict_modules:
+                py_module_path(version_module).unlink()
 
         Path(cls.migrate_location, version).write_text(content, encoding="utf-8")
         return version
@@ -428,12 +431,12 @@ class Migrate:
             return False
         # For postgresql, if a unique_together was created when generating the table, it is
         # a constraint. And if it was created after table generated, it will be a unique index.
-        migrate_files = cls.get_all_version_files()
+        migrate_files = cls.get_all_version_modules()
         if len(migrate_files) < 2:
             return True
         pattern = re.compile(rf' "?{index_name}"? ')
         for filename in reversed(migrate_files[1:]):
-            module = import_py_file(Path(cls.migrate_location, filename))
+            module = import_py_module(filename)
             upgrade_sql = run_async(module.upgrade, None)
             if pattern.search(upgrade_sql):
                 line = [i for i in upgrade_sql.splitlines() if pattern.search(i)][0]

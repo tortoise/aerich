@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import pkgutil
 import platform
 from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
@@ -20,10 +20,13 @@ from aerich.inspectdb.sqlite import InspectSQLite
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import (
+    file_module_info,
     get_app_connection,
     get_app_connection_name,
     get_models_describe,
     import_py_file,
+    import_py_module,
+    py_module_path,
 )
 
 if TYPE_CHECKING:
@@ -179,10 +182,16 @@ class Command(AbstractAsyncContextManager):
         await self.close()
 
     async def _upgrade(
-        self, conn: BaseDBAsyncClient, version_file: str, fake: bool = False
+        self,
+        conn: BaseDBAsyncClient,
+        version_file: str,
+        fake: bool = False,
+        version_module: pkgutil.ModuleInfo | None = None,
     ) -> None:
-        file_path = Path(Migrate.migrate_location, version_file)
-        m = import_py_file(file_path)
+        if version_module is not None:
+            m = import_py_module(version_module)
+        else:
+            m = import_py_file(Path(Migrate.migrate_location, version_file))
         upgrade = m.upgrade
         if not fake:
             await conn.execute_script(await upgrade(conn))
@@ -194,7 +203,8 @@ class Command(AbstractAsyncContextManager):
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
-        for version_file in Migrate.get_all_version_files():
+        for version_module in Migrate.get_all_version_modules():
+            version_file = version_module.name + ".py"
             try:
                 exists = await Aerich.exists(version=version_file, app=self.app)
             except OperationalError:
@@ -203,10 +213,10 @@ class Command(AbstractAsyncContextManager):
                 app_conn_name = get_app_connection_name(self.tortoise_config, self.app)
                 if run_in_transaction:
                     async with in_transaction(app_conn_name) as conn:
-                        await self._upgrade(conn, version_file, fake=fake)
+                        await self._upgrade(conn, version_file, fake, version_module)
                 else:
                     app_conn = get_app_connection(self.tortoise_config, self.app)
-                    await self._upgrade(app_conn, version_file, fake=fake)
+                    await self._upgrade(app_conn, version_file, fake, version_module)
                 migrated.append(version_file)
         return migrated
 
@@ -229,8 +239,8 @@ class Command(AbstractAsyncContextManager):
             async with in_transaction(
                 get_app_connection_name(self.tortoise_config, self.app)
             ) as conn:
-                file_path = Path(Migrate.migrate_location, file)
-                m = import_py_file(file_path)
+                module_info = file_module_info(Migrate.migrate_location, Path(file).stem)
+                m = import_py_module(module_info)
                 downgrade = m.downgrade
                 downgrade_sql = await downgrade(conn)
                 if not downgrade_sql.strip():
@@ -239,7 +249,7 @@ class Command(AbstractAsyncContextManager):
                     await conn.execute_script(downgrade_sql)
                 await version_obj.delete()
                 if delete:
-                    os.unlink(file_path)
+                    py_module_path(module_info).unlink()
                 ret.append(file)
         return ret
 
