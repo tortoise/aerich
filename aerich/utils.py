@@ -7,7 +7,7 @@ import sys
 from collections.abc import Awaitable, Callable, Generator
 from pathlib import Path
 from types import ModuleType
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from anyio import from_thread
 from asyncclick import BadOptionUsage, ClickException, Context
@@ -102,7 +102,7 @@ def get_models_describe(app: str) -> dict:
     return ret
 
 
-def is_default_function(string: str) -> re.Match | None:
+def is_default_function(string: Any) -> re.Match | None:
     return re.match(r"^<function.+>$", str(string or ""))
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import cast
 
@@ -254,17 +255,62 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     add_src_path(src_folder)
     get_tortoise_config(ctx, tortoise_orm)
     config_path = Path(config_file)
-    content = config_path.read_text("utf-8") if config_path.exists() else "[tool.aerich]"
-    doc: dict = tomllib.loads(content)
-
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
-    if (aerich_config := doc.get("tool", {}).get("aerich")) and all(
-        aerich_config.get(k) == v for k, v in table.items()
-    ):
-        click.echo(f"Aerich config {config_file} already inited.")
-    else:
-        _write_config(config_path, doc, table)
+    if not config_path.exists():
+        text = "[tool.aerich]" + "".join(f'{os.linesep}{k}="{v}"' for k, v in table.items())
+        config_path.write_text(text, encoding="utf-8")
         click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
+    else:
+        content = config_path.read_text("utf-8")
+        doc: dict = tomllib.loads(content)
+        if (aerich_config := doc.get("tool", {}).get("aerich")) and all(
+            aerich_config.get(k) == v for k, v in table.items()
+        ):
+            click.echo(f"Aerich config {config_file} already inited.")
+            if Path(location).exists():
+                return
+        else:
+            item_title = "[tool.aerich]"
+            lines = content.splitlines()
+            if not (linesep := content[len(content.rstrip()) :].replace(" ", "")):
+                linesep = os.linesep
+                for sep in ("\n", "\r\n", "\r"):
+                    if sep.join(lines).strip() == content.strip():
+                        linesep = sep
+                        break
+            if aerich_config is None or item_title not in content:
+                # Add aerich config item
+                newlines = ["", "[tool.aerich]", *[f'{k}="{v}"' for k, v in table.items()]]
+                with config_path.open("a") as f:
+                    f.writelines([i + linesep for i in newlines])
+            else:
+                # Modify aerich config
+                if "#" not in content:
+                    _write_config(config_path, doc, table)
+                else:
+                    item_index = 0
+                    for index, line in enumerate(lines):
+                        if line.strip().startswith(item_title):
+                            item_index = index
+                            break
+                    for index, line in enumerate(lines[item_index + 1 :], item_index + 1):
+                        slim = line.strip()
+                        if slim.startswith("#"):
+                            continue
+                        if slim.startswith("["):
+                            break
+                        for key in table:
+                            if re.match(rf"{key}\s*=", slim):
+                                lines[index] = f'{key} = "{table.pop(key)}"'
+                                break
+                        else:
+                            continue
+                        if not table:
+                            break
+                    for key, value in table.items():
+                        lines.insert(item_index, f'{key} = "{value}"')
+
+            click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
 
     Path(location).mkdir(parents=True, exist_ok=True)
     click.secho(f"Success creating migrations folder {location}", fg=Color.green)
