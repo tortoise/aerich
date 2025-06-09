@@ -309,6 +309,10 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                             break
                     for key, value in table.items():
                         lines.insert(item_index, f'{key} = "{value}"')
+                    text = linesep.join(lines)
+                    if end := content[len(linesep.join(content.splitlines())) :]:
+                        text += end[len(end.rstrip()) :].replace(" ", "")
+                    config_path.write_text(text, encoding="utf-8")
 
             click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
 
