@@ -112,3 +112,9 @@ def tmp_aerich_project(tmp_path: Path):
     models_py = asset_dir / "models.py"
     with _new_aerich_project(tmp_path, asset_dir, models_py):
         yield
+
+
+@pytest.fixture
+def tmp_work_dir(tmp_path: Path) -> Generator[Path]:
+    with chdir(tmp_path):
+        yield tmp_path

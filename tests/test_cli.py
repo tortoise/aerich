@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -9,26 +8,18 @@ from pathlib import Path
 import pytest
 
 from aerich._compat import tomllib
-from tests._utils import chdir, run_shell
-
-
-@pytest.fixture
-def tmp_work_dir(tmp_path: Path) -> Generator[Path]:
-    with chdir(tmp_path):
-        yield tmp_path
+from tests._utils import prepare_py_files, run_shell
 
 
 @pytest.fixture
 def new_project(tmp_work_dir: Path) -> Generator[Path]:
-    asset_dir = Path(__file__).parent / "assets" / "migrate_no_input"
-    for file in asset_dir.glob("*.py"):
-        shutil.copy(file, file.name)
+    prepare_py_files("migrate_no_input")
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
     run_shell("aerich init-db", capture_output=False)
     yield tmp_work_dir
 
 
-def test_empty_migrate_with_no_input(new_project: Path):
+def test_empty_migrate_with_no_input(new_project: Path) -> None:
     output = run_shell("aerich migrate", cwd=new_project)
     assert "No changes detected" in output
     output = run_shell("aerich migrate --empty", cwd=new_project)
@@ -44,7 +35,7 @@ def test_empty_migrate_with_no_input(new_project: Path):
 
 
 @pytest.fixture
-async def project_with_unapplied_migrations(new_project: Path):
+async def project_with_unapplied_migrations(new_project: Path) -> None:
     models_py = Path("models.py")
     text = models_py.read_text()
     if "age" not in text:
@@ -52,35 +43,30 @@ async def project_with_unapplied_migrations(new_project: Path):
     run_shell("aerich migrate", cwd=new_project)
 
 
-def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations):
+def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations) -> None:
     # CliRunner change the entire interpreter state, so run it in subprocess
     output = run_shell("pytest _tests.py")
     assert "1 passed" in output
 
 
-def test_missing_aerich_models(tmp_path: Path):
-    asset_dir = Path(__file__).parent / "assets" / "missing_aerich_models"
-    with chdir(tmp_path):
-        for file in asset_dir.glob("*.py"):
-            shutil.copy(file, file.name)
-        run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS", capture_output=False)
-        output = run_shell("aerich init-db")
-        assert "You have to add 'aerich.models' in the models of your tortoise config" in output
-        output = run_shell("aerich migrate")
-        assert "need to run `aerich init-db` first" in output
-        output = run_shell("aerich upgrade")
-        assert "need to run `aerich init-db` first" in output
-        Path("migrations", "models").mkdir()
-        output = run_shell("aerich migrate")
-        assert "You have to add 'aerich.models' in the models of your tortoise config" in output
-        output = run_shell("aerich upgrade")
-        assert "You have to add 'aerich.models' in the models of your tortoise config" in output
+def test_missing_aerich_models(tmp_work_dir: Path) -> None:
+    prepare_py_files("missing_aerich_models")
+    run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS", capture_output=False)
+    output = run_shell("aerich init-db")
+    assert "You have to add 'aerich.models' in the models of your tortoise config" in output
+    output = run_shell("aerich migrate")
+    assert "need to run `aerich init-db` first" in output
+    output = run_shell("aerich upgrade")
+    assert "need to run `aerich init-db` first" in output
+    Path("migrations", "models").mkdir()
+    output = run_shell("aerich migrate")
+    assert "You have to add 'aerich.models' in the models of your tortoise config" in output
+    output = run_shell("aerich upgrade")
+    assert "You have to add 'aerich.models' in the models of your tortoise config" in output
 
 
-def test_aerich_init(tmp_work_dir: Path):
-    asset_dir = Path(__file__).parent / "assets" / "missing_aerich_models"
-    for file in ("settings.py", "models.py"):
-        shutil.copy(asset_dir / file, file)
+def test_aerich_init(tmp_work_dir: Path) -> None:
+    prepare_py_files("missing_aerich_models")
     toml_file = Path("pyproject.toml")
     # init without pyproject.toml
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
