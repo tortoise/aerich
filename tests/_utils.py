@@ -73,6 +73,7 @@ class Dialect:
         return not cls.test_db_url or "sqlite" in cls.test_db_url
 
 
+ASSETS = Path(__file__).parent / "assets"
 WINDOWS = platform.system() == "Windows"
 
 
@@ -85,3 +86,9 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
     if not r.stdout:
         return ""
     return r.stdout.decode()
+
+
+def prepare_py_files(asset_name: str, assets: Path = ASSETS) -> None:
+    asset_dir = assets / asset_name
+    for file in asset_dir.glob("*.py"):
+        shutil.copy(file, file.name)

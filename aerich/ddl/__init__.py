@@ -125,7 +125,7 @@ class BaseDDL:
         db_table = model._meta.db_table
         description = field_describe.get("description")
         db_column = cast(str, field_describe.get("db_column"))
-        db_field_types = cast(dict, field_describe.get("db_field_types"))
+        db_field_types = cast(dict[str, str], field_describe.get("db_field_types"))
         default = self._get_default(model, field_describe)
         if default is None:
             default = ""
@@ -138,7 +138,7 @@ class BaseDDL:
             template = self._ADD_COLUMN_TEMPLATE
         column = self.schema_generator._create_string(
             db_column=db_column,
-            field_type=db_field_types.get(self.DIALECT, db_field_types.get("")),
+            field_type=db_field_types.get(self.DIALECT) or db_field_types[""],
             nullable=" NOT NULL" if not field_describe.get("nullable") else "",
             unique=unique,
             comment=(
