@@ -257,7 +257,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     config_path = Path(config_file)
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
-        text = "[tool.aerich]" + "".join(f'{os.linesep}{k}="{v}"' for k, v in table.items())
+        text = "[tool.aerich]" + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())
         config_path.write_text(text, encoding="utf-8")
         click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
     else:
@@ -280,8 +280,9 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                         break
             if aerich_config is None or item_title not in content:
                 # Add aerich config item
-                newlines = ["", "[tool.aerich]", *[f'{k}="{v}"' for k, v in table.items()]]
+                newlines = [item_title, *[f'{k} = "{v}"' for k, v in table.items()]]
                 with config_path.open("a") as f:
+                    f.write(linesep)
                     f.writelines([i + linesep for i in newlines])
             else:
                 # Modify aerich config
@@ -293,8 +294,8 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                         if line.strip().startswith(item_title):
                             item_index = index
                             break
-                    for index, line in enumerate(lines[item_index + 1 :], item_index + 1):
-                        slim = line.strip()
+                    for index in range(item_index + 1, len(lines) + 1):
+                        slim = lines[index].strip()
                         if slim.startswith("#"):
                             continue
                         if slim.startswith("["):
