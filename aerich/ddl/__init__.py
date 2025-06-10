@@ -138,7 +138,7 @@ class BaseDDL:
             template = self._ADD_COLUMN_TEMPLATE
         column = self.schema_generator._create_string(
             db_column=db_column,
-            field_type=db_field_types.get(self.DIALECT) or db_field_types.get("", ""),
+            field_type=db_field_types.get(self.DIALECT) or db_field_types[""],
             nullable=" NOT NULL" if not field_describe.get("nullable") else "",
             unique=unique,
             comment=(
