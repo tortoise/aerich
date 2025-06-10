@@ -23,10 +23,11 @@ _check:
 	@ruff check $(checkfiles)
 	@mypy $(checkfiles)
 	@bandit -r aerich
+	@twine check dist/*
 check: deps _check
 
 _lint: _build
-	@ruff format $(checkfiles)
+	ruff format $(checkfiles)
 	ruff check --fix $(checkfiles)
 	mypy $(checkfiles)
 	bandit -c pyproject.toml -r $(checkfiles)
@@ -52,7 +53,7 @@ _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
 _build:
-	@poetry build
+	poetry build --clean
 build: deps _build
 
 ci: build _check _testall

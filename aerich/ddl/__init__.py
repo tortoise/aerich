@@ -125,7 +125,7 @@ class BaseDDL:
         db_table = model._meta.db_table
         description = field_describe.get("description")
         db_column = cast(str, field_describe.get("db_column"))
-        db_field_types = cast(dict[str, str], field_describe.get("db_field_types", {}))
+        db_field_types = cast(dict[str, str], field_describe.get("db_field_types"))
         default = self._get_default(model, field_describe)
         if default is None:
             default = ""
