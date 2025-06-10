@@ -24,7 +24,7 @@ _check:
 	@mypy $(checkfiles)
 	@bandit -r aerich
 	@twine check dist/*
-check: deps _check
+check: build _check
 
 _lint: _build
 	ruff format $(checkfiles)
