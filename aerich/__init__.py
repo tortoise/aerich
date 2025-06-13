@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import platform
+from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import tortoise
 from tortoise import BaseDBAsyncClient, Tortoise, connections
@@ -12,7 +13,7 @@ from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import generate_schema_for_client, get_schema_sql
 
-from aerich.exceptions import DowngradeError
+from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
@@ -162,6 +163,13 @@ class Command(AbstractAsyncContextManager):
         await self.init()
         return self
 
+    def __await__(self) -> Generator[Any, None, Command]:
+        # To support `command = await Command(tortoise_config)`
+        async def _self() -> Command:
+            return await self.__aenter__()
+
+        return _self().__await__()
+
     async def close(self) -> None:
         await connections.close_all()
 
@@ -273,7 +281,10 @@ class Command(AbstractAsyncContextManager):
         self, name: str = "update", empty: bool = False, no_input: bool = False
     ) -> str | None:
         # return None if same version migration file already exists, and new one not generated
-        return await Migrate.migrate(name, empty, no_input)
+        try:
+            return await Migrate.migrate(name, empty, no_input)
+        except NotInitedError as e:
+            raise NotInitedError("You have to call .init() first before migrate") from e
 
     async def init_db(self, safe: bool) -> None:
         location = self.location
@@ -295,12 +306,14 @@ class Command(AbstractAsyncContextManager):
         schema = get_schema_sql(connection, safe)
 
         version = await Migrate.generate_version()
+        aerich_content = get_models_describe(app)
         await Aerich.create(
             version=version,
             app=app,
-            content=get_models_describe(app),
+            content=aerich_content,
         )
         version_file = Path(dirname, version)
         content = MIGRATE_TEMPLATE.format(upgrade_sql=schema, downgrade_sql="")
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
+        Migrate._last_version_content = aerich_content
