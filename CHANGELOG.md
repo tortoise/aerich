@@ -2,11 +2,17 @@
 
 ## 0.9
 
-### [0.9.1]**(Unreleased)**
+### [0.9.2]**(Unreleased)**
+
+### [0.9.1](../../releases/tag/v0.9.1) - 2025-05-14
 
 #### Fixed
+- fix: `Command.migrate()` programmatically raises KeyError ([#462])
+- fix: `aerich init` removed comments in toml file ([#461])
 - fix: cryptic error message when 'aerich.models' not included. ([#454])
 
+[#462]: https://github.com/tortoise/aerich/pull/462
+[#461]: https://github.com/tortoise/aerich/pull/461
 [#454]: https://github.com/tortoise/aerich/pull/454
 
 ### [0.9.0](../../releases/tag/v0.9.0) - 2025-05-12
