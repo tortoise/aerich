@@ -35,6 +35,31 @@ class Column:
     decimal_places: int | None = None
     max_digits: int | None = None
 
+    @staticmethod
+    def trans_default(value: str, data_type: str, extra: str | None) -> str:
+        if data_type in ("tinyint", "INT"):
+            default = f"default={'True' if value == '1' else 'False'}, "
+        elif data_type == "bool":
+            default = f"default={'True' if value == 'true' else 'False'}, "
+        elif data_type in ("datetime", "timestamptz", "TIMESTAMP"):
+            if value == "CURRENT_TIMESTAMP":
+                if extra == "DEFAULT_GENERATED on update CURRENT_TIMESTAMP":
+                    default = "auto_now=True, "
+                else:
+                    default = "auto_now_add=True, "
+            else:
+                default = ""
+        else:
+            if "::" in value:
+                default = f"default={value.split('::')[0]}, "
+            elif value.endswith("()"):
+                default = ""
+            elif value == "":
+                default = 'default=""'
+            else:
+                default = f"default={value}, "
+        return default
+
     def translate(self) -> ColumnInfoDict:
         comment = default = length = index = null = pk = ""
         if self.pk:
@@ -44,6 +69,8 @@ class Column:
                 index = "unique=True, "
             elif self.index:
                 index = "db_index=True, "
+            if self.default is not None:
+                default = self.trans_default(self.default, self.data_type, self.extra)
         if self.data_type in ("varchar", "VARCHAR"):
             length = f"max_length={self.length}, "
         elif self.data_type in ("decimal", "numeric"):
@@ -56,27 +83,6 @@ class Column:
                 length = ", ".join(length_parts) + ", "
         if self.null:
             null = "null=True, "
-        if self.default is not None and not self.pk:
-            if self.data_type in ("tinyint", "INT"):
-                default = f"default={'True' if self.default == '1' else 'False'}, "
-            elif self.data_type == "bool":
-                default = f"default={'True' if self.default == 'true' else 'False'}, "
-            elif self.data_type in ("datetime", "timestamptz", "TIMESTAMP"):
-                if self.default == "CURRENT_TIMESTAMP":
-                    if self.extra == "DEFAULT_GENERATED on update CURRENT_TIMESTAMP":
-                        default = "auto_now=True, "
-                    else:
-                        default = "auto_now_add=True, "
-            else:
-                if "::" in self.default:
-                    default = f"default={self.default.split('::')[0]}, "
-                elif self.default.endswith("()"):
-                    default = ""
-                elif self.default == "":
-                    default = 'default=""'
-                else:
-                    default = f"default={self.default}, "
-
         if self.comment:
             comment = f"description='{self.comment}', "
         return {
