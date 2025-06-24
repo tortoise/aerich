@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Callable, TypedDict
 
 from tortoise import BaseDBAsyncClient
+
+from aerich.exceptions import NotSupportError
 
 
 class ColumnInfoDict(TypedDict):
@@ -99,11 +102,17 @@ class Column:
 class Inspect:
     _table_template = "class {table}(Model):\n"
 
-    def __init__(self, conn: BaseDBAsyncClient, tables: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        conn: BaseDBAsyncClient,
+        tables: list[str] | None = None,
+        special_fields: dict[str, str] | None = None,
+    ) -> None:
         self.conn = conn
         with contextlib.suppress(AttributeError):
             self.database = conn.database  # type:ignore[attr-defined]
         self.tables = tables
+        self._special_fields = special_fields
 
     @property
     def field_map(self) -> FieldMapDict:
@@ -112,16 +121,33 @@ class Inspect:
     async def inspect(self) -> str:
         if not self.tables:
             self.tables = await self.get_all_tables()
-        result = "from tortoise import Model, fields\n\n\n"
+        imports = ["from tortoise import Model, fields"]
         tables = []
         for table in self.tables:
             columns = await self.get_columns(table)
             fields = []
             model = self._table_template.format(table=table.title().replace("_", ""))
             for column in columns:
-                field = self.field_map[column.data_type](**column.translate())
+                try:
+                    trans_func = self.field_map[column.data_type]
+                except KeyError as e:
+                    if not self._special_fields or column.data_type not in self._special_fields:
+                        raise NotSupportError(
+                            f"Can't translate {column.data_type=} to be tortoise field"
+                        ) from e
+                    field_class = self._special_fields[column.data_type]
+                    if "." in field_class:  # e.g.: tortoise.contrib.mysql.fields.GeometryField
+                        module, field_class = field_class.rsplit(".", 1)
+                        imports.append(f"from {module} import {field_class}")
+                        trans_func = partial(
+                            self.get_field_string, field_class, is_normal_field=False
+                        )
+                    else:
+                        trans_func = partial(self.get_field_string, field_class)
+                field = trans_func(**column.translate())
                 fields.append("    " + field)
             tables.append(model + "\n".join(fields))
+        result = "\n".join(imports) + "\n\n"
         return result + "\n\n\n".join(tables)
 
     async def get_columns(self, table: str) -> list[Column]:
@@ -132,11 +158,16 @@ class Inspect:
 
     @staticmethod
     def get_field_string(
-        field_class: str, arguments: str = "{null}{default}{comment}", **kwargs
+        field_class: str,
+        arguments: str = "{null}{default}{comment}",
+        is_normal_field: bool = True,
+        **kwargs,
     ) -> str:
         name = kwargs["name"]
         field_params = arguments.format(**kwargs).strip().rstrip(",")
-        return f"{name} = fields.{field_class}({field_params})"
+        if is_normal_field:
+            field_class = "fields." + field_class
+        return f"{name} = {field_class}({field_params})"
 
     @classmethod
     def decimal_field(cls, **kwargs) -> str:

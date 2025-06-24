@@ -150,10 +150,12 @@ class Command(AbstractAsyncContextManager):
         tortoise_config: dict,
         app: str = "models",
         location: str = "./migrations",
+        inspectdb_fields: dict[str, str] | None = None,
     ) -> None:
         self.tortoise_config = tortoise_config
         self.app = app
         self.location = location
+        self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
 
     async def init(self) -> None:
@@ -265,6 +267,8 @@ class Command(AbstractAsyncContextManager):
         else:
             raise NotImplementedError(f"{dialect} is not supported")
         inspect = cls(connection, tables)
+        if self._inspectdb_fields:
+            inspect._special_fields = self._inspectdb_fields
         return await inspect.inspect()
 
     @overload
