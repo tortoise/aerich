@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+from dataclasses import dataclass
 from typing import Any, Callable, TypedDict
 
-from pydantic import BaseModel
 from tortoise import BaseDBAsyncClient
 
 
@@ -20,15 +20,16 @@ class ColumnInfoDict(TypedDict):
 FieldMapDict = dict[str, Callable[..., str]]
 
 
-class Column(BaseModel):
+@dataclass
+class Column:
     name: str
     data_type: str
     null: bool
     default: Any
-    comment: str | None = None
     pk: bool
     unique: bool
     index: bool
+    comment: str | None = None
     length: int | None = None
     extra: str | None = None
     decimal_places: int | None = None
