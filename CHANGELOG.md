@@ -4,6 +4,11 @@
 
 ### [0.9.2]**(Unreleased)**
 
+#### Changed
+- refactor: use dataclass instead of pydantic for inspectdb ([#466])
+
+[#466]: https://github.com/tortoise/aerich/pull/466
+
 ### [0.9.1](../../releases/tag/v0.9.1) - 2025-05-14
 
 #### Fixed
@@ -20,7 +25,7 @@
 #### Added
 - Support `--no-input` for aerich migrate. ([#450])
 
-### Changed
+#### Changed
 - Drop support for Python3.8. ([#446])
 - Ask confirm before delete same version migration file. ([#451])
 
@@ -55,7 +60,7 @@
 - fix: inspectdb raise KeyError 'int2' for smallint. ([#401])
 - fix: inspectdb not match data type 'DOUBLE' and 'CHAR' for MySQL. ([#187])
 
-### Changed
+#### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
 
 [#397]: https://github.com/tortoise/aerich/pull/397
