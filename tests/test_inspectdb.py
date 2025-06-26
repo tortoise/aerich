@@ -7,7 +7,7 @@ from tests._utils import (
     Dialect,
     prepare_py_files,
     requires_dialect,
-    run_shell,
+    run_in_subprocess,
     skip_dialect,
     tmp_daily_db,
 )
@@ -16,9 +16,14 @@ from tests._utils import (
 # TODO: remove skip decorator to test sqlite after #384 fixed
 @skip_dialect("sqlite")
 def test_inspect(new_aerich_project):
-    run_shell("aerich init -t settings.TORTOISE_ORM")
-    run_shell("aerich init-db")
-    ret = run_shell("aerich inspectdb -t product")
+    ok, out = run_in_subprocess("aerich init -t settings.TORTOISE_ORM")
+    if not ok:
+        print("Failed to init:", out)
+    ok, out = run_in_subprocess("aerich init-db")
+    if not ok:
+        print("ERROR init-db:", out)
+    ok, ret = run_in_subprocess("aerich inspectdb -t product")
+    assert ok, ret
     assert ret.startswith("from tortoise import Model, fields")
     assert "primary_key=True" in ret
     assert "fields.DatetimeField" in ret
@@ -33,8 +38,11 @@ def test_inspect(new_aerich_project):
 def test_inspect_vector(tmp_work_dir: Path):
     prepare_py_files("postgres_vector", suffix=".*")
     with tmp_daily_db():
-        run_shell("aerich init-db")
-        ret = run_shell("aerich inspectdb -t foo")
+        ok, out = run_in_subprocess("aerich init-db --pre='CREATE EXTENSION IF NOT EXISTS vector'")
+        if not ok:
+            print("ERROR init-db:", out)
+        ok, ret = run_in_subprocess("aerich inspectdb -t foo")
+    assert ok, ret
     expected = """
 from tortoise import Model, fields
 from tortoise.contrib.postgres.fields import TSVectorField

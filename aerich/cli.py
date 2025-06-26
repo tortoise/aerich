@@ -334,13 +334,14 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     help="Create tables only when they do not already exist.",
     show_default=True,
 )
+@click.option("--pre", required=False, help="SQL to execute before generating schemas.")
 @click.pass_context
-async def init_db(ctx: Context, safe: bool) -> None:
+async def init_db(ctx: Context, safe: bool, pre: str) -> None:
     command = ctx.obj["command"]
     app = command.app
     dirname = Path(command.location, app)
     try:
-        await command.init_db(safe)
+        await command.init_db(safe, pre)
         click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
         click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
     except FileExistsError:

@@ -290,12 +290,14 @@ class Command(AbstractAsyncContextManager):
         except NotInitedError as e:
             raise NotInitedError("You have to call .init() first before migrate") from e
 
-    async def init_db(self, safe: bool) -> None:
+    async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
         location = self.location
         app = self.app
 
         await Tortoise.init(config=self.tortoise_config)
         connection = get_app_connection(self.tortoise_config, app)
+        if pre_sql:
+            await connection.execute_script(pre_sql)
 
         dirname = Path(location, app)
         if not dirname.exists():

@@ -81,15 +81,17 @@ ASSETS = Path(__file__).parent / "assets"
 WINDOWS = platform.system() == "Windows"
 
 
-def run_shell(command: str, capture_output=True, **kw) -> str:
+def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, str]:
     if WINDOWS and command.startswith("aerich "):
         command = "python -m " + command
-    r = subprocess.run(shlex.split(command), capture_output=capture_output)
-    if r.returncode != 0 and r.stderr:
-        return r.stderr.decode()
-    if not r.stdout:
-        return ""
-    return r.stdout.decode()
+    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
+    ok = r.returncode == 0
+    out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
+    return ok, out
+
+
+def run_shell(command: str, capture_output=True, **kw) -> str:
+    return run_in_subprocess(command, capture_output, **kw)[1]
 
 
 def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> None:
@@ -113,9 +115,13 @@ def requires_dialect(
 
 @contextlib.contextmanager
 def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
-    run_shell("python db.py create", capture_output=False)
+    ok, out = run_in_subprocess("python db.py create")
+    if not ok:
+        raise OperationalError(out)
     try:
         yield
     finally:
         if not os.getenv(env_name):
-            run_shell("python db.py drop", capture_output=False)
+            ok, out = run_in_subprocess("python db.py drop")
+            if not ok:
+                raise OperationalError(out)
