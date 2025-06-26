@@ -26,7 +26,7 @@ version = "0.21.0"
 description = "asyncio bridge to the standard sqlite3 module"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "test"]
 files = [
     {file = "aiosqlite-0.21.0-py3-none-any.whl", hash = "sha256:2549cf4057f95f53dcba16f2b64e8e2791d7e1adedb13197dd8ed77bb226d7d0"},
     {file = "aiosqlite-0.21.0.tar.gz", hash = "sha256:131bb8056daa3bc875608c631c678cda73922a2d4ba8aec373b19f18c17e7aa3"},
@@ -61,19 +61,6 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 doc = ["Sphinx (>=8.2,<9.0)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx_rtd_theme"]
 test = ["anyio[trio]", "blockbuster (>=1.5.23)", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypothesis (>=4.0)", "psutil (>=5.9)", "pytest (>=7.0)", "trustme", "truststore (>=0.9.1) ; python_version >= \"3.10\"", "uvloop (>=0.21) ; platform_python_implementation == \"CPython\" and platform_system != \"Windows\" and python_version < \"3.14\""]
 trio = ["trio (>=0.26.1)"]
-
-[[package]]
-name = "async-timeout"
-version = "5.0.1"
-description = "Timeout context manager for asyncio programs"
-optional = true
-python-versions = ">=3.8"
-groups = ["main"]
-markers = "extra == \"asyncpg\" and python_version < \"3.11.0\""
-files = [
-    {file = "async_timeout-5.0.1-py3-none-any.whl", hash = "sha256:39e3809566ff85354557ec2398b55e096c8364bacac9405a7a1fa429e77fe76c"},
-    {file = "async_timeout-5.0.1.tar.gz", hash = "sha256:d9321a7a3d5a6a5e187e824d2fa0793ce379a202935782d555d6e9d2735677d3"},
-]
 
 [[package]]
 name = "asyncclick"
@@ -163,10 +150,9 @@ files = [
 name = "asyncpg"
 version = "0.30.0"
 description = "An asyncio PostgreSQL driver"
-optional = true
+optional = false
 python-versions = ">=3.8.0"
-groups = ["main"]
-markers = "extra == \"asyncpg\""
+groups = ["main", "test"]
 files = [
     {file = "asyncpg-0.30.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:bfb4dd5ae0699bad2b233672c8fc5ccbd9ad24b89afded02341786887e37927e"},
     {file = "asyncpg-0.30.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:dc1f62c792752a49f88b7e6f774c26077091b44caceb1983509edc18a2222ec0"},
@@ -218,9 +204,7 @@ files = [
     {file = "asyncpg-0.30.0-cp39-cp39-win_amd64.whl", hash = "sha256:8b684a3c858a83cd876f05958823b68e8d14ec01bb0c0d14a6704c5bf9711773"},
     {file = "asyncpg-0.30.0.tar.gz", hash = "sha256:c551e9928ab6707602f44811817f82ba3c446e018bfe1d3abecc8ba5f3eac851"},
 ]
-
-[package.dependencies]
-async-timeout = {version = ">=4.0.3", markers = "python_version < \"3.11.0\""}
+markers = {main = "extra == \"asyncpg\"", test = "python_version >= \"3.11\" and python_version < \"4.0\" or extra == \"asyncpg\""}
 
 [package.extras]
 docs = ["Sphinx (>=8.1.3,<8.2.0)", "sphinx-rtd-theme (>=1.2.2)"]
@@ -680,7 +664,7 @@ version = "2.1.0"
 description = "Simple module to parse ISO 8601 dates"
 optional = false
 python-versions = ">=3.7,<4.0"
-groups = ["main"]
+groups = ["main", "test"]
 markers = "python_version < \"4.0\""
 files = [
     {file = "iso8601-2.1.0-py3-none-any.whl", hash = "sha256:aac4145c4dcb66ad8b648a02830f5e2ff6c24af20f4f482689be402db2429242"},
@@ -1175,7 +1159,7 @@ version = "0.6.1"
 description = "Forked from pypika and streamline just for tortoise-orm"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "test"]
 markers = "python_version < \"4.0\""
 files = [
     {file = "pypika_tortoise-0.6.1-py3-none-any.whl", hash = "sha256:da15886f37b347e71f0869f9e4ee2f9259e6bb57455b45299c6c23d7927cbb6e"},
@@ -1270,7 +1254,7 @@ version = "2025.2"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "test"]
 files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
     {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
@@ -1612,7 +1596,7 @@ version = "0.25.1"
 description = "Easy async ORM for python, built with relations in mind"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "test"]
 files = [
     {file = "tortoise_orm-0.25.1-py3-none-any.whl", hash = "sha256:df0ef7e06eb0650a7e5074399a51ee6e532043308c612db2cac3882486a3fd9f"},
     {file = "tortoise_orm-0.25.1.tar.gz", hash = "sha256:4d5bfd13d5750935ffe636a6b25597c5c8f51c47e5b72d7509d712eda1a239fe"},
@@ -1620,6 +1604,7 @@ files = [
 
 [package.dependencies]
 aiosqlite = ">=0.16.0,<1.0.0"
+asyncpg = {version = "*", optional = true, markers = "extra == \"asyncpg\""}
 iso8601 = {version = ">=2.1.0,<3.0.0", markers = "python_version < \"4.0\""}
 pypika-tortoise = {version = ">=0.6.1,<1.0.0", markers = "python_version < \"4.0\""}
 pytz = "*"
@@ -1631,6 +1616,22 @@ asyncmy = ["asyncmy (>=0.2.8,<1.0.0) ; python_version < \"4.0\""]
 asyncodbc = ["asyncodbc (>=0.1.1,<1.0.0) ; python_version < \"4.0\""]
 asyncpg = ["asyncpg"]
 psycopg = ["psycopg[binary,pool] (>=3.0.12,<4.0.0)"]
+
+[[package]]
+name = "tortoise-vector"
+version = "0.1.4"
+description = "pgvector implementation for Tortoise-ORM"
+optional = false
+python-versions = ">=3.11,<4.0"
+groups = ["test"]
+markers = "python_version >= \"3.11\" and python_version < \"4.0\""
+files = [
+    {file = "tortoise_vector-0.1.4-py3-none-any.whl", hash = "sha256:d277ea0bec85858d559790e11d2779135824935f3bb6e81275744048f87e34d0"},
+    {file = "tortoise_vector-0.1.4.tar.gz", hash = "sha256:6d0cf318252042c2e6ad3d9d7c09ff4e207f37bf6b24414b34561dfd5d000c26"},
+]
+
+[package.dependencies]
+tortoise-orm = {version = ">=0.23", extras = ["asyncpg"]}
 
 [[package]]
 name = "twine"
@@ -1670,7 +1671,6 @@ files = [
     {file = "typing_extensions-4.14.0-py3-none-any.whl", hash = "sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af"},
     {file = "typing_extensions-4.14.0.tar.gz", hash = "sha256:8676b788e32f02ab42d9e7c61324048ae4c6d844a399eebace3d4979d75ceef4"},
 ]
-markers = {test = "python_version < \"3.11\""}
 
 [[package]]
 name = "tzdata"
@@ -1734,4 +1734,4 @@ toml = ["tomli-w", "tomlkit"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9"
-content-hash = "71ac9959de568607df828a42f8fae91ccac4e1090257b8cfa20a6b0d4129de3d"
+content-hash = "e8a51d8e81a86b7e8e27dd08d4f6ba650d7dbb45108cbce3a038401fedb7de7e"

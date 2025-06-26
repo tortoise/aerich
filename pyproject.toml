@@ -53,6 +53,7 @@ pytest-xdist = "^3.6.0"
 pytest-asyncio = "^0.21.2"
 # required for sha256_password by asyncmy
 cryptography = {version="*", python=">3.9.0,<3.9.1 || >3.9.1"}
+tortoise-vector = {version="^0.1.4", python=">=3.11,<4.0"}
 
 [tool.aerich]
 tortoise_orm = "conftest.tortoise_orm"

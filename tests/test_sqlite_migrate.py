@@ -10,7 +10,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from tests._utils import Dialect, prepare_py_files
+from tests._utils import Dialect, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str) -> subprocess.CompletedProcess | None:
@@ -54,9 +54,8 @@ def test_close_tortoise_connections_patch(tmp_work_dir: Path) -> None:
         assert r is not None
 
 
+@requires_dialect("sqlite")
 def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
     with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
@@ -91,9 +90,8 @@ class FooGroup(Model):
 """
 
 
+@requires_dialect("sqlite")
 def test_sqlite_migrate(tmp_work_dir: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
     with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         MODELS = models_text
         run_aerich("aerich init -t settings.TORTOISE_ORM")

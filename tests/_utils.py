@@ -5,9 +5,13 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
+from typing import Callable, Literal
 
 from tortoise import Tortoise, generate_schema_for_client
+from tortoise.contrib import test
+from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
 
 if sys.version_info >= (3, 11):
@@ -88,7 +92,30 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
     return r.stdout.decode()
 
 
-def prepare_py_files(asset_name: str, assets: Path = ASSETS) -> None:
+def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> None:
     asset_dir = assets / asset_name
-    for file in asset_dir.glob("*.py"):
+    for file in asset_dir.glob(f"*{suffix}"):
         shutil.copy(file, file.name)
+
+
+def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
+    return test.requireCapability("default", dialect=NotEQ(name))
+
+
+def requires_dialect(
+    name: Literal["sqlite", "mysql", "postgres"],
+    *more: Literal["sqlite", "mysql", "postgres"],
+) -> Callable:
+    if more and set(more) != {name}:
+        return test.requireCapability("default", dialect=In(name, *more))
+    return test.requireCapability("default", dialect=name)
+
+
+@contextlib.contextmanager
+def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
+    run_shell("python db.py create", capture_output=False)
+    try:
+        yield
+    finally:
+        if not os.getenv(env_name):
+            run_shell("python db.py drop", capture_output=False)
