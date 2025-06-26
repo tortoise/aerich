@@ -58,7 +58,7 @@ class Column:
             elif value.endswith("()"):
                 default = ""
             elif value == "":
-                default = 'default=""'
+                default = 'default="", '
             else:
                 default = f"default={value}, "
         return default
