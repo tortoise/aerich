@@ -136,14 +136,15 @@ class Inspect:
                             f"Can't translate {column.data_type=} to be tortoise field"
                         ) from e
                     field_class = self._special_fields[column.data_type]
+                    is_normal_field = True
                     if "." in field_class:  # e.g.: tortoise.contrib.mysql.fields.GeometryField
                         module, field_class = field_class.rsplit(".", 1)
-                        imports.append(f"from {module} import {field_class}")
-                        trans_func = partial(
-                            self.get_field_string, field_class, is_normal_field=False
-                        )
-                    else:
-                        trans_func = partial(self.get_field_string, field_class)
+                        if module != "fields":
+                            imports.append(f"from {module} import {field_class}")
+                            is_normal_field = False
+                    trans_func = partial(
+                        self.get_field_string, field_class, is_normal_field=is_normal_field
+                    )
                 field = trans_func(**column.translate())
                 fields.append("    " + field)
             tables.append(model + "\n".join(fields))

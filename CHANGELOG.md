@@ -7,6 +7,10 @@
 #### Changed
 - refactor: use dataclass instead of pydantic for inspectdb ([#466])
 
+#### Fixed
+- fix: pgvector data types cause errors ([#468])
+
+[#468]: https://github.com/tortoise/aerich/pull/468
 [#466]: https://github.com/tortoise/aerich/pull/466
 
 ### [0.9.1](../../releases/tag/v0.9.1) - 2025-05-14
