@@ -35,10 +35,10 @@ _lint: _build
 lint: deps _lint
 
 test: deps
-	$(py_warn) TEST_DB=sqlite://:memory: pytest
+	$(py_warn) pytest $(pytest_opts)
 
 test_sqlite:
-	$(py_warn) TEST_DB=sqlite://:memory: pytest
+	$(py_warn) TEST_DB=sqlite://:memory: pytest $(pytest_opts)
 
 test_mysql:
 	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" pytest -vv -s

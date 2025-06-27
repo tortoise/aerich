@@ -5,9 +5,13 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
+from typing import Callable, Literal
 
 from tortoise import Tortoise, generate_schema_for_client
+from tortoise.contrib import test
+from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
 
 if sys.version_info >= (3, 11):
@@ -77,18 +81,47 @@ ASSETS = Path(__file__).parent / "assets"
 WINDOWS = platform.system() == "Windows"
 
 
-def run_shell(command: str, capture_output=True, **kw) -> str:
+def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, str]:
     if WINDOWS and command.startswith("aerich "):
         command = "python -m " + command
-    r = subprocess.run(shlex.split(command), capture_output=capture_output)
-    if r.returncode != 0 and r.stderr:
-        return r.stderr.decode()
-    if not r.stdout:
-        return ""
-    return r.stdout.decode()
+    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
+    ok = r.returncode == 0
+    out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
+    return ok, out
 
 
-def prepare_py_files(asset_name: str, assets: Path = ASSETS) -> None:
+def run_shell(command: str, capture_output=True, **kw) -> str:
+    return run_in_subprocess(command, capture_output, **kw)[1]
+
+
+def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> None:
     asset_dir = assets / asset_name
-    for file in asset_dir.glob("*.py"):
+    for file in asset_dir.glob(f"*{suffix}"):
         shutil.copy(file, file.name)
+
+
+def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
+    return test.requireCapability("default", dialect=NotEQ(name))
+
+
+def requires_dialect(
+    name: Literal["sqlite", "mysql", "postgres"],
+    *more: Literal["sqlite", "mysql", "postgres"],
+) -> Callable:
+    if more and set(more) != {name}:
+        return test.requireCapability("default", dialect=In(name, *more))
+    return test.requireCapability("default", dialect=name)
+
+
+@contextlib.contextmanager
+def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
+    ok, out = run_in_subprocess("python db.py create")
+    if not ok:
+        raise OperationalError(out)
+    try:
+        yield
+    finally:
+        if not os.getenv(env_name):
+            ok, out = run_in_subprocess("python db.py drop")
+            if not ok:
+                raise OperationalError(out)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from tests._utils import Dialect, run_shell
+from tests._utils import run_shell, skip_dialect
 
 
 def _update_model(from_file: str) -> None:
@@ -11,10 +11,9 @@ def _update_model(from_file: str) -> None:
     shutil.copy(abspath, "models.py")
 
 
+# TODO: remove skip decorator to test sqlite if alter-column supported
+@skip_dialect("sqlite")
 def test_remove_unique_constraint(tmp_aerich_project):
-    if Dialect.is_sqlite():
-        # TODO: go ahead if sqlite alter-column supported
-        return
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
     assert "Success" in output
     output = run_shell("aerich init-db")

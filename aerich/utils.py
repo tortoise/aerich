@@ -43,19 +43,19 @@ def add_src_path(path: str) -> str:
     return path
 
 
-def get_app_connection_name(config, app_name: str) -> str:
+def get_app_connection_name(config: dict, app_name: str) -> str:
     """
     get connection name
     :param config:
     :param app_name:
     :return: the default connection name (Usally it is 'default')
     """
-    if app := config.get("apps").get(app_name):
+    if app := config["apps"].get(app_name):
         return app.get("default_connection", "default")
     raise BadOptionUsage(option_name="--app", message=f"Can't get app named {app_name!r}")
 
 
-def get_app_connection(config, app) -> BaseDBAsyncClient:
+def get_app_connection(config: dict, app: str) -> BaseDBAsyncClient:
     """
     get connection client
     :param config:

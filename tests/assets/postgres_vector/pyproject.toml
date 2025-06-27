@@ -1,0 +1,8 @@
+[tool.aerich]
+tortoise_orm = "settings.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
+
+[tool.aerich.inspectdb]
+tsvector = "tortoise.contrib.postgres.fields.TSVectorField"
+vector = "tortoise_vector.field.VectorField"

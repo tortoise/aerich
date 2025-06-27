@@ -75,11 +75,12 @@ async def cli(ctx: Context, config: str, app: str) -> None:
             tool = cast("dict[str, str]", doc["tool"]["aerich"])
             location = tool["location"]
             tortoise_orm = tool["tortoise_orm"]
-            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
         except KeyError as e:
             raise UsageError(
                 "You need run `aerich init` again when upgrading to aerich 0.6.0+."
             ) from e
+        else:
+            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
         add_src_path(src_folder)
         tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         if not app:
@@ -89,6 +90,8 @@ async def cli(ctx: Context, config: str, app: str) -> None:
                 raise UsageError('Config must define "apps" section') from None
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
+        if inspectdb_fields := tool.get("inspectdb"):
+            command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
         ctx.obj["command"] = command
         if invoked_subcommand == "init-db":
             _check_aerich_models_included(tortoise_config)
@@ -331,13 +334,14 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     help="Create tables only when they do not already exist.",
     show_default=True,
 )
+@click.option("--pre", required=False, help="SQL to execute before generating schemas.")
 @click.pass_context
-async def init_db(ctx: Context, safe: bool) -> None:
+async def init_db(ctx: Context, safe: bool, pre: str) -> None:
     command = ctx.obj["command"]
     app = command.app
     dirname = Path(command.location, app)
     try:
-        await command.init_db(safe)
+        await command.init_db(safe, pre)
         click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
         click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
     except FileExistsError:
