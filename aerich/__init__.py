@@ -201,7 +201,10 @@ class Command(AbstractAsyncContextManager):
                 exists = False
             if not exists:
                 app_conn_name = get_app_connection_name(self.tortoise_config, self.app)
-                if run_in_transaction:
+                file_path = Path(Migrate.migrate_location, version_file)
+                m = import_py_file(file_path)
+                migration_run_in_transaction = getattr(m, "RUN_IN_TRANSACTION", run_in_transaction)
+                if migration_run_in_transaction:
                     async with in_transaction(app_conn_name) as conn:
                         await self._upgrade(conn, version_file, fake=fake)
                 else:
