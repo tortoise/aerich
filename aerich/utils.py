@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import pkgutil
 import re
 import sys
 from collections.abc import Awaitable, Callable, Generator
+from importlib.machinery import FileFinder
 from pathlib import Path
 from types import ModuleType
 from typing import Any, TypeVar
@@ -116,12 +118,43 @@ def is_default_function(string: Any) -> re.Match | None:
     return re.match(r"^<function.+>$", str(string or ""))
 
 
+def file_module_info(path: str | Path, name: str) -> pkgutil.ModuleInfo:
+    for module_info in pkgutil.iter_modules([str(path)]):
+        if module_info.name == name:
+            return module_info
+    raise FileNotFoundError(f"Module {name} not found in path {path}")
+
+
 def import_py_file(file: str | Path) -> ModuleType:
     module_name, file_ext = os.path.splitext(os.path.split(file)[-1])
     spec = importlib.util.spec_from_file_location(module_name, file)
     module = importlib.util.module_from_spec(spec)  # type:ignore[arg-type]
     spec.loader.exec_module(module)  # type:ignore[union-attr]
     return module
+
+
+def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
+    module_finder: FileFinder
+    name: str
+    ispkg: bool
+    module_finder, name, ispkg = module_info  # type:ignore[assignment]
+    module_finder.invalidate_caches()
+    spec = module_finder.find_spec(name)
+    module = importlib.util.module_from_spec(spec)  # type:ignore[arg-type]
+    spec.loader.exec_module(module)  # type:ignore[union-attr]
+    return module
+
+
+def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
+    module_finder: FileFinder
+    name: str
+    ispkg: bool
+    module_finder, name, ispkg = module_info  # type:ignore[assignment]
+    module_finder.invalidate_caches()
+    spec = module_finder.find_spec(name)
+    if not spec or not spec.origin or not Path(spec.origin).is_file():
+        raise FileNotFoundError(f"Module {name} not found in {module_finder.path}.")
+    return Path(spec.origin)
 
 
 def get_dict_diff_by_key(
