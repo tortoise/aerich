@@ -1,4 +1,5 @@
 from aerich.utils import get_dict_diff_by_key, import_py_file
+from tests._utils import copy_asset, run_shell
 
 
 def test_import_py_file() -> None:
@@ -162,3 +163,11 @@ class TestDiffFields:
             ("change", [0, "name"], ("admins", "admins_new")),
             ("change", [0, "name"], ("users", "users_new")),
         ]
+
+
+def test_read_config_from_class_var(tmp_work_dir):
+    copy_asset("class_var_config")
+    output = run_shell("aerich init -t app.core.config.settings.TORTOISE_ORM")
+    assert "Success writing aerich config to pyproject.toml" in output
+    output = run_shell("aerich init-db")
+    assert "Success" in output
