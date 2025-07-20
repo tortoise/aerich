@@ -28,9 +28,7 @@ class MysqlDDL(BaseDDL):
     _ADD_INDEXED_UNIQUE_TEMPLATE = (
         "ALTER TABLE `{table_name}` DROP INDEX `{index_name}`, ADD UNIQUE (`{column_name}`)"
     )
-    _DROP_INDEXED_UNIQUE_TEMPLATE = (
-        "ALTER TABLE `{table_name}` DROP INDEX `{column_name}`, ADD INDEX (`{index_name}`)"
-    )
+    _DROP_INDEXED_UNIQUE_TEMPLATE = "ALTER TABLE `{table_name}` DROP INDEX `{column_name}`, ADD INDEX `{index_name}` (`{column_name}`)"
     _ADD_FK_TEMPLATE = "ALTER TABLE `{table_name}` ADD CONSTRAINT `{fk_name}` FOREIGN KEY (`{db_column}`) REFERENCES `{table}` (`{field}`) ON DELETE {on_delete}"
     _DROP_FK_TEMPLATE = "ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"
     _M2M_TABLE_TEMPLATE = (

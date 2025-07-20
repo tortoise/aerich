@@ -959,9 +959,10 @@ def test_migrate(mocker: MockerFixture, capsys):
     - remove unique: Category.title
     - add unique: User.username
     - change column: length User.password
+    - drop unique field: Product.uid
     - add unique_together: (name,type) of Product
     - add one more many to many field: Product.users
-    - drop unique field: Config.name
+    - change unique to normal index: Config.name
     - alter default: Config.status
     - rename column: Product.image -> Product.pic
     - rename column: Product.is_review -> Product.is_reviewed
@@ -994,8 +995,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `category` ADD FULLTEXT INDEX `idx_category_slug_e9bcff` (`slug`)",
             "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
             "ALTER TABLE `email` DROP COLUMN `user_id`",
-            "ALTER TABLE `config` DROP COLUMN `name`",
-            "ALTER TABLE `config` DROP INDEX `name`",
+            "ALTER TABLE `config` DROP INDEX `name`, ADD INDEX `idx_config_name_2c83c8` (`name`)",
             "ALTER TABLE `config` ADD `user_id` INT NOT NULL COMMENT 'User'",
             "ALTER TABLE `config` ADD CONSTRAINT `fk_config_user_17daa970` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
             "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
@@ -1043,8 +1043,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_110d4c63`",
             "ALTER TABLE `category` ADD INDEX `idx_category_slug_e9bcff` (`slug`)",
             "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
-            "ALTER TABLE `config` ADD `name` VARCHAR(100) NOT NULL UNIQUE",
-            "ALTER TABLE `config` ADD UNIQUE INDEX `name` (`name`)",
+            "ALTER TABLE `config` DROP INDEX `idx_config_name_2c83c8`, ADD UNIQUE (`name`)",
             "ALTER TABLE `config` DROP FOREIGN KEY `fk_config_user_17daa970`",
             "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
             "ALTER TABLE `config` DROP COLUMN `user_id`",
@@ -1055,7 +1054,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `email` DROP COLUMN `config_id`",
             "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_config_88e28c1b`",
             "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
-            "ALTER TABLE `email` DROP INDEX `company`, ADD INDEX (`idx_email_company_1c9234`)",
+            "ALTER TABLE `email` DROP INDEX `company`, ADD INDEX `idx_email_company_1c9234` (`company`)",
             "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
             "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
             "ALTER TABLE `product` ADD `uuid` INT NOT NULL UNIQUE",
@@ -1096,7 +1095,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug")',
             'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
             'ALTER TABLE "configs" RENAME TO "config"',
-            'ALTER TABLE "config" DROP COLUMN "name"',
+            'CREATE INDEX IF NOT EXISTS "idx_config_name_2c83c8" ON "config" ("name")',
             'DROP INDEX IF EXISTS "uid_config_name_2c83c8"',
             'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
@@ -1146,13 +1145,13 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_110d4c63"',
             'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
             'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" ("slug")',
-            'ALTER TABLE "config" ADD "name" VARCHAR(100) NOT NULL UNIQUE',
-            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_config_name_2c83c8" ON "config" ("name")',
             'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
             'ALTER TABLE "config" DROP CONSTRAINT IF EXISTS "fk_config_user_17daa970"',
-            'ALTER TABLE "config" RENAME TO "configs"',
             'ALTER TABLE "config" DROP COLUMN "user_id"',
             'ALTER TABLE "config" ALTER COLUMN "slug" TYPE VARCHAR(10) USING "slug"::VARCHAR(10)',
+            'DROP INDEX IF EXISTS "idx_config_name_2c83c8"',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_config_name_2c83c8" ON "config" ("name")',
+            'ALTER TABLE "config" RENAME TO "configs"',
             'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "email" DROP COLUMN "address"',
             'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
