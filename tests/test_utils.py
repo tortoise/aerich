@@ -171,3 +171,13 @@ def test_read_config_from_class_var(tmp_work_dir):
     assert "Success writing aerich config to pyproject.toml" in output
     output = run_shell("aerich init-db")
     assert "Success" in output
+    output = run_shell("pytest _tests.py::test_init_db")
+    assert "error" not in output.lower()
+    with open("app/models.py", "a+") as f:
+        f.write("    age = fields.IntField(null=True)\n")
+    output = run_shell("aerich migrate")
+    assert "Success" in output
+    output = run_shell("aerich upgrade")
+    assert "Success" in output
+    output = run_shell("pytest _tests.py::test_migrate_upgrade")
+    assert "error" not in output.lower()

@@ -36,10 +36,14 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def TORTOISE_ORM(self) -> dict[str, dict[str, Any]]:
-        db_url = "sqlite://db.sqlite3" if self.ENVIRONMENT == "local" else str(self.DATABASE_URI)
+        db_url = (
+            "sqlite://db.sqlite3"
+            if self.ENVIRONMENT == "local"
+            else str(self.DATABASE_URI)
+        )
         return {
             "connections": {"default": db_url},
-            "apps": {"models": {"models": ["models", "aerich.models"]}},
+            "apps": {"models": {"models": ["app.models", "aerich.models"]}},
         }
 
 
