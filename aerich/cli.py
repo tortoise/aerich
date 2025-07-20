@@ -7,7 +7,6 @@ from typing import cast
 
 import asyncclick as click
 from asyncclick import Context, UsageError
-from tortoise.exceptions import ConfigurationError
 
 from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
@@ -37,25 +36,26 @@ def _patch_context_to_close_tortoise_connections_when_exit() -> None:
 _patch_context_to_close_tortoise_connections_when_exit()
 
 
-def _check_aerich_models_included(tortoise_config: dict, e: Exception | None = None) -> None:
-    all_models = [
-        m for model in tortoise_config.get("apps", {}).values() for m in model.get("models", [])
-    ]
-    if all_models and "aerich.models" not in all_models:
-        raise UsageError(
-            "You have to add 'aerich.models' in the models of your tortoise config"
-        ) from e
+def _check_aerich_models_included(tortoise_config: dict) -> None:
+    # e.g.: tortoise_config = {'apps': {'app_1': {'models': ['models']}}}
+    apps: dict[str, dict[str, list]] = tortoise_config.get("apps", {})
+    app_values: list[dict[str, list[str]]] = list(apps.values())
+    all_models: set[str] = {m for model in app_values for m in model.get("models", [])}
+    if not all_models:
+        return
+    aerich_item = "aerich.models"
+    if aerich_item in all_models:
+        return
+    if len(apps) == 1:
+        # Auto add 'aerich.models' if there is only one app
+        apps[list(apps)[0]]["models"].append(aerich_item)
+        return
+    raise UsageError(f"You have to add {aerich_item!r} in the models of your tortoise config")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
-@click.option(
-    "-c",
-    "--config",
-    default="pyproject.toml",
-    show_default=True,
-    help="Config file.",
-)
+@click.option("-c", "--config", default="pyproject.toml", show_default=True, help="Config file.")
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
 async def cli(ctx: Context, config: str, app: str) -> None:
@@ -93,18 +93,13 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         if inspectdb_fields := tool.get("inspectdb"):
             command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
         ctx.obj["command"] = command
-        if invoked_subcommand == "init-db":
-            _check_aerich_models_included(tortoise_config)
-        else:
+        _check_aerich_models_included(tortoise_config)
+        if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
-            try:
-                await command.init()
-            except ConfigurationError as e:
-                _check_aerich_models_included(tortoise_config, e)
-                raise e
+            await command.init()
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")
