@@ -1,6 +1,5 @@
 import pytest
 from tortoise import Tortoise
-from tortoise.exceptions import OperationalError
 
 from app.core.config import settings
 from app.models import Foo
@@ -24,7 +23,7 @@ async def init_connections():
 async def test_init_db():
     await Foo.create(name="foo")
     obj = await Foo.create(name="foo", age=1)
-    assert not hasattr(obj, 'age')
+    assert not hasattr(obj, "age")
 
 
 @pytest.mark.anyio
