@@ -81,9 +81,18 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
     try:
         config_module = importlib.import_module(config_path)
     except ModuleNotFoundError as e:
-        raise ClickException(f"Error while importing configuration module: {e}") from None
-
-    config = getattr(config_module, tortoise_config, None)
+        if len(splits) < 3:
+            raise ClickException(f"Error while importing configuration module: {e}") from None
+        module_path = ".".join(splits[:-2])
+        try:
+            config_module = importlib.import_module(module_path)
+        except ModuleNotFoundError as e:
+            raise ClickException(f"Failed to import configuration module: {e}") from None
+        tortoise_config = splits[-2] + "." + splits[-1]
+        config_class = getattr(config_module, splits[-2], None)
+        config = getattr(config_class, splits[-1], None)
+    else:
+        config = getattr(config_module, tortoise_config, None)
     if not config:
         raise BadOptionUsage(
             option_name="--config",
