@@ -111,6 +111,7 @@ class Config(Model):
     categories: fields.ManyToManyRelation[Category] = fields.ManyToManyField(
         "models.Category", through="config_category_map", related_name="category_set"
     )
+    name = fields.CharField(max_length=100, db_index=True)
     label = fields.CharField(max_length=200)
     key = fields.CharField(max_length=20)
     value: dict = fields.JSONField()
