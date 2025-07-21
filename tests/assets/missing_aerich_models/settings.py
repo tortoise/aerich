@@ -21,3 +21,17 @@ TORTOISE_ORM_NO_AERICH_MODELS = {
         "models": {"models": ["models"]},
     },
 }
+TORTOISE_ORM_MULTI_APPS_WITHOUT_AERICH_MODELS = {
+    **TORTOISE_ORM,
+    "apps": {
+        "models": {"models": ["models"]},
+        "other_models": {"models": ["other_models"]},
+    },
+}
+TORTOISE_ORM_MULTI_APPS = {
+    **TORTOISE_ORM,
+    "apps": {
+        "models": {"models": ["models", "aerich.models"]},
+        "other_models": {"models": ["other_models"]},
+    },
+}
