@@ -8,30 +8,29 @@ POSTGRES_PORT ?= 5432
 POSTGRES_PASS ?= 123456
 
 up:
-	@poetry update
+	@uv lock --upgrade
 
 deps:
-	@poetry install --all-extras --all-groups
+	@uv sync --all-extras --all-groups $(options)
 
 _style:
-	@ruff check --fix $(checkfiles)
 	@ruff format $(checkfiles)
+	@ruff check --fix $(checkfiles)
 style: deps _style
 
-_check:
-	@ruff format --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-	@ruff check $(checkfiles)
-	@mypy $(checkfiles)
-	@bandit -r aerich
-	@twine check dist/*
-check: build _check
-
-_lint: _build
-	ruff format $(checkfiles)
-	ruff check --fix $(checkfiles)
+_codeqc:
 	mypy $(checkfiles)
 	bandit -c pyproject.toml -r $(checkfiles)
 	twine check dist/*
+codeqc: build _codeqc
+
+_check: _build
+	@ruff format --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
+	@ruff check $(checkfiles)
+	$(MAKE) _codeqc
+check: deps _check
+
+_lint: _build _style _codeqc
 lint: deps _lint
 
 test: deps
@@ -53,7 +52,7 @@ _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
 _build:
-	poetry build --clean
+	uv build
 build: deps _build
 
 ci: build _check _testall
