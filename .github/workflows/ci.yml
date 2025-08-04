@@ -62,7 +62,7 @@ jobs:
       - name: Install TortoiseORM develop branch
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-          uv pip uninstall -y tortoise-orm
+          uv pip uninstall tortoise-orm
           uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
       - name: CI
         env:
@@ -77,7 +77,7 @@ jobs:
         # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-            uv pip uninstall -y asyncmy
+            uv pip uninstall asyncmy
             uv run make test_mysql
             uv pip install asyncmy
         env:
