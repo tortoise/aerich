@@ -1,4 +1,5 @@
 import re
+import shutil
 import subprocess  # nosec
 import sys
 from pathlib import Path
@@ -12,15 +13,18 @@ def test_python_m_aerich():
 
 
 def test_poetry_add(tmp_work_dir: Path):
-    run_shell('poetry init --no-interaction --python=">=3.9"')
+    poetry = "poetry"
+    if shutil.which(poetry) is None:
+        poetry = "uvx " + poetry
+    run_shell(f'{poetry} init --no-interaction --python=">=3.9"')
     py = "{}.{}".format(*sys.version_info)
-    run_shell("poetry config --local virtualenvs.in-project true")
-    run_shell(f"poetry env use {py}")
+    run_shell(f"{poetry} config --local virtualenvs.in-project true")
+    run_shell(f"{poetry} env use {py}")
     package = Path(__file__).parent.resolve().parent
-    r = subprocess.run(["poetry", "add", package])  # nosec
+    r = subprocess.run([*poetry.split(), "add", package])  # nosec
     assert r.returncode == 0
     out = subprocess.run(
-        ["poetry", "run", "pip", "list"],
+        [*poetry.split(), "run", "pip", "list"],
         text=True,
         capture_output=True,
         encoding="utf-8",
