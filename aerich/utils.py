@@ -167,7 +167,7 @@ def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
 
 
 def get_dict_diff_by_key(
-    old_fields: list[dict], new_fields: list[dict], key="through"
+    old_fields: list[dict], new_fields: list[dict], key: str | tuple[str, str] = "through"
 ) -> Generator[tuple]:
     """
     Compare two list by key instead of by index
@@ -192,10 +192,13 @@ def get_dict_diff_by_key(
     if length_old == 0 or length_new == 0 or length_old == length_new == 1:
         yield from diff(old_fields, new_fields)
     else:
-        value_index: dict[str, int] = {f[key]: i for i, f in enumerate(new_fields)}
+        value_index: dict[str | tuple[str, str], int] = {
+            f[key] if isinstance(key, str) else (f[key[0]], f[key[1]]): i
+            for i, f in enumerate(new_fields)
+        }
         additions = set(range(length_new))
         for field in old_fields:
-            value = field[key]
+            value = field[key] if isinstance(key, str) else (field[key[0]], field[key[1]])
             if (index := value_index.get(value)) is not None:
                 additions.remove(index)
                 yield from diff([field], [new_fields[index]])  # change

@@ -302,7 +302,12 @@ class Migrate:
             for field in new_models.values()
             if field.get("managed") is not False
         }
-        for action, option, change in get_dict_diff_by_key(old_m2m_fields, new_m2m_fields):
+        key: str | tuple[str, str] = "through"
+        if (old_m2m_fields and (len(old_m2m_fields) > len({i[key] for i in old_m2m_fields}))) or (
+            new_m2m_fields and (len(new_m2m_fields) > len({i[key] for i in new_m2m_fields}))
+        ):  # If there two fields with same through
+            key = (cast(str, key), "backward_key")
+        for action, option, change in get_dict_diff_by_key(old_m2m_fields, new_m2m_fields, key):
             if action == "change":
                 # Example:: action = 'change'; option = [0, 'unique']; change = (False, True)
                 attr = option[-1]
