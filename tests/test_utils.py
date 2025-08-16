@@ -164,6 +164,62 @@ class TestDiffFields:
             ("change", [0, "name"], ("users", "users_new")),
         ]
 
+    def test_use_second_key(self) -> None:
+        old = [
+            {
+                "through": "users_users",
+                "_generated": False,
+                "backward_key": "users_rel_id",
+                "field_type": "ManyToManyFieldInstance",
+                "forward_key": "users_id",
+                "generated": False,
+                "model_name": "models.Users",
+                "name": "friends",
+                "python_type": "models.Users",
+                "related_name": "friends_of",
+            },
+            {
+                "through": "users_users",
+                "_generated": True,
+                "backward_key": "users_id",
+                "field_type": "ManyToManyFieldInstance",
+                "forward_key": "users_rel_id",
+                "generated": False,
+                "model_name": "models.Users",
+                "name": "friends_of",
+                "python_type": "models.Users",
+                "related_name": "friends",
+            },
+        ]
+        new = [
+            {
+                "through": "users_users",
+                "_generated": True,
+                "backward_key": "users_id",
+                "field_type": "ManyToManyFieldInstance",
+                "forward_key": "users_rel_id",
+                "generated": False,
+                "model_name": "models.Users",
+                "name": "friends_of",
+                "python_type": "models.Users",
+                "related_name": "friends",
+            },
+            {
+                "through": "users_users",
+                "_generated": False,
+                "backward_key": "users_rel_id",
+                "field_type": "ManyToManyFieldInstance",
+                "forward_key": "users_id",
+                "generated": False,
+                "model_name": "models.Users",
+                "name": "friends",
+                "python_type": "models.Users",
+                "related_name": "friends_of",
+            },
+        ]
+        diffs = list(get_dict_diff_by_key(old, new))
+        assert not diffs
+
 
 def test_read_config_from_class_var(tmp_work_dir):
     copy_asset("class_var_config")
