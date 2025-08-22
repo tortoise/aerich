@@ -3,10 +3,9 @@ name = "aerich"
 dynamic = ["version"]
 description = "A database migrations tool for Tortoise ORM."
 authors = [{name="long2ice", email="long2ice@gmail.com>"}]
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 readme = "README.md"
 keywords = ["migrate", "Tortoise-ORM", "mysql"]
-include = ["CHANGELOG.md", "LICENSE", "README.md"]
 requires-python = ">=3.9"
 dependencies = [
   "tortoise-orm (>=0.21.0,<1.0.0)",
@@ -74,6 +73,10 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 version = {source="file", path="aerich/version.py"}
+
+[tool.pdm.build]
+excludes = ["./**/.git", "./**/.*_cache"]
+include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = 'auto'

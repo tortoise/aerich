@@ -1,7 +1,6 @@
 import asyncclick as click
+from _utils import drop_db, init_db
 from settings import TORTOISE_ORM
-
-from tests._utils import drop_db, init_db
 
 
 @click.group()
