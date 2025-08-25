@@ -52,6 +52,7 @@ _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
 _build:
+	rm -fR dist/
 	uv build
 build: deps _build
 

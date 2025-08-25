@@ -37,6 +37,7 @@ toml = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "anyio" },
     { name = "bandit" },
     { name = "mypy" },
     { name = "ruff" },
@@ -69,6 +70,7 @@ provides-extras = ["toml", "asyncpg", "psycopg", "asyncmy", "mysql"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "anyio", specifier = ">=4.10.0" },
     { name = "bandit", specifier = ">=1.7.0" },
     { name = "mypy", specifier = ">=1.10.0" },
     { name = "ruff", specifier = ">=0.9.0" },
@@ -124,9 +126,9 @@ version = "4.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "idna", marker = "python_full_version < '3.11'" },
-    { name = "sniffio", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "idna" },
+    { name = "sniffio" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f1/b4/636b3b65173d3ce9a38ef5f0522789614e590dab6a8d505340a4efe4c567/anyio-4.10.0.tar.gz", hash = "sha256:3f3fae35c96039744587aa5b8371e7e8e603c0702999535961dd336026973ba6" }
 wheels = [

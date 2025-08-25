@@ -44,6 +44,7 @@ dev = [
     "bandit >=1.7.0",
     "mypy >=1.10.0",
     "twine >=6.1.0",
+    "anyio>=4.10.0",
 ]
 test = [
     "pytest >=8.3.0",
