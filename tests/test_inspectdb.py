@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -35,6 +36,10 @@ def test_inspect(new_aerich_project):
 
 @requires_dialect("postgres")
 @test.skipIf(sys.version_info < (3, 11), "tortoise-vector requires python>=3.11")
+@test.skipIf(
+    not (_v := os.getenv("AERICH_TEST_VECTOR")) or _v.lower() not in ("1", "on", "yes", "true"),
+    "Skip as os env 'AERICH_TEST_VECTOR' is not true",
+)
 def test_inspect_vector(tmp_work_dir: Path):
     prepare_py_files("postgres_vector", suffix=".*")
     with tmp_daily_db():

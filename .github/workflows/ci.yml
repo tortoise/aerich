@@ -84,10 +84,12 @@ jobs:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
-      - name: Verify psycopg support
+      - name: Verify psycopg/tortoise-vector support
         # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoisedev'
-        run: uv run make test_psycopg
+        run: |
+          uv run make test_psycopg
+          uv run make test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1

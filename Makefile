@@ -45,6 +45,9 @@ test_mysql:
 test_postgres:
 	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
 
+test_postgres_vector:
+	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s tests/test_inspectdb.py::test_inspect_vector
+
 test_psycopg:
 	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
 
