@@ -125,6 +125,10 @@ def requires_dialect(
 
 @contextlib.contextmanager
 def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
+    me = Path(__file__)
+    if not me.is_relative_to(Path.cwd()):
+        shutil.copy(me, ".")
+    run_in_subprocess("python db.py drop")
     ok, out = run_in_subprocess("python db.py create")
     if not ok:
         raise OperationalError(out)
