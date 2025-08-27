@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable, Generator
 from importlib.machinery import FileFinder
 from pathlib import Path
 from types import ModuleType
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from anyio import from_thread
 from asyncclick import BadOptionUsage, ClickException, Context
@@ -45,7 +45,7 @@ def add_src_path(path: str) -> str:
     return path
 
 
-def get_app_connection_name(config: dict, app_name: str) -> str:
+def get_app_connection_name(config: dict[str, dict[str, Any]], app_name: str) -> str:
     """
     get connection name
     :param config:
@@ -53,11 +53,11 @@ def get_app_connection_name(config: dict, app_name: str) -> str:
     :return: the default connection name (Usally it is 'default')
     """
     if app := config["apps"].get(app_name):
-        return app.get("default_connection", "default")
+        return cast(str, app.get("default_connection", "default"))
     raise BadOptionUsage(option_name="--app", message=f"Can't get app named {app_name!r}")
 
 
-def get_app_connection(config: dict, app: str) -> BaseDBAsyncClient:
+def get_app_connection(config: dict[str, Any], app: str) -> BaseDBAsyncClient:
     """
     get connection client
     :param config:
@@ -67,7 +67,7 @@ def get_app_connection(config: dict, app: str) -> BaseDBAsyncClient:
     return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
-def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
+def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict[str, Any]:
     """
     get tortoise config from module
     :param ctx:
@@ -99,16 +99,16 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict:
             message=f'Can\'t get "{tortoise_config}" from module "{config_module}"',
             ctx=ctx,
         )
-    return config
+    return cast(dict[str, Any], config)
 
 
-def get_models_describe(app: str) -> dict:
+def get_models_describe(app: str) -> dict[str, dict[str, Any]]:
     """
     get app models describe
     :param app:
     :return:
     """
-    ret = {}
+    ret: dict[str, dict[str, Any]] = {}
     try:
         app_config = Tortoise.apps[app]
     except KeyError as e:
@@ -119,11 +119,16 @@ def get_models_describe(app: str) -> dict:
     for model in app_config.values():
         managed = getattr(model.Meta, "managed", None)
         describe = model.describe()
-        ret[describe.get("name")] = dict(describe, managed=managed)
+        try:
+            qualified_model_name = describe["name"]
+        except KeyError:
+            continue
+        else:
+            ret[qualified_model_name] = dict(describe, managed=managed)
     return ret
 
 
-def is_default_function(string: Any) -> re.Match | None:
+def is_default_function(string: Any) -> re.Match[str] | None:
     return re.match(r"^<function.+>$", str(string or ""))
 
 
@@ -171,7 +176,7 @@ def get_dict_diff_by_key(
     new_fields: list[dict],
     key: str = "through",
     second_key: str = "forward_key",
-) -> Generator[tuple]:
+) -> Generator[tuple[str, Any, Any]]:
     """
     Compare two list by key instead of by index
 
