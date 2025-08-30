@@ -172,7 +172,10 @@ def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
 
 
 def get_dict_diff_by_key(
-    old_fields: list[dict[str, str]], new_fields: list[dict[str, str]], key: str = "through"
+    old_fields: list[dict],
+    new_fields: list[dict],
+    key: str = "through",
+    second_key: str = "forward_key",
 ) -> Generator[tuple[str, Any, Any]]:
     """
     Compare two list by key instead of by index
@@ -180,6 +183,7 @@ def get_dict_diff_by_key(
     :param old_fields: previous field info list
     :param new_fields: current field info list
     :param key: if two dicts have the same value of this key, action is change; otherwise, is remove/add
+    :param second_key: if multi fields with same value of key, use `(field[key], field[second_key])` as ident
     :return: similar to dictdiffer.diff
 
     Example::
@@ -197,10 +201,17 @@ def get_dict_diff_by_key(
     if length_old == 0 or length_new == 0 or length_old == length_new == 1:
         yield from diff(old_fields, new_fields)
     else:
-        value_index: dict[str, int] = {f[key]: i for i, f in enumerate(new_fields)}
+        should_use_second_key = len({i[key] for i in old_fields}) < length_old or (
+            len({i[key] for i in new_fields}) < length_new
+        )
+        value_index: dict[str | tuple[str, str], int] = (
+            {(f[key], f[second_key]): i for i, f in enumerate(new_fields)}
+            if should_use_second_key
+            else {f[key]: i for i, f in enumerate(new_fields)}
+        )
         additions = set(range(length_new))
         for field in old_fields:
-            value = field[key]
+            value = (field[key], field[second_key]) if should_use_second_key else field[key]
             if (index := value_index.get(value)) is not None:
                 additions.remove(index)
                 yield from diff([field], [new_fields[index]])  # change
