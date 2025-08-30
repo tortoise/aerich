@@ -17,7 +17,7 @@ from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import get_models_describe
-from tests._utils import chdir, prepare_py_files, requires_dialect, run_shell
+from tests._utils import chdir, prepare_py_files, requires_dialect, run_shell, tmp_daily_db
 from tests.indexes import CustomIndex
 
 
@@ -1325,3 +1325,20 @@ def test_migrate_with_rescursive_m2m(tmp_work_dir):
     assert "error" not in output.lower()
     output = run_shell("pytest -s _tests.py::test_2")
     assert "error" not in output.lower()
+
+
+@requires_dialect("postgres")
+def test_migrate_with_m2m_comment(tmp_work_dir):
+    prepare_py_files("m2m_comment")
+    with tmp_daily_db():
+        run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
+        run_shell("aerich init-db", capture_output=False)
+        output = run_shell("pytest -s _tests.py::test_1")
+        assert "error" not in output.lower()
+        shutil.move("models_2.py", "models.py")
+        output = run_shell("aerich migrate")
+        assert "error" not in output.lower()
+        output = run_shell("aerich upgrade")
+        assert "error" not in output.lower()
+        output = run_shell("pytest -s _tests.py::test_2")
+        assert "error" not in output.lower()
