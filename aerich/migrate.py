@@ -944,6 +944,22 @@ class Migrate:
         for _upgrade_fk_m2m_operator in cls._upgrade_fk_m2m_index_operators:
             if "ADD" in _upgrade_fk_m2m_operator or "CREATE" in _upgrade_fk_m2m_operator:
                 cls.upgrade_operators.append(_upgrade_fk_m2m_operator)
+                if m := re.search(r'CREATE TABLE "(\w+?)"', _upgrade_fk_m2m_operator):
+                    table_name = m.group(1)
+                    pattern = re.compile(rf'COMMENT ON TABLE "{table_name}"')
+                    # Comment of postgresql m2m table may set before creation of it
+                    for index, sql in enumerate(cls.upgrade_operators[:-1]):
+                        if pattern.search(sql):
+                            sqls = sql.split(";")
+                            for i, s in enumerate(sqls):
+                                if pattern.search(s):
+                                    break
+                            comment_sql = s.strip()
+                            sqls.pop(i)
+                            cls.upgrade_operators[index] = ";".join(sqls)
+                            # Put comment of this table behind the create sql
+                            cls.upgrade_operators.append(comment_sql)
+                            break
             else:
                 cls.upgrade_operators.insert(0, _upgrade_fk_m2m_operator)
 
