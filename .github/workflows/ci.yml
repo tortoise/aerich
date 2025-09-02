@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
