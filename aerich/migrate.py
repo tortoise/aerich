@@ -750,7 +750,11 @@ class Migrate:
                     cls._add_operator(cls._add_index(model, (field_name,), unique), upgrade, True)
                 else:
                     unique = old_data_field.get("unique")
-                    cls._add_operator(cls._drop_index(model, (field_name,), unique), upgrade, True)
+                    if unique:
+                        for sql in cls._drop_unique_index(model, field_name):
+                            cls._add_operator(sql, upgrade, True)
+                    else:
+                        cls._add_operator(cls._drop_index(model, (field_name,)), upgrade, True)
             elif option == "db_field_types.":
                 if new_data_field.get("field_type") == "DecimalField":
                     # modify column
@@ -844,6 +848,13 @@ class Migrate:
             )
         field_names = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, field_names, unique)
+
+    @classmethod
+    def _drop_unique_index(cls, model: type[Model], field_name: str) -> list[str]:
+        field_name, *_ = cls._resolve_fk_fields_name(model, (field_name,))
+        if hasattr(cls.ddl, "drop_unique_index"):
+            return cls.ddl.drop_unique_index(model, field_name)
+        return [cls.ddl.drop_index(model, [field_name], unique=True)]
 
     @classmethod
     def _add_index(
