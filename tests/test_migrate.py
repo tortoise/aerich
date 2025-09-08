@@ -1059,7 +1059,6 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
             "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
             "ALTER TABLE `product` ADD `uuid` INT NOT NULL UNIQUE",
-            "ALTER TABLE `product` ADD UNIQUE INDEX `uuid` (`uuid`)",
             "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
             "ALTER TABLE `product` DROP COLUMN `price`",
             "ALTER TABLE `product` DROP COLUMN `no`",
@@ -1339,7 +1338,7 @@ def test_migrate_with_m2m_comment(tmp_work_dir):
         _test_migrate_upgrade()
 
 
-@requires_dialect("postgres")
+@requires_dialect("postgres", "mysql")
 def test_drop_field_unique(tmp_work_dir):
     prepare_py_files("drop_field_unique")
     with tmp_daily_db():
