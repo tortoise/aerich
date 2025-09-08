@@ -1162,7 +1162,6 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_email_company_1c9234" ON "email" ("company")',
             'DROP INDEX IF EXISTS "uid_email_company_1c9234"',
             'ALTER TABLE "product" ADD "uuid" INT NOT NULL UNIQUE',
-            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_uuid_d33c18" ON "product" ("uuid")',
             'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
             'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
             'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',

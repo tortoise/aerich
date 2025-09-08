@@ -640,13 +640,13 @@ class Migrate:
                             new_data_field["indexed"]
                             and new_data_field["db_column"] not in new_o2o_columns
                         ):
-                            cls._add_operator(
-                                cls._add_index(
-                                    model, (new_data_field["db_column"],), new_data_field["unique"]
-                                ),
-                                upgrade,
-                                True,
-                            )
+                            unique = new_data_field["unique"]
+                            if not unique or cls.ddl.should_add_unique_index_when_adding_column():
+                                cls._add_operator(
+                                    cls._add_index(model, (new_data_field["db_column"],), unique),
+                                    upgrade,
+                                    True,
+                                )
                 # remove fields
                 rename_fields = cls._rename_fields.get(new_model_str)
                 for old_data_field_name in set(old_data_fields_name).difference(
