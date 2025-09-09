@@ -640,13 +640,13 @@ class Migrate:
                             new_data_field["indexed"]
                             and new_data_field["db_column"] not in new_o2o_columns
                         ):
-                            cls._add_operator(
-                                cls._add_index(
-                                    model, (new_data_field["db_column"],), new_data_field["unique"]
-                                ),
-                                upgrade,
-                                True,
-                            )
+                            unique = new_data_field["unique"]
+                            if not unique or cls.ddl.should_add_unique_index_when_adding_column():
+                                cls._add_operator(
+                                    cls._add_index(model, (new_data_field["db_column"],), unique),
+                                    upgrade,
+                                    True,
+                                )
                 # remove fields
                 rename_fields = cls._rename_fields.get(new_model_str)
                 for old_data_field_name in set(old_data_fields_name).difference(
@@ -750,7 +750,11 @@ class Migrate:
                     cls._add_operator(cls._add_index(model, (field_name,), unique), upgrade, True)
                 else:
                     unique = old_data_field.get("unique")
-                    cls._add_operator(cls._drop_index(model, (field_name,), unique), upgrade, True)
+                    if unique:
+                        for sql in cls._drop_unique_index(model, field_name):
+                            cls._add_operator(sql, upgrade, True)
+                    else:
+                        cls._add_operator(cls._drop_index(model, (field_name,)), upgrade, True)
             elif option == "db_field_types.":
                 if new_data_field.get("field_type") == "DecimalField":
                     # modify column
@@ -844,6 +848,13 @@ class Migrate:
             )
         field_names = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, field_names, unique)
+
+    @classmethod
+    def _drop_unique_index(cls, model: type[Model], field_name: str) -> list[str]:
+        field_name, *_ = cls._resolve_fk_fields_name(model, (field_name,))
+        if hasattr(cls.ddl, "drop_unique_index"):
+            return cls.ddl.drop_unique_index(model, field_name)
+        return [cls.ddl.drop_index(model, [field_name], unique=True)]
 
     @classmethod
     def _add_index(

@@ -157,6 +157,10 @@ class BaseDDL:
             column = column.replace("  ", " ")
         return template.format(table_name=db_table, column=column)
 
+    def should_add_unique_index_when_adding_column(self) -> bool:
+        # mysql/postgres use 'Add new_field ... NOT NULL UNIQUE' to set unique constraint
+        return self.DIALECT == "sqlite"
+
     def drop_column(self, model: type[Model], column_name: str) -> str:
         return self._DROP_COLUMN_TEMPLATE.format(
             table_name=model._meta.db_table, column_name=column_name

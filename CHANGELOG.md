@@ -9,7 +9,9 @@
 
 #### Fixed
 - fix: pgvector data types cause errors ([#468])
+- fix: postgres does not drop unique constraint when migrating ([#484])
 
+[#484]: https://github.com/tortoise/aerich/pull/484
 [#468]: https://github.com/tortoise/aerich/pull/468
 [#466]: https://github.com/tortoise/aerich/pull/466
 

@@ -1059,7 +1059,6 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
             "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
             "ALTER TABLE `product` ADD `uuid` INT NOT NULL UNIQUE",
-            "ALTER TABLE `product` ADD UNIQUE INDEX `uuid` (`uuid`)",
             "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
             "ALTER TABLE `product` DROP COLUMN `price`",
             "ALTER TABLE `product` DROP COLUMN `no`",
@@ -1093,6 +1092,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
             'ALTER TABLE "category" RENAME COLUMN "user_id" TO "owner_id"',
             'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_110d4c63" FOREIGN KEY ("owner_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+            'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "category_title_key"',
             'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug")',
             'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
             'ALTER TABLE "configs" RENAME TO "config"',
@@ -1161,7 +1161,6 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_email_company_1c9234" ON "email" ("company")',
             'DROP INDEX IF EXISTS "uid_email_company_1c9234"',
             'ALTER TABLE "product" ADD "uuid" INT NOT NULL UNIQUE',
-            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_uuid_d33c18" ON "product" ("uuid")',
             'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
             'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
             'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
@@ -1172,6 +1171,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL DEFAULT \'\'',
             'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
             'ALTER TABLE "user" ALTER COLUMN "longitude" TYPE DECIMAL(12,9) USING "longitude"::DECIMAL(12,9)',
+            'ALTER TABLE "user" DROP CONSTRAINT IF EXISTS "user_username_key"',
             'DROP TABLE IF EXISTS "product_user"',
             'DROP INDEX IF EXISTS "idx_product_name_869427"',
             'DROP INDEX IF EXISTS "idx_email_email_4a1a33"',
@@ -1336,3 +1336,18 @@ def test_migrate_with_m2m_comment(tmp_work_dir):
     prepare_py_files("m2m_comment")
     with tmp_daily_db():
         _test_migrate_upgrade()
+
+
+@requires_dialect("postgres", "mysql")
+def test_drop_field_unique(tmp_work_dir):
+    prepare_py_files("drop_field_unique")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
+        for num in (3, 4, 5):
+            shutil.move(f"models_{num}.py", "models.py")
+            output = run_shell("aerich migrate")
+            assert "error" not in output.lower()
+            output = run_shell("aerich upgrade")
+            assert "error" not in output.lower()
+            output = run_shell(f"pytest -s _tests.py::test_{num}")
+            assert "error" not in output.lower()
