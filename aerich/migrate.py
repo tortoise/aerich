@@ -681,17 +681,16 @@ class Migrate:
                         model, field_name, old_data_fields, new_data_fields, upgrade
                     )
 
-        m2m_tables: set[str] = set()
+        dropped_m2m_tables: set[str] = set()
         for old_model in old_models.keys() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
                 continue
             model_describe = old_models[old_model]
-            cls._add_operator(cls.drop_model(model_describe["table"]), upgrade)
             for field_describe in model_describe.get("m2m_fields", []):
-                through = field_describe["through"]
-                m2m_tables.add(through)
-        for table_name in m2m_tables:
-            cls._add_operator(cls.drop_m2m(table_name), upgrade)
+                if (through := field_describe["through"]) not in dropped_m2m_tables:
+                    cls._add_operator(cls.drop_m2m(through), upgrade)
+                    dropped_m2m_tables.add(through)
+            cls._add_operator(cls.drop_model(model_describe["table"]), upgrade)
 
     @classmethod
     def _handle_pk_field_alter(
