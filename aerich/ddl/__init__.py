@@ -58,6 +58,9 @@ class BaseDDL:
     def drop_table(self, table_name: str) -> str:
         return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
+    def drop_m2m(self, table_name: str) -> str:
+        return self.drop_table(table_name)
+
     def create_m2m(
         self, model: type[Model], field_describe: dict, reference_table_describe: dict
     ) -> str:
@@ -84,9 +87,6 @@ class BaseDDL:
                 else ""
             ),
         )
-
-    def drop_m2m(self, table_name: str) -> str:
-        return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
     def _get_default(self, model: type[Model], field_describe: dict) -> Any:
         db_table = model._meta.db_table
