@@ -1311,18 +1311,19 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
     assert new_migration_file and new_migration_file.startswith("1_")
 
 
-def _test_migrate_upgrade() -> None:
+def _test_migrate_upgrade(max_model_num: int = 2) -> None:
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
     run_shell("aerich init-db", capture_output=False)
     output = run_shell("pytest -s _tests.py::test_1")
     assert "error" not in output.lower()
-    shutil.move("models_2.py", "models.py")
-    output = run_shell("aerich migrate")
-    assert "error" not in output.lower()
-    output = run_shell("aerich upgrade")
-    assert "error" not in output.lower()
-    output = run_shell("pytest -s _tests.py::test_2")
-    assert "error" not in output.lower()
+    for num in range(2, max_model_num + 1):
+        shutil.move(f"models_{num}.py", "models.py")
+        output = run_shell("aerich migrate")
+        assert "error" not in output.lower()
+        output = run_shell("aerich upgrade")
+        assert "error" not in output.lower()
+        output = run_shell(f"pytest -s _tests.py::test_{num}")
+        assert "error" not in output.lower()
 
 
 @requires_dialect("sqlite")
@@ -1342,12 +1343,10 @@ def test_migrate_with_m2m_comment(tmp_work_dir):
 def test_drop_field_unique(tmp_work_dir):
     prepare_py_files("drop_field_unique")
     with tmp_daily_db():
-        _test_migrate_upgrade()
-        for num in (3, 4, 5):
-            shutil.move(f"models_{num}.py", "models.py")
-            output = run_shell("aerich migrate")
-            assert "error" not in output.lower()
-            output = run_shell("aerich upgrade")
-            assert "error" not in output.lower()
-            output = run_shell(f"pytest -s _tests.py::test_{num}")
-            assert "error" not in output.lower()
+        _test_migrate_upgrade(5)
+
+
+@requires_dialect("sqlite")
+def test_delete_model_with_m2m_field(tmp_work_dir):
+    prepare_py_files("delete_model_with_m2m_field")
+    _test_migrate_upgrade(3)
