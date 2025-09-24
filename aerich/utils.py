@@ -67,13 +67,15 @@ def get_app_connection(config: dict[str, Any], app: str) -> BaseDBAsyncClient:
     return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
-def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict[str, Any]:
+def get_tortoise_config(tortoise_orm: str, ctx: Context | None = None) -> dict[str, Any]:
     """
     get tortoise config from module
     :param ctx:
     :param tortoise_orm:
     :return:
     """
+    if isinstance(ctx, str) and (tortoise_orm is None or isinstance(tortoise_orm, Context)):
+        tortoise_orm, ctx = ctx, tortoise_orm  # Leave it here for backwards compatibility
     splits = tortoise_orm.split(".")
     config_path = ".".join(splits[:-1])
     tortoise_config = splits[-1]

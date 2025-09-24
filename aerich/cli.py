@@ -82,7 +82,7 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         else:
             src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
         add_src_path(src_folder)
-        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
+        tortoise_config = get_tortoise_config(tortoise_orm, ctx)
         if not app:
             try:
                 apps_config = cast(dict, tortoise_config["apps"])
@@ -251,7 +251,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(ctx, tortoise_orm)
+    get_tortoise_config(tortoise_orm, ctx)
     config_path = Path(config_file)
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():

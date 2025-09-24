@@ -1,4 +1,7 @@
-from aerich.utils import get_dict_diff_by_key, import_py_file
+from pathlib import Path
+
+from aerich._compat import tomllib
+from aerich.utils import get_dict_diff_by_key, get_tortoise_config, import_py_file
 from tests._utils import copy_asset, run_shell
 
 
@@ -237,3 +240,44 @@ def test_read_config_from_class_var(tmp_work_dir):
     assert "Success" in output
     output = run_shell("pytest _tests.py::test_migrate_upgrade")
     assert "error" not in output.lower()
+
+
+def test_get_tortoise_config():
+    tortoise_orm = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["tool"][
+        "aerich"
+    ]["tortoise_orm"]
+    assert get_tortoise_config(tortoise_orm) == {
+        "apps": {
+            "models": {
+                "default_connection": "default",
+                "models": [
+                    "tests.models",
+                    "aerich.models",
+                ],
+            },
+            "models_second": {
+                "default_connection": "second",
+                "models": [
+                    "tests.models_second",
+                ],
+            },
+        },
+        "connections": {
+            "default": {
+                "credentials": {
+                    "file_path": ":memory:",
+                    "journal_mode": "WAL",
+                    "journal_size_limit": 16384,
+                },
+                "engine": "tortoise.backends.sqlite",
+            },
+            "second": {
+                "credentials": {
+                    "file_path": ":memory:",
+                    "journal_mode": "WAL",
+                    "journal_size_limit": 16384,
+                },
+                "engine": "tortoise.backends.sqlite",
+            },
+        },
+    }
