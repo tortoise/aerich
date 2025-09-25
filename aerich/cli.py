@@ -12,7 +12,7 @@ from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
-from aerich.utils import add_src_path, get_tortoise_config
+from aerich.utils import add_src_path, get_tortoise_config, load_tortoise_config
 from aerich.version import __version__
 
 CONFIG_DEFAULT_VALUES = {
@@ -251,8 +251,8 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(tortoise_orm, ctx)
     config_path = Path(config_file)
+    load_tortoise_config(tortoise_orm, ctx, config_path)
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
         text = "[tool.aerich]" + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())

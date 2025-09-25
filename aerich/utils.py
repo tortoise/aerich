@@ -17,6 +17,7 @@ from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.log import logger
 
+from aerich._compat import tomllib
 from aerich.exceptions import NotInitedError
 
 if sys.version_info >= (3, 11):
@@ -102,6 +103,48 @@ def get_tortoise_config(tortoise_orm: str, ctx: Context | None = None) -> dict[s
             ctx=ctx,
         )
     return cast(dict[str, Any], config)
+
+
+def load_tortoise_config(
+    tortoise_orm: str = "",
+    ctx: Context | None = None,
+    config_file: str | Path = "pyproject.toml",
+    env_name: str = "TORTOISE_ORM",
+) -> dict[str, Any]:
+    """
+    Load tortoise config from tortoise_orm or config_file or os environ.
+
+    If tortoise_orm is not empty, load config dict by it;
+    Otherwise, try to get tortoise_orm string by tool.aerich.tortoise_orm from config_file;
+    While failed to get tortoise_orm from config file, try to get it by os.getenv(<env_name>);
+    Raises ClickException if failed to get tortoise_orm from config file and os environ.
+
+    :param tortoise_orm: module.value string to load the tortoise config, e.g.: 'settings.TORTOISE_ORM'
+    :param ctx: click.Context that will be used when raising BadOptionUsage error
+    :param config_file: config filename, must be a toml file
+    :param env_name: os environ name to get the tortoise_orm string (Only use when failed to load from config file)
+
+    :return: config dict that can be used in `Tortoise.init(config=config_dict)`
+    """
+    if tortoise_orm:
+        return get_tortoise_config(tortoise_orm, ctx)
+    if isinstance(config_file, str):
+        config_file = Path(config_file)
+    if config_file.exists():
+        text = config_file.read_text(encoding="utf-8")
+        doc = tomllib.loads(text)
+        try:
+            aerich_config = doc["tool"]["aerich"]
+        except KeyError:
+            ...
+        else:
+            if t := aerich_config.get("tortoise_orm", ""):
+                return get_tortoise_config(t, ctx)
+    if v := os.getenv(env_name):
+        return get_tortoise_config(v, ctx)
+    raise ClickException(
+        f"Failed to load tortoise config from config_file({config_file}) and os environ({env_name!r})"
+    )
 
 
 def get_models_describe(app: str) -> dict[str, dict[str, Any]]:
