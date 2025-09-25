@@ -29,6 +29,10 @@ T_Retval = TypeVar("T_Retval")
 PosArgsT = TypeVarTuple("PosArgsT")
 P = ParamSpec("P")
 
+CONFIG_DEFAULT_VALUES = {
+    "src_folder": ".",
+}
+
 
 def add_src_path(path: str) -> str:
     """
@@ -126,8 +130,20 @@ def load_tortoise_config(
 
     :return: config dict that can be used in `Tortoise.init(config=config_dict)`
     """
+    return _load_tortoise_aerich_config(tortoise_orm, ctx, config_file, env_name)[0]
+
+
+def _load_tortoise_aerich_config(
+    tortoise_orm: str = "",
+    ctx: Context | None = None,
+    config_file: str | Path = "pyproject.toml",
+    env_name: str = "TORTOISE_ORM",
+    default_src_folder: str = CONFIG_DEFAULT_VALUES["src_folder"],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    aerich_config: dict[str, str] = {}
     if tortoise_orm:
-        return get_tortoise_config(tortoise_orm, ctx)
+        add_src_path(default_src_folder)
+        return get_tortoise_config(tortoise_orm, ctx), aerich_config
     if isinstance(config_file, str):
         config_file = Path(config_file)
     if config_file.exists():
@@ -139,9 +155,11 @@ def load_tortoise_config(
             ...
         else:
             if t := aerich_config.get("tortoise_orm", ""):
-                return get_tortoise_config(t, ctx)
+                add_src_path(aerich_config.get("src", default_src_folder))
+                return get_tortoise_config(t, ctx), aerich_config
     if v := os.getenv(env_name):
-        return get_tortoise_config(v, ctx)
+        add_src_path(os.getenv("TORTOISE_ORM_SRC", default_src_folder))
+        return get_tortoise_config(v, ctx), aerich_config
     raise ClickException(
         f"Failed to load tortoise config from config_file({config_file}) and os environ({env_name!r})"
     )
