@@ -1,8 +1,14 @@
 from pathlib import Path
 
+import pytest
 from aerich._compat import tomllib
-from aerich.utils import get_dict_diff_by_key, get_tortoise_config, import_py_file
-from tests._utils import copy_asset, run_shell
+from aerich.utils import (
+    get_dict_diff_by_key,
+    get_tortoise_config,
+    import_py_file,
+    load_tortoise_config,
+)
+from tests._utils import copy_asset, requires_dialect, run_shell
 
 
 def test_import_py_file() -> None:
@@ -246,7 +252,17 @@ def test_get_tortoise_config():
     tortoise_orm = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["tool"][
         "aerich"
     ]["tortoise_orm"]
-    assert get_tortoise_config(tortoise_orm) == {
+    backwards_style = get_tortoise_config(None, tortoise_orm)  # type:ignore
+    assert get_tortoise_config(tortoise_orm) == backwards_style
+    with pytest.raises(TypeError):
+        get_tortoise_config(None, tortoise_orm=tortoise_orm)
+    assert get_tortoise_config(ctx=None, tortoise_orm=tortoise_orm) == backwards_style
+    assert get_tortoise_config(tortoise_orm=tortoise_orm) == backwards_style
+
+
+@requires_dialect("sqlite")
+def test_load_tortoise_config():
+    assert load_tortoise_config() == {
         "apps": {
             "models": {
                 "default_connection": "default",

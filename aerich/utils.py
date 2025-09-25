@@ -71,8 +71,8 @@ def get_app_connection(config: dict[str, Any], app: str) -> BaseDBAsyncClient:
 def get_tortoise_config(tortoise_orm: str, ctx: Context | None = None) -> dict[str, Any]:
     """
     get tortoise config from module
-    :param ctx:
     :param tortoise_orm:
+    :param ctx:
     :return:
     """
     if isinstance(ctx, str) and (tortoise_orm is None or isinstance(tortoise_orm, Context)):
