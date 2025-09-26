@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pkgutil
 import platform
+import warnings
 from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
@@ -176,10 +177,20 @@ class Command(AbstractAsyncContextManager):
         return _self().__await__()
 
     async def close(self) -> None:
-        await connections.close_all()
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        await self.aclose()
+
+    @staticmethod
+    async def aclose() -> None:
+        if Tortoise._inited:
+            await connections.close_all()
 
     async def __aexit__(self, *args, **kw) -> None:
-        await self.close()
+        await self.aclose()
 
     async def _upgrade(
         self,

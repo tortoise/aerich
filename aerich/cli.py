@@ -21,16 +21,15 @@ CONFIG_DEFAULT_VALUES = {
 
 
 def _patch_context_to_close_tortoise_connections_when_exit() -> None:
-    from tortoise import Tortoise, connections
+    if not hasattr(Context, "_patched"):
+        origin_aexit = Context.__aexit__
 
-    origin_aexit = Context.__aexit__
+        async def aexit(*args, **kw) -> None:
+            await origin_aexit(*args, **kw)
+            await Command.aclose()
 
-    async def aexit(*args, **kw) -> None:
-        await origin_aexit(*args, **kw)
-        if Tortoise._inited:
-            await connections.close_all()
-
-    Context.__aexit__ = aexit  # type:ignore[method-assign]
+        Context.__aexit__ = aexit  # type:ignore[method-assign]
+        Context._patched = True  # type:ignore[attr-defined]
 
 
 _patch_context_to_close_tortoise_connections_when_exit()
