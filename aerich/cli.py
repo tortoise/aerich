@@ -21,15 +21,16 @@ CONFIG_DEFAULT_VALUES = {
 
 
 def _patch_context_to_close_tortoise_connections_when_exit() -> None:
-    if not hasattr(Context, "_patched"):
-        origin_aexit = Context.__aexit__
+    if not hasattr(Context, attr := "_tortoise_patched"):
+        func_name = "__aexit__"
+        origin_func = getattr(Context, func_name)
 
-        async def aexit(*args, **kw) -> None:
-            await origin_aexit(*args, **kw)
+        async def patched(*args, **kw) -> None:
+            await origin_func(*args, **kw)
             await Command.aclose()
 
-        Context.__aexit__ = aexit  # type:ignore[method-assign]
-        Context._patched = True  # type:ignore[attr-defined]
+        setattr(Context, func_name, patched)
+        setattr(Context, attr, True)
 
 
 _patch_context_to_close_tortoise_connections_when_exit()
