@@ -330,3 +330,21 @@ def test_load_tortoise_config_errors(tmp_work_dir, no_tortoise_env):
     Path(settings_py.name).touch()
     with pytest.raises(BadOptionUsage, match='Can\'t get "TORTOISE_ORM" from module'):
         load_tortoise_config()
+
+
+@requires_dialect("sqlite")
+def test_load_tortoise_config_with_kwargs(tmp_work_dir):
+    TORTOISE_ORM = {
+        "connections": {"default": "sqlite://db.sqlite3"},
+        "apps": {"models": {"models": ["models", "aerich.models"]}},
+    }
+    settings = "settings_v2"  # Should use another file name to avoid loading cached module
+    shutil.copy(ASSETS / "settings.py", settings + ".py")
+    run_shell(f"aerich init -t {settings}.TORTOISE_ORM")
+    assert load_tortoise_config(config_file=Path("pyproject.toml")) == TORTOISE_ORM
+    custom_config_file = "aerich.toml"
+    shutil.move("pyproject.toml", custom_config_file)
+    assert load_tortoise_config(config_file=custom_config_file) == TORTOISE_ORM
+    custom_env_name = "TORTOISE_ORM_CONF"
+    os.environ[custom_env_name] = f"{settings}.TORTOISE_ORM"
+    assert load_tortoise_config(env_name=custom_env_name) == TORTOISE_ORM
