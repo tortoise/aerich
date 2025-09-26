@@ -640,13 +640,13 @@ class Migrate:
                             new_data_field["indexed"]
                             and new_data_field["db_column"] not in new_o2o_columns
                         ):
-                            cls._add_operator(
-                                cls._add_index(
-                                    model, (new_data_field["db_column"],), new_data_field["unique"]
-                                ),
-                                upgrade,
-                                True,
-                            )
+                            unique = new_data_field["unique"]
+                            if not unique or cls.ddl.should_add_unique_index_when_adding_column():
+                                cls._add_operator(
+                                    cls._add_index(model, (new_data_field["db_column"],), unique),
+                                    upgrade,
+                                    True,
+                                )
                 # remove fields
                 rename_fields = cls._rename_fields.get(new_model_str)
                 for old_data_field_name in set(old_data_fields_name).difference(
@@ -681,10 +681,16 @@ class Migrate:
                         model, field_name, old_data_fields, new_data_fields, upgrade
                     )
 
+        dropped_m2m_tables: set[str] = set()
         for old_model in old_models.keys() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
                 continue
-            cls._add_operator(cls.drop_model(old_models[old_model]["table"]), upgrade)
+            model_describe = old_models[old_model]
+            for field_describe in model_describe.get("m2m_fields", []):
+                if (through := field_describe["through"]) not in dropped_m2m_tables:
+                    cls._add_operator(cls.drop_m2m(through), upgrade)
+                    dropped_m2m_tables.add(through)
+            cls._add_operator(cls.drop_model(model_describe["table"]), upgrade)
 
     @classmethod
     def _handle_pk_field_alter(
@@ -750,7 +756,11 @@ class Migrate:
                     cls._add_operator(cls._add_index(model, (field_name,), unique), upgrade, True)
                 else:
                     unique = old_data_field.get("unique")
-                    cls._add_operator(cls._drop_index(model, (field_name,), unique), upgrade, True)
+                    if unique:
+                        for sql in cls._drop_unique_index(model, field_name):
+                            cls._add_operator(sql, upgrade, True)
+                    else:
+                        cls._add_operator(cls._drop_index(model, (field_name,)), upgrade, True)
             elif option == "db_field_types.":
                 if new_data_field.get("field_type") == "DecimalField":
                     # modify column
@@ -844,6 +854,13 @@ class Migrate:
             )
         field_names = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, field_names, unique)
+
+    @classmethod
+    def _drop_unique_index(cls, model: type[Model], field_name: str) -> list[str]:
+        field_name, *_ = cls._resolve_fk_fields_name(model, (field_name,))
+        if hasattr(cls.ddl, "drop_unique_index"):
+            return cls.ddl.drop_unique_index(model, field_name)
+        return [cls.ddl.drop_index(model, [field_name], unique=True)]
 
     @classmethod
     def _add_index(

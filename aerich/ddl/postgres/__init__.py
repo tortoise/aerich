@@ -51,3 +51,18 @@ class PostgresDDL(BaseDDL):
                 else "NULL"
             ),
         )
+
+    def drop_unique_index(
+        self,
+        model: type[Model],
+        field_name: str,
+    ) -> list[str]:
+        # When change unique to be true for exists column, it's a normal index
+        drop_normal_index = self.drop_index(model, [field_name], unique=True)
+        # While add a new column with unique=True, it's a unique constraint
+        table_name = self.get_table_name(model)
+        contraint_name = f"{table_name}_{field_name}_key"
+        drop_constraint = self.drop_unique_constraint(model, contraint_name)
+        # To avoid connecting db to validate INDEX/CONSTRAINT, drop both of them
+        # as the templates of drop index/contraints are using 'IF EXISTS'.
+        return [drop_normal_index, drop_constraint]

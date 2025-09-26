@@ -58,6 +58,9 @@ class BaseDDL:
     def drop_table(self, table_name: str) -> str:
         return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
+    def drop_m2m(self, table_name: str) -> str:
+        return self.drop_table(table_name)
+
     def create_m2m(
         self, model: type[Model], field_describe: dict, reference_table_describe: dict
     ) -> str:
@@ -84,9 +87,6 @@ class BaseDDL:
                 else ""
             ),
         )
-
-    def drop_m2m(self, table_name: str) -> str:
-        return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
     def _get_default(self, model: type[Model], field_describe: dict) -> Any:
         db_table = model._meta.db_table
@@ -156,6 +156,10 @@ class BaseDDL:
         if tortoise_version_less_than("0.23.1"):
             column = column.replace("  ", " ")
         return template.format(table_name=db_table, column=column)
+
+    def should_add_unique_index_when_adding_column(self) -> bool:
+        # mysql/postgres use 'Add new_field ... NOT NULL UNIQUE' to set unique constraint
+        return self.DIALECT == "sqlite"
 
     def drop_column(self, model: type[Model], column_name: str) -> str:
         return self._DROP_COLUMN_TEMPLATE.format(
