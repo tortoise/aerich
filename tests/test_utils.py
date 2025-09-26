@@ -1,14 +1,19 @@
+import os
+import shutil
 from pathlib import Path
 
 import pytest
+
 from aerich._compat import tomllib
 from aerich.utils import (
+    BadOptionUsage,
+    ClickException,
     get_dict_diff_by_key,
     get_tortoise_config,
     import_py_file,
     load_tortoise_config,
 )
-from tests._utils import copy_asset, requires_dialect, run_shell
+from tests._utils import ASSETS, copy_asset, requires_dialect, run_shell
 
 
 def test_import_py_file() -> None:
@@ -255,7 +260,7 @@ def test_get_tortoise_config():
     backwards_style = get_tortoise_config(None, tortoise_orm)  # type:ignore
     assert get_tortoise_config(tortoise_orm) == backwards_style
     with pytest.raises(TypeError):
-        get_tortoise_config(None, tortoise_orm=tortoise_orm)
+        get_tortoise_config(None, tortoise_orm=tortoise_orm)  # type:ignore
     assert get_tortoise_config(ctx=None, tortoise_orm=tortoise_orm) == backwards_style
     assert get_tortoise_config(tortoise_orm=tortoise_orm) == backwards_style
 
@@ -297,3 +302,31 @@ def test_load_tortoise_config():
             },
         },
     }
+
+
+@pytest.fixture
+def no_tortoise_env():
+    env_name = "TORTOISE_ORM"
+    env_value = os.environ.pop(env_name, None)
+    try:
+        yield
+    finally:
+        if env_value is not None:
+            os.environ[env_name] = env_value
+
+
+@requires_dialect("sqlite")
+def test_load_tortoise_config_errors(tmp_work_dir, no_tortoise_env):
+    with pytest.raises(ClickException, match="Failed to load tortoise config"):
+        load_tortoise_config()
+    settings_py = ASSETS / "settings.py"
+    shutil.copy(settings_py, ".")
+    output = run_shell("aerich init -t settings.TORTOISE_ORM")
+    assert "error" not in output.lower()
+    shutil.move(settings_py.name, settings_py.stem)
+    msg = "Error while importing configuration module: No module named 'settings'"
+    with pytest.raises(ClickException, match=msg):
+        load_tortoise_config()
+    Path(settings_py.name).touch()
+    with pytest.raises(BadOptionUsage, match='Can\'t get "TORTOISE_ORM" from module'):
+        load_tortoise_config()
