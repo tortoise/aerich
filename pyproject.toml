@@ -1,20 +1,17 @@
 [project]
 name = "aerich"
-version = "0.8.2"
+dynamic = ["version"]
 description = "A database migrations tool for Tortoise ORM."
 authors = [{name="long2ice", email="long2ice@gmail.com>"}]
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 readme = "README.md"
 keywords = ["migrate", "Tortoise-ORM", "mysql"]
-packages = [{ include = "aerich" }]
-include = ["CHANGELOG.md", "LICENSE", "README.md"]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
-  "tortoise-orm (>=0.21.0,<1.0.0); python_version < '4.0'",
-  "pydantic (>=2.0.2,!=2.1.0,!=2.7.0,<3.0.0)",
+  "tortoise-orm (>=0.21.0,<1.0.0)",
   "dictdiffer (>=0.9.0,<1.0.0)",
   "asyncclick (>=8.1.7,<9.0.0)",
-  "eval-type-backport (>=0.2.2,<1.0.0); python_version < '3.10'",
+  "anyio (>=3.6.2,<5.0.0)",
 ]
 
 [project.optional-dependencies]
@@ -26,7 +23,7 @@ toml = [
 asyncpg = ["asyncpg"]
 psycopg = ["psycopg[pool,binary] (>=3.0.12,<4.0.0)"]
 # Need asyncmy or aiomysql for MySQL
-asyncmy = ["asyncmy>=0.2.9; python_version < '4.0'"]
+asyncmy = ["asyncmy>=0.2.9"]
 mysql = ["aiomysql>=0.2.0"]
 
 [project.urls]
@@ -39,22 +36,32 @@ aerich = "aerich.cli:main"
 
 [tool.poetry]
 requires-poetry = ">=2.0"
+packages = [{ include = "aerich" }]
+version = "0.0.0"
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.9.0"
-bandit = "^1.7.0"
-mypy = "^1.10.0"
-twine = "^6.1.0"
+[dependency-groups]
+dev = [
+    "ruff >=0.9.0",
+    "bandit >=1.7.0",
+    "mypy >=1.10.0",
+    "twine >=6.1.0",
+]
+test = [
+    "pytest >=8.3.0",
+    "pytest-mock >=3.14.0",
+    "pytest-xdist >=3.6.0",
 
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3.0"
-pytest-mock = "^3.14.0"
-pytest-xdist = "^3.6.0"
-# Breaking change in 0.23.*
-# https://github.com/pytest-dev/pytest-asyncio/issues/706
-pytest-asyncio = "^0.21.2"
-# required for sha256_password by asyncmy
-cryptography = {version="^44.0.1", python="!=3.9.0,!=3.9.1"}
+    # Breaking change in 0.23.*
+    # https://github.com/pytest-dev/pytest-asyncio/issues/706
+    "pytest-asyncio >=0.21.2,<0.23",
+
+    # required for sha256_password by asyncmy
+    "cryptography; python_version >='3.9.0,!=3.9.1'",
+
+    "tortoise-vector >=0.1.4; python_version >='3.11'",
+    "async-timeout >=5.0.1; python_version <'3.11'",
+    "pydantic-settings >=2.10.1",
+]
 
 [tool.aerich]
 tortoise_orm = "conftest.tortoise_orm"
@@ -62,8 +69,15 @@ location = "./migrations"
 src_folder = "./."
 
 [build-system]
-requires = ["poetry-core>=2.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+version = {source="file", path="aerich/version.py"}
+
+[tool.pdm.build]
+excludes = ["./**/.git", "./**/.*_cache"]
+include = ["CHANGELOG.md", "LICENSE", "README.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = 'auto'
@@ -79,7 +93,7 @@ exclude_also = [
 
 [tool.mypy]
 pretty = true
-python_version = "3.8"
+python_version = "3.9"
 check_untyped_defs = true
 warn_unused_ignores = true
 disallow_incomplete_defs = false
@@ -108,8 +122,6 @@ extend-select = [
 ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
 
 [tool.ruff.lint.per-file-ignores]
-# TODO: Remove this line when dropping support for Python3.8
-"aerich/inspectdb/__init__.py" = ["UP006", "UP035"]
 "aerich/_compat.py" = ["F401"]
 
 [tool.bandit]

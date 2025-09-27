@@ -25,6 +25,7 @@ class BaseDDL:
     )
     _ADD_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" ADD {index_type}{unique}INDEX "{index_name}" ({column_names}){extra}'
     _DROP_INDEX_TEMPLATE = 'ALTER TABLE "{table_name}" DROP INDEX IF EXISTS "{index_name}"'
+    _DROP_CONSTRAINT_TEMPLATE = 'ALTER TABLE "{table_name}" DROP CONSTRAINT IF EXISTS "{name}"'
     _ADD_FK_TEMPLATE = 'ALTER TABLE "{table_name}" ADD CONSTRAINT "{fk_name}" FOREIGN KEY ("{db_column}") REFERENCES "{table}" ("{field}") ON DELETE {on_delete}'
     _DROP_FK_TEMPLATE = 'ALTER TABLE "{table_name}" DROP FOREIGN KEY "{fk_name}"'
     _M2M_TABLE_TEMPLATE = (
@@ -57,6 +58,9 @@ class BaseDDL:
     def drop_table(self, table_name: str) -> str:
         return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
+    def drop_m2m(self, table_name: str) -> str:
+        return self.drop_table(table_name)
+
     def create_m2m(
         self, model: type[Model], field_describe: dict, reference_table_describe: dict
     ) -> str:
@@ -83,9 +87,6 @@ class BaseDDL:
                 else ""
             ),
         )
-
-    def drop_m2m(self, table_name: str) -> str:
-        return self._DROP_TABLE_TEMPLATE.format(table_name=table_name)
 
     def _get_default(self, model: type[Model], field_describe: dict) -> Any:
         db_table = model._meta.db_table
@@ -124,7 +125,7 @@ class BaseDDL:
         db_table = model._meta.db_table
         description = field_describe.get("description")
         db_column = cast(str, field_describe.get("db_column"))
-        db_field_types = cast(dict, field_describe.get("db_field_types"))
+        db_field_types = cast(dict[str, str], field_describe.get("db_field_types"))
         default = self._get_default(model, field_describe)
         if default is None:
             default = ""
@@ -137,7 +138,7 @@ class BaseDDL:
             template = self._ADD_COLUMN_TEMPLATE
         column = self.schema_generator._create_string(
             db_column=db_column,
-            field_type=db_field_types.get(self.DIALECT, db_field_types.get("")),
+            field_type=db_field_types.get(self.DIALECT) or db_field_types[""],
             nullable=" NOT NULL" if not field_describe.get("nullable") else "",
             unique=unique,
             comment=(
@@ -155,6 +156,10 @@ class BaseDDL:
         if tortoise_version_less_than("0.23.1"):
             column = column.replace("  ", " ")
         return template.format(table_name=db_table, column=column)
+
+    def should_add_unique_index_when_adding_column(self) -> bool:
+        # mysql/postgres use 'Add new_field ... NOT NULL UNIQUE' to set unique constraint
+        return self.DIALECT == "sqlite"
 
     def drop_column(self, model: type[Model], column_name: str) -> str:
         return self._DROP_COLUMN_TEMPLATE.format(
@@ -222,6 +227,12 @@ class BaseDDL:
 
     def drop_index_by_name(self, model: type[Model], index_name: str) -> str:
         return self.drop_index(model, [], name=index_name)
+
+    def drop_unique_constraint(self, model: type[Model], name: str) -> str:
+        return self._DROP_CONSTRAINT_TEMPLATE.format(
+            table_name=model._meta.db_table,
+            name=name,
+        )
 
     def _generate_fk_name(
         self, db_table: str, field_describe: dict, reference_table_describe: dict

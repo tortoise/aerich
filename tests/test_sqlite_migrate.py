@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import platform
 import shlex
 import shutil
 import subprocess
@@ -10,14 +9,14 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from aerich import decompress_dict, import_py_file
-from tests._utils import Dialect, chdir, copy_files
+from tests._utils import WINDOWS, Dialect, chdir, copy_files, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str) -> subprocess.CompletedProcess:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
-        if platform.system() == "Windows":
+        if WINDOWS:
             cmd = "python -m " + cmd
     r = subprocess.run(shlex.split(cmd), timeout=2)
     return r
@@ -35,16 +34,12 @@ def _get_empty_db() -> Path:
 
 
 @contextmanager
-def prepare_sqlite_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
-    test_dir = Path(__file__).parent
-    asset_dir = test_dir / "assets" / "sqlite_migrate"
-    with chdir(tmp_path):
-        files = ("models.py", "settings.py", "_tests.py")
-        copy_files(*(asset_dir / f for f in files), target_dir=Path())
-        models_py, settings_py, test_py = (Path(f) for f in files)
-        copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
-        _get_empty_db()
-        yield models_py, models_py.read_text("utf-8")
+def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
+    prepare_py_files("sqlite_migrate")
+    shutil.move("conftest_.py", "conftest.py")
+    _get_empty_db()
+    models_py = Path("models.py")
+    yield models_py, models_py.read_text("utf-8")
 
 
 @contextmanager
@@ -68,19 +63,17 @@ def prepare_sqlite_old_style_project(tmp_path: Path) -> Generator[tuple[Path, st
         yield models_py, models_py.read_text("utf-8")
 
 
-def test_close_tortoise_connections_patch(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_close_tortoise_connections_patch(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir):
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         r = run_aerich("aerich init-db")
         assert r is not None
 
 
-def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         run_aerich("aerich init-db")
@@ -181,10 +174,9 @@ class FooGroup(Model):
 """
 
 
-def test_sqlite_migrate(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_sqlite_migrate(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         MODELS = models_text
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         config_file = Path("pyproject.toml")

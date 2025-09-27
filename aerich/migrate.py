@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 import importlib
-import os
+import pkgutil
+import re
 from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, Callable, Literal, cast, overload
 
 import asyncclick as click
 from dictdiffer import diff
@@ -26,10 +28,15 @@ from aerich.utils import (
     get_formatted_compressed_data,
     get_models_describe,
     import_py_file,
+    import_py_module,
     is_default_function,
+    py_module_path,
+    run_async,
 )
 
 MIGRATE_TEMPLATE = """from tortoise import BaseDBAsyncClient
+
+RUN_IN_TRANSACTION = True
 
 
 async def upgrade(db: BaseDBAsyncClient) -> str:
@@ -77,19 +84,22 @@ class Migrate:
         return next(filter(lambda x: x.get("name") == name, fields))
 
     @classmethod
-    def get_all_version_files(cls) -> list[str]:
-        def get_file_version(file_name: str) -> str:
-            return file_name.split("_")[0]
+    def get_all_version_modules(cls) -> list[pkgutil.ModuleInfo]:
+        def get_file_version(module: pkgutil.ModuleInfo) -> str:
+            return module.name.split("_")[0]
 
-        def is_version_file(file_name: str) -> bool:
-            if not file_name.endswith("py"):
+        def is_version_file(module: pkgutil.ModuleInfo) -> bool:
+            if "_" not in module.name:
                 return False
-            if "_" not in file_name:
-                return False
-            return get_file_version(file_name).isdigit()
+            return get_file_version(module).isdigit()
 
-        files = list(filter(is_version_file, os.listdir(cls.migrate_location)))
+        # TODO: files = list(filter(is_version_file, os.listdir(cls.migrate_location)))
+        files = filter(is_version_file, pkgutil.iter_modules([str(cls.migrate_location)]))
         return sorted(files, key=lambda x: int(get_file_version(x)))
+
+    @classmethod
+    def get_all_version_files(cls) -> list[str]:
+        return [m.name + ".py" for m in cls.get_all_version_modules()]
 
     @classmethod
     def _get_model(cls, model: str) -> type[Model]:
@@ -156,7 +166,7 @@ class Migrate:
         return int(last_version.split("_", 1)[0])
 
     @classmethod
-    def generate_version(cls, name: str | None = None) -> str:
+    async def generate_version(cls, name: str | None = None) -> str:
         now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
         last_version_num = cls._get_last_version_num()
         if last_version_num is None:
@@ -167,14 +177,32 @@ class Migrate:
         return version
 
     @classmethod
-    def _generate_diff_py(cls, name) -> str:
-        version = cls.generate_version(name)
-        # delete if same version exists
-        for version_file in cls.get_all_version_files():
-            if version_file.startswith(version.split("_")[0]):
-                os.unlink(Path(cls.migrate_location, version_file))
-
+    async def _generate_diff_py(cls, name, no_input: bool = False) -> str | None:
         content = cls._get_diff_file_content()
+        version = await cls.generate_version(name)  # '<num>_<date>_<name>.py'
+        conflict_modules = [
+            version_module
+            for version_module in cls.get_all_version_modules()
+            if version_module.name.startswith(version.split("_")[0])
+        ]
+        if conflict_modules:
+            if len(conflict_modules) == 1:
+                file = py_module_path(conflict_modules[0])
+                tip = f"Migration file exists({file}). Do you want to remove it?"
+            else:
+                tip = f"Migration file exists({[py_module_path(m) for m in conflict_modules]}). Do you want to remove them?"
+            overwrite = no_input or click.prompt(
+                tip,
+                default=False,
+                type=bool,
+                show_choices=True,
+            )
+            if not overwrite:
+                return None
+            # delete same version files
+            for version_module in conflict_modules:
+                py_module_path(version_module).unlink()
+
         Path(cls.migrate_location, version).write_text(content, encoding="utf-8")
         return version
 
@@ -194,8 +222,16 @@ class Migrate:
             )
         ]
 
+    @overload
     @classmethod
-    async def migrate(cls, name: str, empty: bool) -> str:
+    async def migrate(cls, name: str, empty: bool, no_input: Literal[True]) -> str: ...
+
+    @overload
+    @classmethod
+    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None: ...
+
+    @classmethod
+    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None:
         """
         diff old models and new models to generate diff content
         :param name: str name for migration
@@ -203,18 +239,18 @@ class Migrate:
         :return:
         """
         if empty:
-            return cls._generate_diff_py(name)
+            return await cls._generate_diff_py(name, no_input=no_input)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
-        cls.diff_models(last_version, new_version_content)
-        cls.diff_models(new_version_content, last_version, False)
+        cls.diff_models(last_version, new_version_content, no_input=no_input)
+        cls.diff_models(new_version_content, last_version, False, no_input=no_input)
 
         cls._merge_operators()
 
         if not cls.upgrade_operators:
             return ""
 
-        return cls._generate_diff_py(name)
+        return await cls._generate_diff_py(name, no_input=no_input)
 
     @classmethod
     def _get_diff_file_content(cls) -> str:
@@ -312,14 +348,20 @@ class Migrate:
                 if attr == "indexed":
                     # Ignore changing of indexed, as it usually changed by unique
                     continue
-                elif attr == "unique":
-                    # TODO:
-                    continue
                 elif attr == "nullable":
                     # nullable of m2m relation is constrainted by orm framework, not by db
                     continue
-            if change[0][0] == "db_constraint":
-                continue
+                elif attr in ("unique", "db_constraint"):
+                    # TODO: handle 'unique'
+                    if upgrade:
+                        click.secho(
+                            f"Aerich does not handle {attr!r} attribution for m2m field. You may need to change the constraints in db manually.",
+                            fg=Color.yellow,
+                        )
+                    continue
+            with contextlib.suppress(TypeError, KeyError):
+                if change[0][0] == "db_constraint":
+                    continue
             new_value = change[0][1]
             if isinstance(new_value, str):
                 for new_m2m_field in new_m2m_fields:
@@ -423,8 +465,30 @@ class Migrate:
         )
 
     @classmethod
+    def _is_unique_constraint(cls, model: type[Model], index_name: str) -> bool:
+        if cls.dialect != "postgres":
+            return False
+        # For postgresql, if a unique_together was created when generating the table, it is
+        # a constraint. And if it was created after table generated, it will be a unique index.
+        migrate_files = cls.get_all_version_modules()
+        if len(migrate_files) < 2:
+            return True
+        pattern = re.compile(rf' "?{index_name}"? ')
+        for filename in reversed(migrate_files[1:]):
+            module = import_py_module(filename)
+            upgrade_sql = run_async(module.upgrade, None)
+            if pattern.search(upgrade_sql):
+                line = [i for i in upgrade_sql.splitlines() if pattern.search(i)][0]
+                prefix_words = pattern.split(line)[0].lower().split()
+                if "drop" in prefix_words:
+                    # The migrate file may be generated by `aerich migrate` without applied by `aerich upgrade`
+                    continue
+                return "constraint" in prefix_words
+        return True
+
+    @classmethod
     def diff_models(
-        cls, old_models: dict[str, dict], new_models: dict[str, dict], upgrade=True
+        cls, old_models: dict[str, dict], new_models: dict[str, dict], upgrade=True, no_input=False
     ) -> None:
         """
         diff models and add operators
@@ -434,7 +498,13 @@ class Migrate:
         :return:
         """
         _aerich = f"{cls.app}.{cls._aerich}"
-        old_models.pop(_aerich, None)
+        try:
+            old_models.pop(_aerich, None)
+        except AttributeError:
+            # Invalid use when app migration directory exists but aerich table not exist
+            raise click.UsageError(
+                "You may need to run `aerich init-db` first to initialize the database."
+            ) from None
         new_models.pop(_aerich, None)
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 
@@ -490,7 +560,15 @@ class Migrate:
                     cls._add_operator(cls._add_index(model, index, True), upgrade, True)
                 # remove unique_together
                 for index in old_unique_together.difference(new_unique_together):
-                    cls._add_operator(cls._drop_index(model, index, True), upgrade, True)
+                    index_name = cls._unique_index_name(model, index)
+                    if upgrade and cls._is_unique_constraint(model, index_name):
+                        cls._add_operator(
+                            cls.ddl.drop_unique_constraint(model, index_name), upgrade, True
+                        )
+                    else:
+                        cls._add_operator(
+                            cls.ddl.drop_index_by_name(model, index_name), upgrade, True
+                        )
                 # add indexes
                 for idx in new_indexes.difference(old_indexes):
                     cls._add_operator(cls._add_index(model, idx), upgrade, fk_m2m_index=True)
@@ -559,7 +637,7 @@ class Migrate:
                                             # print a empty line to warn that is another model
                                             prefix = "\n" + prefix
                                         models_with_rename_field.add(new_model_str)
-                                    is_rename = click.prompt(
+                                    is_rename = no_input or click.prompt(
                                         f"{prefix}Rename {old_data_field_name} to {new_data_field_name}?",
                                         default=True,
                                         type=bool,
@@ -601,13 +679,13 @@ class Migrate:
                             new_data_field["indexed"]
                             and new_data_field["db_column"] not in new_o2o_columns
                         ):
-                            cls._add_operator(
-                                cls._add_index(
-                                    model, (new_data_field["db_column"],), new_data_field["unique"]
-                                ),
-                                upgrade,
-                                True,
-                            )
+                            unique = new_data_field["unique"]
+                            if not unique or cls.ddl.should_add_unique_index_when_adding_column():
+                                cls._add_operator(
+                                    cls._add_index(model, (new_data_field["db_column"],), unique),
+                                    upgrade,
+                                    True,
+                                )
                 # remove fields
                 rename_fields = cls._rename_fields.get(new_model_str)
                 for old_data_field_name in set(old_data_fields_name).difference(
@@ -642,10 +720,16 @@ class Migrate:
                         model, field_name, old_data_fields, new_data_fields, upgrade
                     )
 
+        dropped_m2m_tables: set[str] = set()
         for old_model in old_models.keys() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
                 continue
-            cls._add_operator(cls.drop_model(old_models[old_model]["table"]), upgrade)
+            model_describe = old_models[old_model]
+            for field_describe in model_describe.get("m2m_fields", []):
+                if (through := field_describe["through"]) not in dropped_m2m_tables:
+                    cls._add_operator(cls.drop_m2m(through), upgrade)
+                    dropped_m2m_tables.add(through)
+            cls._add_operator(cls.drop_model(model_describe["table"]), upgrade)
 
     @classmethod
     def _handle_pk_field_alter(
@@ -711,7 +795,11 @@ class Migrate:
                     cls._add_operator(cls._add_index(model, (field_name,), unique), upgrade, True)
                 else:
                     unique = old_data_field.get("unique")
-                    cls._add_operator(cls._drop_index(model, (field_name,), unique), upgrade, True)
+                    if unique:
+                        for sql in cls._drop_unique_index(model, field_name):
+                            cls._add_operator(sql, upgrade, True)
+                    else:
+                        cls._add_operator(cls._drop_index(model, (field_name,)), upgrade, True)
             elif option == "db_field_types.":
                 if new_data_field.get("field_type") == "DecimalField":
                     # modify column
@@ -781,6 +869,11 @@ class Migrate:
         return ret
 
     @classmethod
+    def _unique_index_name(cls, model: type[Model], fields_name: Iterable[str]) -> str:
+        field_names = cls._resolve_fk_fields_name(model, fields_name)
+        return cls.ddl._index_name(True, model, field_names)
+
+    @classmethod
     def _drop_index(
         cls, model: type[Model], fields_name: Iterable[str] | Index, unique=False
     ) -> str:
@@ -800,6 +893,13 @@ class Migrate:
             )
         field_names = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.drop_index(model, field_names, unique)
+
+    @classmethod
+    def _drop_unique_index(cls, model: type[Model], field_name: str) -> list[str]:
+        field_name, *_ = cls._resolve_fk_fields_name(model, (field_name,))
+        if hasattr(cls.ddl, "drop_unique_index"):
+            return cls.ddl.drop_unique_index(model, field_name)
+        return [cls.ddl.drop_index(model, [field_name], unique=True)]
 
     @classmethod
     def _add_index(
@@ -900,6 +1000,22 @@ class Migrate:
         for _upgrade_fk_m2m_operator in cls._upgrade_fk_m2m_index_operators:
             if "ADD" in _upgrade_fk_m2m_operator or "CREATE" in _upgrade_fk_m2m_operator:
                 cls.upgrade_operators.append(_upgrade_fk_m2m_operator)
+                if m := re.search(r'CREATE TABLE "(\w+?)"', _upgrade_fk_m2m_operator):
+                    table_name = m.group(1)
+                    pattern = re.compile(rf'COMMENT ON TABLE "{table_name}"')
+                    # Comment of postgresql m2m table may set before creation of it
+                    for index, sql in enumerate(cls.upgrade_operators[:-1]):
+                        if pattern.search(sql):
+                            sqls = sql.split(";")
+                            for i, s in enumerate(sqls):
+                                if pattern.search(s):
+                                    break
+                            comment_sql = s.strip()
+                            sqls.pop(i)
+                            cls.upgrade_operators[index] = ";".join(sqls)
+                            # Put comment of this table behind the create sql
+                            cls.upgrade_operators.append(comment_sql)
+                            break
             else:
                 cls.upgrade_operators.insert(0, _upgrade_fk_m2m_operator)
 

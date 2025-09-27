@@ -4,6 +4,7 @@ import asyncio
 import os
 import sys
 from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -31,6 +32,7 @@ tortoise_orm = {
         "models_second": {"models": ["tests.models_second"], "default_connection": "second"},
     },
 }
+TEST_DIR = Path(__file__).parent / "tests"
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -70,14 +72,11 @@ async def initialize_tests(event_loop, request) -> None:
     request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))
 
 
-@pytest.fixture
-def new_aerich_project(tmp_path: Path):
-    test_dir = Path(__file__).parent / "tests"
-    asset_dir = test_dir / "assets" / "fake"
+@contextmanager
+def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_dir=TEST_DIR):
     settings_py = asset_dir / "settings.py"
     _tests_py = asset_dir / "_tests.py"
     db_py = asset_dir / "db.py"
-    models_py = test_dir / "models.py"
     models_second_py = test_dir / "models_second.py"
     copy_files(settings_py, _tests_py, models_py, models_second_py, db_py, target_dir=tmp_path)
     dst_dir = tmp_path / "tests"
@@ -95,3 +94,27 @@ def new_aerich_project(tmp_path: Path):
                 run_shell("python db.py drop", capture_output=False)
             if should_remove:
                 sys.path.remove(str(tmp_path))
+
+
+@pytest.fixture
+def new_aerich_project(tmp_path: Path):
+    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/fake/
+    asset_dir = TEST_DIR / "assets" / "fake"
+    models_py = TEST_DIR / "models.py"
+    with _new_aerich_project(tmp_path, asset_dir, models_py):
+        yield
+
+
+@pytest.fixture
+def tmp_aerich_project(tmp_path: Path):
+    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/remove_constraint/
+    asset_dir = TEST_DIR / "assets" / "remove_constraint"
+    models_py = asset_dir / "models.py"
+    with _new_aerich_project(tmp_path, asset_dir, models_py):
+        yield
+
+
+@pytest.fixture
+def tmp_work_dir(tmp_path: Path) -> Generator[Path]:
+    with chdir(tmp_path):
+        yield tmp_path

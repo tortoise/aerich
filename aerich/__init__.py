@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-import os
+import pkgutil
 import platform
+import warnings
+from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import tortoise
-from tortoise import Tortoise, connections, generate_schema_for_client
+from tortoise import BaseDBAsyncClient, Tortoise, connections
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
-from tortoise.utils import get_schema_sql
+from tortoise.utils import generate_schema_for_client, get_schema_sql
 
-from aerich.exceptions import DowngradeError
+from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
@@ -20,21 +22,24 @@ from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import (
     decompress_dict,
+    file_module_info,
     get_app_connection,
     get_app_connection_name,
     get_formatted_compressed_data,
     get_models_describe,
     import_py_file,
+    import_py_module,
+    py_module_path,
 )
 
 if TYPE_CHECKING:
     from tortoise import Model
-    from tortoise.fields.relational import ManyToManyFieldInstance  # NOQA:F401
+    from tortoise.fields.relational import ManyToManyFieldInstance
 
     from aerich.inspectdb import Inspect
 
 
-def _init_asyncio_patch():
+def _init_asyncio_patch() -> None:
     """
     Select compatible event loop for psycopg3.
 
@@ -54,15 +59,22 @@ def _init_asyncio_patch():
                 set_event_loop_policy(WindowsSelectorEventLoopPolicy())
 
 
-def _init_tortoise_0_24_1_patch():
+def _init_tortoise_0_24_1_patch() -> None:
     # this patch is for "tortoise-orm==0.24.1" to fix:
     # https://github.com/tortoise/tortoise-orm/issues/1893
     if tortoise.__version__ != "0.24.1":
         return
-    from tortoise.backends.base.schema_generator import BaseSchemaGenerator, cast, re
+    import re
+    from typing import cast
+
+    from tortoise.backends.base.schema_generator import BaseSchemaGenerator
 
     def _get_m2m_tables(
-        self, model: type[Model], db_table: str, safe: bool, models_tables: list[str]
+        self: BaseSchemaGenerator,
+        model: type[Model],
+        db_table: str,
+        safe: bool,
+        models_tables: list[str],
     ) -> list[str]:  # Copied from tortoise-orm
         m2m_tables_for_create = []
         for m2m_field in model._meta.m2m_fields:
@@ -144,28 +156,58 @@ class Command(AbstractAsyncContextManager):
         tortoise_config: dict,
         app: str = "models",
         location: str = "./migrations",
+        inspectdb_fields: dict[str, str] | None = None,
     ) -> None:
         self.tortoise_config = tortoise_config
         self.app = app
         self.location = location
+        self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
+        self._init_when_aenter = True
 
     async def init(self) -> None:
         await Migrate.init(self.tortoise_config, self.app, self.location)
 
     async def __aenter__(self) -> Command:
-        await self.init()
+        if self._init_when_aenter:
+            await self.init()
         return self
 
+    def __await__(self) -> Generator[Any, None, Command]:
+        # To support `command = await Command(tortoise_config)`
+        async def _self() -> Command:
+            return await self.__aenter__()
+
+        return _self().__await__()
+
     async def close(self) -> None:
-        await connections.close_all()
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        await self.aclose()
+
+    @staticmethod
+    async def aclose() -> None:
+        """Close tortoise connections if it was inited"""
+        if Tortoise._inited:
+            await connections.close_all()
 
     async def __aexit__(self, *args, **kw) -> None:
-        await self.close()
+        await self.aclose()
 
-    async def _upgrade(self, conn, version_file, fake: bool = False) -> None:
-        file_path = Path(Migrate.migrate_location, version_file)
-        m = import_py_file(file_path)
+    async def _upgrade(
+        self,
+        conn: BaseDBAsyncClient,
+        version_file: str,
+        fake: bool = False,
+        version_module: pkgutil.ModuleInfo | None = None,
+    ) -> None:
+        if version_module is not None:
+            m = import_py_module(version_module)
+        else:
+            m = import_py_file(Path(Migrate.migrate_location, version_file))
         upgrade = m.upgrade
         if not fake:
             await conn.execute_script(await upgrade(conn))
@@ -183,19 +225,22 @@ class Command(AbstractAsyncContextManager):
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
-        for version_file in Migrate.get_all_version_files():
+        for version_module in Migrate.get_all_version_modules():
+            version_file = version_module.name + ".py"
             try:
                 exists = await Aerich.exists(version=version_file, app=self.app)
             except OperationalError:
                 exists = False
             if not exists:
                 app_conn_name = get_app_connection_name(self.tortoise_config, self.app)
-                if run_in_transaction:
+                m = import_py_module(version_module)
+                migration_run_in_transaction = getattr(m, "RUN_IN_TRANSACTION", run_in_transaction)
+                if migration_run_in_transaction:
                     async with in_transaction(app_conn_name) as conn:
-                        await self._upgrade(conn, version_file, fake=fake)
+                        await self._upgrade(conn, version_file, fake, version_module)
                 else:
                     app_conn = get_app_connection(self.tortoise_config, self.app)
-                    await self._upgrade(app_conn, version_file, fake=fake)
+                    await self._upgrade(app_conn, version_file, fake, version_module)
                 migrated.append(version_file)
         return migrated
 
@@ -218,8 +263,8 @@ class Command(AbstractAsyncContextManager):
             async with in_transaction(
                 get_app_connection_name(self.tortoise_config, self.app)
             ) as conn:
-                file_path = Path(Migrate.migrate_location, file)
-                m = import_py_file(file_path)
+                module_info = file_module_info(Migrate.migrate_location, Path(file).stem)
+                m = import_py_module(module_info)
                 downgrade = m.downgrade
                 downgrade_sql = await downgrade(conn)
                 if not downgrade_sql.strip():
@@ -228,7 +273,7 @@ class Command(AbstractAsyncContextManager):
                     await conn.execute_script(downgrade_sql)
                 await version_obj.delete()
                 if delete:
-                    os.unlink(file_path)
+                    py_module_path(module_info).unlink()
                 ret.append(file)
         return ret
 
@@ -256,14 +301,38 @@ class Command(AbstractAsyncContextManager):
         else:
             raise NotImplementedError(f"{dialect} is not supported")
         inspect = cls(connection, tables)
+        if self._inspectdb_fields:
+            inspect._special_fields = self._inspectdb_fields
         return await inspect.inspect()
 
-    async def migrate(self, name: str = "update", empty: bool = False) -> str:
-        return await Migrate.migrate(name, empty)
+    @overload
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: Literal[True] = True
+    ) -> str: ...
 
-    async def init_db(self, safe: bool) -> None:
+    @overload
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: bool = False
+    ) -> str | None: ...
+
+    async def migrate(
+        self, name: str = "update", empty: bool = False, no_input: bool = False
+    ) -> str | None:
+        # return None if same version migration file already exists, and new one not generated
+        try:
+            return await Migrate.migrate(name, empty, no_input)
+        except NotInitedError as e:
+            raise NotInitedError("You have to call .init() first before migrate") from e
+
+    async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
         location = self.location
         app = self.app
+
+        await Tortoise.init(config=self.tortoise_config)
+        connection = get_app_connection(self.tortoise_config, app)
+        if pre_sql:
+            await connection.execute_script(pre_sql)
+
         dirname = Path(location, app)
         if not dirname.exists():
             dirname.mkdir(parents=True)
@@ -272,29 +341,29 @@ class Command(AbstractAsyncContextManager):
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
 
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
         await generate_schema_for_client(connection, safe)
 
         schema = get_schema_sql(connection, safe)
 
+        # TODO: why init Migrate?
         await Migrate.init(
             config=self.tortoise_config,
             app=app,
             location=location,
         )
-        version = Migrate.generate_version()
-        model_state = get_models_describe(app)
+        version = await Migrate.generate_version()
+        aerich_content = get_models_describe(app)
         await Aerich.create(
             version=version,
             app=app,
-            content=model_state,
+            content=aerich_content,
         )
+        Migrate._last_version_content = aerich_content
         version_file = Path(dirname, version)
         content = MIGRATE_TEMPLATE.format(
             upgrade_sql=schema,
             downgrade_sql="",
-            models_state=get_formatted_compressed_data(model_state),
+            models_state=get_formatted_compressed_data(aerich_content),
         )
         with open(version_file, "w", encoding="utf-8") as f:
             f.write(content)
@@ -320,7 +389,7 @@ class Command(AbstractAsyncContextManager):
             app=app,
             location=location,
         )
-        version = Migrate.generate_version()
+        version = await Migrate.generate_version()
         model_state = get_models_describe(app)
         version_file = Path(dirname, version)
         content = MIGRATE_TEMPLATE.format(
