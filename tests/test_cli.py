@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from aerich._compat import tomllib
-from tests._utils import prepare_py_files, run_shell
+from tests._utils import prepare_py_files, requires_dialect, run_shell
 
 
 @pytest.fixture
@@ -49,23 +49,59 @@ def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations
     assert "1 passed" in output
 
 
-def test_missing_aerich_models(tmp_work_dir: Path) -> None:
+@requires_dialect("sqlite")
+@pytest.mark.usefixtures("tmp_work_dir")
+def test_auto_add_aerich_models() -> None:
     prepare_py_files("missing_aerich_models")
-    run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS", capture_output=False)
+    output = run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS")
+    assert "Success writing aerich config to pyproject.toml" in output
+    output = run_shell("aerich init-db")
+    assert "Success" in output
+    with open("models.py", "a+") as f:
+        f.write("    b = fields.IntField(null=True)\n")
+    output = run_shell("aerich migrate")
+    assert "Success" in output
+    output = run_shell("aerich upgrade")
+    assert "Success" in output
+
+
+@requires_dialect("sqlite")
+@pytest.mark.usefixtures("tmp_work_dir")
+def test_missing_aerich_models() -> None:
+    prepare_py_files("missing_aerich_models")
+    output = run_shell("aerich init -t settings.TORTOISE_ORM_MULTI_APPS_WITHOUT_AERICH_MODELS")
+    assert "Success writing aerich config to pyproject.toml" in output
     output = run_shell("aerich init-db")
     assert "You have to add 'aerich.models' in the models of your tortoise config" in output
+
+    output = run_shell("aerich init -t settings.TORTOISE_ORM_MULTI_APPS")
+    assert "Success writing aerich config to pyproject.toml" in output
     output = run_shell("aerich migrate")
     assert "need to run `aerich init-db` first" in output
     output = run_shell("aerich upgrade")
     assert "need to run `aerich init-db` first" in output
-    Path("migrations", "models").mkdir()
+
+    output = run_shell("aerich init-db")
+    assert "Success" in output
+    output = run_shell("aerich init -t settings.TORTOISE_ORM_MULTI_APPS_WITHOUT_AERICH_MODELS")
+    assert "Success writing aerich config to pyproject.toml" in output
     output = run_shell("aerich migrate")
     assert "You have to add 'aerich.models' in the models of your tortoise config" in output
     output = run_shell("aerich upgrade")
     assert "You have to add 'aerich.models' in the models of your tortoise config" in output
 
+    output = run_shell("aerich init -t settings.TORTOISE_ORM_MULTI_APPS")
+    assert "Success" in output
+    with open("models.py", "a+") as f:
+        f.write("    b = fields.IntField(null=True)\n")
+    output = run_shell("aerich migrate")
+    assert "Success" in output
+    output = run_shell("aerich upgrade")
+    assert "Success" in output
 
-def test_aerich_init(tmp_work_dir: Path) -> None:
+
+@pytest.mark.usefixtures("tmp_work_dir")
+def test_aerich_init() -> None:
     prepare_py_files("missing_aerich_models")
     toml_file = Path("pyproject.toml")
     # init without pyproject.toml

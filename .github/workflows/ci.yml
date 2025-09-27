@@ -22,40 +22,48 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         tortoise-orm:
+          - tortoise021
+          - tortoise022
+          - tortoise023
           - tortoise024
           - tortoise025
           - tortoisedev
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - name: Install and configure Poetry
-        run: |
-          pip install -U pip
-          pip install "poetry>=2.0"
-          poetry env use python${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
       - name: Install dependencies and check style
-        run: poetry run make check
+        run: uv run make check
+      - name: Install TortoiseORM v0.21
+        if: matrix.tortoise-orm == 'tortoise021'
+        run: uv pip install --upgrade "tortoise-orm>=0.21,<0.22"
+      - name: Install TortoiseORM v0.22
+        if: matrix.tortoise-orm == 'tortoise022'
+        run: uv pip install --upgrade "tortoise-orm>=0.22,<0.23"
+      - name: Install TortoiseORM v0.23
+        if: matrix.tortoise-orm == 'tortoise023'
+        run: uv pip install --upgrade "tortoise-orm>=0.23,<0.24"
       - name: Install TortoiseORM v0.24
         if: matrix.tortoise-orm == 'tortoise024'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
+        run: uv pip install --upgrade "tortoise-orm>=0.24,<0.25"
       - name: Install TortoiseORM v0.25
         if: matrix.tortoise-orm == 'tortoise025'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.25,<0.26"
+        run: uv pip install --upgrade "tortoise-orm>=0.25,<0.26"
       - name: Install TortoiseORM develop branch
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-          poetry run pip uninstall -y tortoise-orm
-          poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
+          uv pip uninstall tortoise-orm
+          uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
       - name: CI
         env:
           MYSQL_PASS: root
@@ -64,22 +72,24 @@ jobs:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
-        run: poetry run make _testall
+        run: uv run make _testall
       - name: Verify aiomysql support
         # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-            poetry run pip uninstall -y asyncmy
-            poetry run make test_mysql
-            poetry run pip install asyncmy
+            uv pip uninstall asyncmy
+            uv run make test_mysql
+            uv pip install asyncmy
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
-      - name: Verify psycopg support
+      - name: Verify psycopg/tortoise-vector support
         # Only check the latest version of tortoise
         if: matrix.tortoise-orm == 'tortoisedev'
-        run: poetry run make test_psycopg
+        run: |
+          uv run make test_psycopg
+          uv run make test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import os
 import platform
@@ -48,11 +50,6 @@ async def init_db(tortoise_orm, generate_schemas=True) -> None:
         await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
 
 
-def copy_files(*src_files: Path, target_dir: Path) -> None:
-    for src in src_files:
-        shutil.copy(src, target_dir)
-
-
 class Dialect:
     test_db_url: str
 
@@ -94,10 +91,23 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
     return run_in_subprocess(command, capture_output, **kw)[1]
 
 
+def copy_files(*src_files: Path, target_dir: Path | str = ".") -> None:
+    for src in src_files:
+        shutil.copy(src, target_dir)
+
+
 def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> None:
     asset_dir = assets / asset_name
-    for file in asset_dir.glob(f"*{suffix}"):
-        shutil.copy(file, file.name)
+    copy_files(*asset_dir.glob(f"*{suffix}"))
+
+
+def copy_asset(name: str, parent: Path = ASSETS) -> None:
+    asset_dir = parent / name
+    for p in asset_dir.glob("*"):
+        if p.name.startswith("."):
+            continue
+        copy_func = shutil.copytree if p.is_dir() else shutil.copyfile
+        copy_func(p, p.name)
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
@@ -115,6 +125,10 @@ def requires_dialect(
 
 @contextlib.contextmanager
 def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
+    me = Path(__file__)
+    if not me.is_relative_to(Path.cwd()):
+        shutil.copy(me, ".")
+    run_in_subprocess("python db.py drop")
     ok, out = run_in_subprocess("python db.py create")
     if not ok:
         raise OperationalError(out)

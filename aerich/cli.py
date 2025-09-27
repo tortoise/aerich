@@ -7,55 +7,40 @@ from typing import cast
 
 import asyncclick as click
 from asyncclick import Context, UsageError
-from tortoise.exceptions import ConfigurationError
 
 from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
-from aerich.utils import add_src_path, get_tortoise_config
+from aerich.utils import (
+    CONFIG_DEFAULT_VALUES,
+    _load_tortoise_aerich_config,
+    add_src_path,
+    get_tortoise_config,
+)
 from aerich.version import __version__
 
-CONFIG_DEFAULT_VALUES = {
-    "src_folder": ".",
-}
 
-
-def _patch_context_to_close_tortoise_connections_when_exit() -> None:
-    from tortoise import Tortoise, connections
-
-    origin_aexit = Context.__aexit__
-
-    async def aexit(*args, **kw) -> None:
-        await origin_aexit(*args, **kw)
-        if Tortoise._inited:
-            await connections.close_all()
-
-    Context.__aexit__ = aexit  # type:ignore[method-assign]
-
-
-_patch_context_to_close_tortoise_connections_when_exit()
-
-
-def _check_aerich_models_included(tortoise_config: dict, e: Exception | None = None) -> None:
-    all_models = [
-        m for model in tortoise_config.get("apps", {}).values() for m in model.get("models", [])
-    ]
-    if all_models and "aerich.models" not in all_models:
-        raise UsageError(
-            "You have to add 'aerich.models' in the models of your tortoise config"
-        ) from e
+def _check_aerich_models_included(tortoise_config: dict) -> None:
+    # e.g.: tortoise_config = {'apps': {'app_1': {'models': ['models']}}}
+    apps: dict[str, dict[str, list]] = tortoise_config.get("apps", {})
+    app_values: list[dict[str, list[str]]] = list(apps.values())
+    all_models: set[str] = {m for model in app_values for m in model.get("models", [])}
+    if not all_models:
+        return
+    aerich_item = "aerich.models"
+    if aerich_item in all_models:
+        return
+    if len(apps) == 1:
+        # Auto add 'aerich.models' if there is only one app
+        apps[list(apps)[0]]["models"].append(aerich_item)
+        return
+    raise UsageError(f"You have to add {aerich_item!r} in the models of your tortoise config")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
-@click.option(
-    "-c",
-    "--config",
-    default="pyproject.toml",
-    show_default=True,
-    help="Config file.",
-)
+@click.option("-c", "--config", default="pyproject.toml", show_default=True, help="Config file.")
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
 async def cli(ctx: Context, config: str, app: str) -> None:
@@ -69,20 +54,15 @@ async def cli(ctx: Context, config: str, app: str) -> None:
             raise UsageError(
                 "You need to run `aerich init` first to create the config file.", ctx=ctx
             )
-        content = config_path.read_text("utf-8")
-        doc: dict = tomllib.loads(content)
+        tortoise_config, aerich_config = _load_tortoise_aerich_config(
+            ctx=ctx, config_file=config_path
+        )
         try:
-            tool = cast("dict[str, str]", doc["tool"]["aerich"])
-            location = tool["location"]
-            tortoise_orm = tool["tortoise_orm"]
+            location = aerich_config["location"]
         except KeyError as e:
             raise UsageError(
                 "You need run `aerich init` again when upgrading to aerich 0.6.0+."
             ) from e
-        else:
-            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
-        add_src_path(src_folder)
-        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         if not app:
             try:
                 apps_config = cast(dict, tortoise_config["apps"])
@@ -90,21 +70,19 @@ async def cli(ctx: Context, config: str, app: str) -> None:
                 raise UsageError('Config must define "apps" section') from None
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
-        if inspectdb_fields := tool.get("inspectdb"):
+        if inspectdb_fields := aerich_config.get("inspectdb"):
             command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
-        ctx.obj["command"] = command
-        if invoked_subcommand == "init-db":
-            _check_aerich_models_included(tortoise_config)
-        else:
+        # The 'init-db' subcommand requires it to not init when aenter
+        command._init_when_aenter = False
+        # Call ``command.__aexit__()`` when the context is popped
+        ctx.obj["command"] = await ctx.with_async_resource(command)
+        _check_aerich_models_included(tortoise_config)
+        if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
-            try:
-                await command.init()
-            except ConfigurationError as e:
-                _check_aerich_models_included(tortoise_config, e)
-                raise e
+            await command.init()
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")
@@ -256,7 +234,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(ctx, tortoise_orm)
+    get_tortoise_config(ctx=ctx, tortoise_orm=tortoise_orm)
     config_path = Path(config_file)
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
