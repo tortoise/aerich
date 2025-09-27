@@ -17,6 +17,7 @@ from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.log import logger
 
+from aerich._compat import tomllib
 from aerich.exceptions import NotInitedError
 
 if sys.version_info >= (3, 11):
@@ -27,6 +28,10 @@ else:
 T_Retval = TypeVar("T_Retval")
 PosArgsT = TypeVarTuple("PosArgsT")
 P = ParamSpec("P")
+
+CONFIG_DEFAULT_VALUES = {
+    "src_folder": ".",
+}
 
 
 def add_src_path(path: str) -> str:
@@ -67,13 +72,15 @@ def get_app_connection(config: dict[str, Any], app: str) -> BaseDBAsyncClient:
     return Tortoise.get_connection(get_app_connection_name(config, app))
 
 
-def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict[str, Any]:
+def get_tortoise_config(tortoise_orm: str, ctx: Context | None = None) -> dict[str, Any]:
     """
     get tortoise config from module
-    :param ctx:
     :param tortoise_orm:
+    :param ctx:
     :return:
     """
+    if isinstance(ctx, str) and (tortoise_orm is None or isinstance(tortoise_orm, Context)):
+        tortoise_orm, ctx = ctx, tortoise_orm  # Leave it here for backwards compatibility
     splits = tortoise_orm.split(".")
     config_path = ".".join(splits[:-1])
     tortoise_config = splits[-1]
@@ -100,6 +107,62 @@ def get_tortoise_config(ctx: Context, tortoise_orm: str) -> dict[str, Any]:
             ctx=ctx,
         )
     return cast(dict[str, Any], config)
+
+
+def load_tortoise_config(
+    tortoise_orm: str = "",
+    ctx: Context | None = None,
+    config_file: str | Path = "pyproject.toml",
+    env_name: str = "TORTOISE_ORM",
+) -> dict[str, Any]:
+    """
+    Load tortoise config from tortoise_orm or config_file or os environ.
+
+    If tortoise_orm is not empty, load config dict by it;
+    Otherwise, try to get tortoise_orm string by tool.aerich.tortoise_orm from config_file;
+    While failed to get tortoise_orm from config file, try to get it by os.getenv(<env_name>);
+    Raises ClickException if failed to get tortoise_orm from config file and os environ.
+
+    :param tortoise_orm: module.value string to load the tortoise config, e.g.: 'settings.TORTOISE_ORM'
+    :param ctx: click.Context that will be used when raising BadOptionUsage error
+    :param config_file: config filename, must be a toml file
+    :param env_name: os environ name to get the tortoise_orm string (Only use when failed to load from config file)
+
+    :return: config dict that can be used in `Tortoise.init(config=config_dict)`
+    """
+    return _load_tortoise_aerich_config(tortoise_orm, ctx, config_file, env_name)[0]
+
+
+def _load_tortoise_aerich_config(
+    tortoise_orm: str = "",
+    ctx: Context | None = None,
+    config_file: str | Path = "pyproject.toml",
+    env_name: str = "TORTOISE_ORM",
+    default_src_folder: str = CONFIG_DEFAULT_VALUES["src_folder"],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    aerich_config: dict[str, str] = {}
+    if tortoise_orm:
+        add_src_path(default_src_folder)
+        return get_tortoise_config(tortoise_orm, ctx), aerich_config
+    if isinstance(config_file, str):
+        config_file = Path(config_file)
+    if config_file.exists():
+        text = config_file.read_text(encoding="utf-8")
+        doc = tomllib.loads(text)
+        try:
+            aerich_config = doc["tool"]["aerich"]
+        except KeyError:
+            ...
+        else:
+            if t := aerich_config.get("tortoise_orm", ""):
+                add_src_path(aerich_config.get("src", default_src_folder))
+                return get_tortoise_config(t, ctx), aerich_config
+    if v := os.getenv(env_name):
+        add_src_path(os.getenv("TORTOISE_ORM_SRC", default_src_folder))
+        return get_tortoise_config(v, ctx), aerich_config
+    raise ClickException(
+        f"Failed to load tortoise config from config_file({config_file}) and os environ({env_name!r})"
+    )
 
 
 def get_models_describe(app: str) -> dict[str, dict[str, Any]]:

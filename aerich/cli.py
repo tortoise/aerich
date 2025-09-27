@@ -12,12 +12,13 @@ from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
-from aerich.utils import add_src_path, get_tortoise_config
+from aerich.utils import (
+    CONFIG_DEFAULT_VALUES,
+    _load_tortoise_aerich_config,
+    add_src_path,
+    get_tortoise_config,
+)
 from aerich.version import __version__
-
-CONFIG_DEFAULT_VALUES = {
-    "src_folder": ".",
-}
 
 
 def _check_aerich_models_included(tortoise_config: dict) -> None:
@@ -53,20 +54,15 @@ async def cli(ctx: Context, config: str, app: str) -> None:
             raise UsageError(
                 "You need to run `aerich init` first to create the config file.", ctx=ctx
             )
-        content = config_path.read_text("utf-8")
-        doc: dict = tomllib.loads(content)
+        tortoise_config, aerich_config = _load_tortoise_aerich_config(
+            ctx=ctx, config_file=config_path
+        )
         try:
-            tool = cast("dict[str, str]", doc["tool"]["aerich"])
-            location = tool["location"]
-            tortoise_orm = tool["tortoise_orm"]
+            location = aerich_config["location"]
         except KeyError as e:
             raise UsageError(
                 "You need run `aerich init` again when upgrading to aerich 0.6.0+."
             ) from e
-        else:
-            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
-        add_src_path(src_folder)
-        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
         if not app:
             try:
                 apps_config = cast(dict, tortoise_config["apps"])
@@ -74,7 +70,7 @@ async def cli(ctx: Context, config: str, app: str) -> None:
                 raise UsageError('Config must define "apps" section') from None
             app = list(apps_config.keys())[0]
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
-        if inspectdb_fields := tool.get("inspectdb"):
+        if inspectdb_fields := aerich_config.get("inspectdb"):
             command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
         # The 'init-db' subcommand requires it to not init when aenter
         command._init_when_aenter = False
@@ -238,7 +234,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(ctx, tortoise_orm)
+    get_tortoise_config(ctx=ctx, tortoise_orm=tortoise_orm)
     config_path = Path(config_file)
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
