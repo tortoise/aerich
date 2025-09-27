@@ -161,12 +161,14 @@ class Command(AbstractAsyncContextManager):
         self.location = location
         self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
+        self._init_when_aenter = True
 
     async def init(self) -> None:
         await Migrate.init(self.tortoise_config, self.app, self.location)
 
     async def __aenter__(self) -> Command:
-        await self.init()
+        if self._init_when_aenter:
+            await self.init()
         return self
 
     def __await__(self) -> Generator[Any, None, Command]:
