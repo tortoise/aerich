@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import os
-import platform
 import shlex
 import shutil
 import subprocess
@@ -10,14 +9,14 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from tests._utils import Dialect, prepare_py_files, requires_dialect
+from tests._utils import WINDOWS, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str) -> subprocess.CompletedProcess | None:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
-        if platform.system() == "Windows":
+        if WINDOWS:
             cmd = "python -m " + cmd
     r = None
     with contextlib.suppress(subprocess.TimeoutExpired):
@@ -45,10 +44,9 @@ def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
     yield models_py, models_py.read_text("utf-8")
 
 
+@requires_dialect("sqlite")
 def test_close_tortoise_connections_patch(tmp_work_dir: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
+    with prepare_sqlite_project(tmp_work_dir):
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         r = run_aerich("aerich init-db")
         assert r is not None

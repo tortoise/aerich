@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pkgutil
 import platform
+import warnings
 from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
@@ -160,12 +161,14 @@ class Command(AbstractAsyncContextManager):
         self.location = location
         self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
+        self._init_when_aenter = True
 
     async def init(self) -> None:
         await Migrate.init(self.tortoise_config, self.app, self.location)
 
     async def __aenter__(self) -> Command:
-        await self.init()
+        if self._init_when_aenter:
+            await self.init()
         return self
 
     def __await__(self) -> Generator[Any, None, Command]:
@@ -176,10 +179,21 @@ class Command(AbstractAsyncContextManager):
         return _self().__await__()
 
     async def close(self) -> None:
-        await connections.close_all()
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        await self.aclose()
+
+    @staticmethod
+    async def aclose() -> None:
+        """Close tortoise connections if it was inited"""
+        if Tortoise._inited:
+            await connections.close_all()
 
     async def __aexit__(self, *args, **kw) -> None:
-        await self.close()
+        await self.aclose()
 
     async def _upgrade(
         self,

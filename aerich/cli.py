@@ -20,22 +20,6 @@ CONFIG_DEFAULT_VALUES = {
 }
 
 
-def _patch_context_to_close_tortoise_connections_when_exit() -> None:
-    from tortoise import Tortoise, connections
-
-    origin_aexit = Context.__aexit__
-
-    async def aexit(*args, **kw) -> None:
-        await origin_aexit(*args, **kw)
-        if Tortoise._inited:
-            await connections.close_all()
-
-    Context.__aexit__ = aexit  # type:ignore[method-assign]
-
-
-_patch_context_to_close_tortoise_connections_when_exit()
-
-
 def _check_aerich_models_included(tortoise_config: dict) -> None:
     # e.g.: tortoise_config = {'apps': {'app_1': {'models': ['models']}}}
     apps: dict[str, dict[str, list]] = tortoise_config.get("apps", {})
@@ -92,7 +76,10 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         if inspectdb_fields := tool.get("inspectdb"):
             command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
-        ctx.obj["command"] = command
+        # The 'init-db' subcommand requires it to not init when aenter
+        command._init_when_aenter = False
+        # Call ``command.__aexit__()`` when the context is popped
+        ctx.obj["command"] = await ctx.with_async_resource(command)
         _check_aerich_models_included(tortoise_config)
         if invoked_subcommand != "init-db":
             if not Path(location, app).exists():
