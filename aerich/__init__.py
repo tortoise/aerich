@@ -188,6 +188,7 @@ class Command(AbstractAsyncContextManager):
 
     @staticmethod
     async def aclose() -> None:
+        """Close tortoise connections if it was inited"""
         if Tortoise._inited:
             await connections.close_all()
 

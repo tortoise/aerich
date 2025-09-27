@@ -76,7 +76,9 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         command = Command(tortoise_config=tortoise_config, app=app, location=location)
         if inspectdb_fields := tool.get("inspectdb"):
             command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
+        # The 'init-db' subcommand requires it to not init when aenter
         command._init_when_aenter = False
+        # Call ``command.__aexit__()`` when the context is popped
         ctx.obj["command"] = await ctx.with_async_resource(command)
         _check_aerich_models_included(tortoise_config)
         if invoked_subcommand != "init-db":
