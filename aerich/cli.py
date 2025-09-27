@@ -109,7 +109,7 @@ async def migrate(ctx: Context, name: str, empty: bool, no_input: bool) -> None:
     "-i",
     default=True,
     type=bool,
-    help="Make migrations in a single transaction or not. Can be helpful for large migrations or creating concurrent indexes.",
+    help="Make migrations in a single transaction or not. Can be helpful for large migrations or creating concurrent indexes. Overwrites the value in a migration file",
 )
 @click.option(
     "--fake",

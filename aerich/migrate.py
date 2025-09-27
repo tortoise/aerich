@@ -32,6 +32,8 @@ from aerich.utils import (
 
 MIGRATE_TEMPLATE = """from tortoise import BaseDBAsyncClient
 
+RUN_IN_TRANSACTION = True
+
 
 async def upgrade(db: BaseDBAsyncClient) -> str:
     return \"\"\"
