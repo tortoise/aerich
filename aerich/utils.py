@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import importlib.util
-import json
 import os
 import pkgutil
 import re
@@ -27,6 +26,24 @@ if sys.version_info >= (3, 11):
     from typing import ParamSpec, TypeVarTuple, Unpack
 else:
     from typing_extensions import ParamSpec, TypeVarTuple, Unpack
+
+try:
+    import orjson
+
+    def json_dump_bytes(data: Any) -> bytes:
+        return orjson.dumps(data)
+
+    def json_loads(content: bytes) -> dict[str, Any]:
+        return orjson.loads(content)
+except ImportError:
+    import json
+
+    def json_dump_bytes(data: Any) -> bytes:
+        return json.dumps(data, separators=(":", ",")).encode()
+
+    def json_loads(content: bytes) -> dict[str, Any]:
+        return json.loads(content)
+
 
 T_Retval = TypeVar("T_Retval")
 PosArgsT = TypeVarTuple("PosArgsT")
@@ -289,8 +306,7 @@ def get_dict_diff_by_key(
 
 
 def compress_dict(dictionary: dict[str, Any]) -> str:
-    json_str = json.dumps(dictionary)
-    compressed_bytes = zlib.compress(json_str.encode("utf-8"))
+    compressed_bytes = zlib.compress(json_dump_bytes(dictionary))
     base64_str = base64.b64encode(compressed_bytes).decode("ascii")
 
     return base64_str
@@ -314,8 +330,7 @@ def get_formatted_compressed_data(dictionary: dict[str, Any], row_length: int = 
 def decompress_dict(compressed_str: str) -> dict[str, Any]:
     compressed_bytes = base64.b64decode(compressed_str)
     json_bytes = zlib.decompress(compressed_bytes)
-    dictionary = json.loads(json_bytes.decode("utf-8"))
-
+    dictionary = json_loads(json_bytes)
     return dictionary
 
 

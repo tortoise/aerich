@@ -102,6 +102,7 @@ exclude = ["tests/assets", "migrations"]
 [[tool.mypy.overrides]]
 module = [
     'dictdiffer.*',
+    'orjson',
     'tomlkit',
     'tomli_w',
     'tomli',
