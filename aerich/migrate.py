@@ -691,6 +691,8 @@ class Migrate:
                     model, field_name, old_data_fields, new_data_fields, upgrade
                 )
 
+        if post_hook_sql := cls.ddl.schema_generator._post_table_hook().strip():
+            cls._add_operator(post_hook_sql, upgrade)
         dropped_m2m_tables: set[str] = set()
         for old_model in old_models.keys() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
