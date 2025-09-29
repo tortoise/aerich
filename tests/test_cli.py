@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 from aerich._compat import tomllib
-from tests._utils import prepare_py_files, requires_dialect, run_shell
+from aerich.cli import inspectdb, upgrade
+from tests._utils import chdir, prepare_py_files, requires_dialect, run_shell
 
 
 @pytest.fixture
@@ -141,3 +142,19 @@ def test_aerich_init() -> None:
     assert "comment-2" in text
     doc = tomllib.loads(text)
     assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM"
+
+
+def test_help(tmp_path):
+    output = run_shell("aerich --help")
+    assert output == run_shell("aerich -h")
+    assert str(upgrade.help) in output
+    assert "--fake" not in output
+    output = run_shell("aerich upgrade --help")
+    assert output == run_shell("aerich upgrade -h")
+    assert str(upgrade.help) in output
+    assert "--fake" in output
+    with chdir(tmp_path):
+        output = run_shell(f"aerich {inspectdb.name} --help")
+        assert output == run_shell(f"aerich {inspectdb.name} -h")
+        assert str(inspectdb.help) in output
+        assert "--table" in output

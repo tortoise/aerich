@@ -487,6 +487,32 @@ class Migrate:
         return True
 
     @classmethod
+    def _handle_add_models(
+        cls, upgrade: bool, new_models, new_table_items: list[tuple[str, dict, type[Model]]]
+    ) -> None:
+        sql_fks: list[tuple[str, set[str]]] = []
+        for new_model_str, new_model_describe, model in new_table_items:
+            if not upgrade:
+                # we can't find origin model when downgrade, so skip
+                continue
+            sql = cls.add_model(model)
+            fk_model_names: set[str] = {
+                i.get("python_type", "")
+                for i in (new_model_describe["fk_fields"] + new_model_describe["o2o_fields"])
+            }
+            item = (sql, fk_model_names)
+            name = new_model_describe["name"]
+            for index, (_, fks) in enumerate(sql_fks):
+                if name in fks:
+                    sql_fks.insert(index, item)
+                    break
+            else:
+                sql_fks.append(item)
+            cls._handle_m2m_fields({}, new_model_describe, model, new_models, upgrade)
+        for sql, _ in sql_fks:
+            cls._add_operator(sql, upgrade)
+
+    @classmethod
     def diff_models(
         cls, old_models: dict[str, dict], new_models: dict[str, dict], upgrade=True, no_input=False
     ) -> None:
@@ -508,218 +534,202 @@ class Migrate:
         new_models.pop(_aerich, None)
         models_with_rename_field: set[str] = set()  # models that trigger the click.prompt
 
+        new_table_items: list[tuple[str, dict, type[Model]]] = []
+        other_items: list[tuple[str, dict, type[Model]]] = []
         for new_model_str, new_model_describe in new_models.items():
             if upgrade and new_model_describe.get("managed") is False:
                 continue
             model = cls._get_model(new_model_describe["name"].split(".")[1])
+            item = (new_model_str, new_model_describe, model)
             if new_model_str not in old_models:
-                if upgrade:
-                    cls._add_operator(cls.add_model(model), upgrade)
-                    cls._handle_m2m_fields({}, new_model_describe, model, new_models, upgrade)
-                else:
-                    # we can't find origin model when downgrade, so skip
-                    pass
+                new_table_items.append(item)
             else:
-                old_model_describe = cast(dict, old_models.get(new_model_str))
-                if not upgrade and old_model_describe.get("managed") is False:
-                    continue
-                # rename table
-                new_table = cast(str, new_model_describe.get("table"))
-                old_table = cast(str, old_model_describe.get("table"))
-                if new_table != old_table:
-                    cls._add_operator(cls.rename_table(model, old_table, new_table), upgrade)
-                old_unique_together = set(
-                    map(
-                        lambda x: tuple(x),
-                        cast("list[Iterable[str]]", old_model_describe.get("unique_together")),
-                    )
-                )
-                new_unique_together = set(
-                    map(
-                        lambda x: tuple(x),
-                        cast("list[Iterable[str]]", new_model_describe.get("unique_together")),
-                    )
-                )
-                old_indexes = cls._get_indexes(model, old_model_describe)
-                new_indexes = cls._get_indexes(model, new_model_describe)
-                # pk field
-                cls._handle_pk_field_alter(model, old_model_describe, new_model_describe, upgrade)
-                # fk fields
-                args = (old_model_describe, new_model_describe, model, old_models, new_models)
-                cls._handle_fk_fields(*args, upgrade=upgrade)
-                # o2o fields
-                cls._handle_o2o_fields(*args, upgrade=upgrade)
-                old_o2o_columns = [i["raw_field"] for i in old_model_describe.get("o2o_fields", [])]
-                new_o2o_columns = [i["raw_field"] for i in new_model_describe.get("o2o_fields", [])]
-                # m2m fields
-                cls._handle_m2m_fields(
-                    old_model_describe, new_model_describe, model, new_models, upgrade
-                )
-                # add unique_together
-                for index in new_unique_together.difference(old_unique_together):
-                    cls._add_operator(cls._add_index(model, index, True), upgrade, True)
-                # remove unique_together
-                for index in old_unique_together.difference(new_unique_together):
-                    index_name = cls._unique_index_name(model, index)
-                    if upgrade and cls._is_unique_constraint(model, index_name):
-                        cls._add_operator(
-                            cls.ddl.drop_unique_constraint(model, index_name), upgrade, True
-                        )
-                    else:
-                        cls._add_operator(
-                            cls.ddl.drop_index_by_name(model, index_name), upgrade, True
-                        )
-                # add indexes
-                for idx in new_indexes.difference(old_indexes):
-                    cls._add_operator(cls._add_index(model, idx), upgrade, fk_m2m_index=True)
-                # remove indexes
-                for idx in old_indexes.difference(new_indexes):
-                    cls._add_operator(cls._drop_index(model, idx), upgrade, fk_m2m_index=True)
-                old_data_fields = list(
-                    filter(
-                        lambda x: x.get("db_field_types") is not None,
-                        cast("list[dict]", old_model_describe.get("data_fields")),
-                    )
-                )
-                new_data_fields = list(
-                    filter(
-                        lambda x: x.get("db_field_types") is not None,
-                        cast("list[dict]", new_model_describe.get("data_fields")),
-                    )
-                )
-
-                old_data_fields_name = cast("list[str]", [i.get("name") for i in old_data_fields])
-                new_data_fields_name = cast("list[str]", [i.get("name") for i in new_data_fields])
-
-                # add fields or rename fields
-                for new_data_field_name in set(new_data_fields_name).difference(
-                    set(old_data_fields_name)
-                ):
-                    new_data_field = cls.get_field_by_name(new_data_field_name, new_data_fields)
-                    is_rename = False
-                    field_type = new_data_field.get("field_type")
-                    db_column = new_data_field.get("db_column")
-                    new_name = set(new_data_field_name)
-                    for old_data_field in sorted(
-                        old_data_fields,
-                        key=lambda f: (
-                            f.get("field_type") != field_type,
-                            # old field whose name have more same characters with new field's
-                            # should be put in front of the other
-                            len(new_name.symmetric_difference(set(f.get("name", "")))),
-                        ),
-                    ):
-                        changes = cls._exclude_extra_field_types(
-                            diff(old_data_field, new_data_field)
-                        )
-                        old_data_field_name = cast(str, old_data_field.get("name"))
-                        if len(changes) == 2:
-                            # rename field
-                            name_diff = (old_data_field_name, new_data_field_name)
-                            column_diff = (old_data_field.get("db_column"), db_column)
-                            if (
-                                changes[0] == ("change", "name", name_diff)
-                                and changes[1] == ("change", "db_column", column_diff)
-                                and old_data_field_name not in new_data_fields_name
-                            ):
-                                if upgrade:
-                                    if (
-                                        rename_fields := cls._rename_fields.get(new_model_str)
-                                    ) and (
-                                        old_data_field_name in rename_fields
-                                        or new_data_field_name in rename_fields.values()
-                                    ):
-                                        continue
-                                    prefix = f"({new_model_str}) "
-                                    if new_model_str not in models_with_rename_field:
-                                        if models_with_rename_field:
-                                            # When there are multi rename fields with different models,
-                                            # print a empty line to warn that is another model
-                                            prefix = "\n" + prefix
-                                        models_with_rename_field.add(new_model_str)
-                                    is_rename = no_input or click.prompt(
-                                        f"{prefix}Rename {old_data_field_name} to {new_data_field_name}?",
-                                        default=True,
-                                        type=bool,
-                                        show_choices=True,
-                                    )
-                                    if is_rename:
-                                        if rename_fields is None:
-                                            rename_fields = cls._rename_fields[new_model_str] = {}
-                                        rename_fields[old_data_field_name] = new_data_field_name
-                                else:
-                                    is_rename = False
-                                    if rename_to := cls._rename_fields.get(new_model_str, {}).get(
-                                        new_data_field_name
-                                    ):
-                                        is_rename = True
-                                        if rename_to != old_data_field_name:
-                                            continue
-                                if is_rename:
-                                    # only MySQL8+ has rename syntax
-                                    if (
-                                        cls.dialect == "mysql"
-                                        and cls._db_version
-                                        and cls._db_version.startswith("5.")
-                                    ):
-                                        cls._add_operator(
-                                            cls._change_field(
-                                                model, old_data_field, new_data_field
-                                            ),
-                                            upgrade,
-                                        )
-                                    else:
-                                        cls._add_operator(
-                                            cls._rename_field(model, *changes[1][2]),
-                                            upgrade,
-                                        )
-                    if not is_rename:
-                        cls._add_operator(cls._add_field(model, new_data_field), upgrade)
-                        if (
-                            new_data_field["indexed"]
-                            and new_data_field["db_column"] not in new_o2o_columns
-                        ):
-                            unique = new_data_field["unique"]
-                            if not unique or cls.ddl.should_add_unique_index_when_adding_column():
-                                cls._add_operator(
-                                    cls._add_index(model, (new_data_field["db_column"],), unique),
-                                    upgrade,
-                                    True,
-                                )
-                # remove fields
-                rename_fields = cls._rename_fields.get(new_model_str)
-                for old_data_field_name in set(old_data_fields_name).difference(
-                    set(new_data_fields_name)
-                ):
-                    # don't remove field if is renamed
-                    if rename_fields and (
-                        (upgrade and old_data_field_name in rename_fields)
-                        or (not upgrade and old_data_field_name in rename_fields.values())
-                    ):
-                        continue
-                    old_data_field = cls.get_field_by_name(old_data_field_name, old_data_fields)
-                    db_column = cast(str, old_data_field["db_column"])
+                other_items.append(item)
+        cls._handle_add_models(upgrade, new_models, new_table_items)
+        for new_model_str, new_model_describe, model in other_items:
+            old_model_describe = cast(dict, old_models.get(new_model_str))
+            if not upgrade and old_model_describe.get("managed") is False:
+                continue
+            # rename table
+            new_table = cast(str, new_model_describe.get("table"))
+            old_table = cast(str, old_model_describe.get("table"))
+            if new_table != old_table:
+                cls._add_operator(cls.rename_table(model, old_table, new_table), upgrade)
+            _old_uniques = cast("list[Iterable[str]]", old_model_describe.get("unique_together"))
+            _new_uniques = cast("list[Iterable[str]]", new_model_describe.get("unique_together"))
+            old_unique_together = set(map(lambda x: tuple(x), _old_uniques))
+            new_unique_together = set(map(lambda x: tuple(x), _new_uniques))
+            old_indexes = cls._get_indexes(model, old_model_describe)
+            new_indexes = cls._get_indexes(model, new_model_describe)
+            # pk field
+            cls._handle_pk_field_alter(model, old_model_describe, new_model_describe, upgrade)
+            # fk fields
+            args = (old_model_describe, new_model_describe, model, old_models, new_models)
+            cls._handle_fk_fields(*args, upgrade=upgrade)
+            # o2o fields
+            cls._handle_o2o_fields(*args, upgrade=upgrade)
+            old_o2o_columns = [i["raw_field"] for i in old_model_describe.get("o2o_fields", [])]
+            new_o2o_columns = [i["raw_field"] for i in new_model_describe.get("o2o_fields", [])]
+            # m2m fields
+            cls._handle_m2m_fields(
+                old_model_describe, new_model_describe, model, new_models, upgrade
+            )
+            # add unique_together
+            for index in new_unique_together.difference(old_unique_together):
+                cls._add_operator(cls._add_index(model, index, True), upgrade, True)
+            # remove unique_together
+            for index in old_unique_together.difference(new_unique_together):
+                index_name = cls._unique_index_name(model, index)
+                if upgrade and cls._is_unique_constraint(model, index_name):
                     cls._add_operator(
-                        cls._remove_field(model, db_column),
-                        upgrade,
+                        cls.ddl.drop_unique_constraint(model, index_name), upgrade, True
                     )
+                else:
+                    cls._add_operator(cls.ddl.drop_index_by_name(model, index_name), upgrade, True)
+            # add indexes
+            for idx in new_indexes.difference(old_indexes):
+                cls._add_operator(cls._add_index(model, idx), upgrade, fk_m2m_index=True)
+            # remove indexes
+            for idx in old_indexes.difference(new_indexes):
+                cls._add_operator(cls._drop_index(model, idx), upgrade, fk_m2m_index=True)
+            old_data_fields = list(
+                filter(
+                    lambda x: x.get("db_field_types") is not None,
+                    cast("list[dict]", old_model_describe.get("data_fields")),
+                )
+            )
+            new_data_fields = list(
+                filter(
+                    lambda x: x.get("db_field_types") is not None,
+                    cast("list[dict]", new_model_describe.get("data_fields")),
+                )
+            )
+
+            old_data_fields_name = cast("list[str]", [i.get("name") for i in old_data_fields])
+            new_data_fields_name = cast("list[str]", [i.get("name") for i in new_data_fields])
+
+            # add fields or rename fields
+            for new_data_field_name in set(new_data_fields_name).difference(
+                set(old_data_fields_name)
+            ):
+                new_data_field = cls.get_field_by_name(new_data_field_name, new_data_fields)
+                is_rename = False
+                field_type = new_data_field.get("field_type")
+                db_column = new_data_field.get("db_column")
+                new_name = set(new_data_field_name)
+                for old_data_field in sorted(
+                    old_data_fields,
+                    key=lambda f: (
+                        f.get("field_type") != field_type,
+                        # old field whose name have more same characters with new field's
+                        # should be put in front of the other
+                        len(new_name.symmetric_difference(set(f.get("name", "")))),
+                    ),
+                ):
+                    changes = cls._exclude_extra_field_types(diff(old_data_field, new_data_field))
+                    old_data_field_name = cast(str, old_data_field.get("name"))
+                    if len(changes) == 2:
+                        # rename field
+                        name_diff = (old_data_field_name, new_data_field_name)
+                        column_diff = (old_data_field.get("db_column"), db_column)
+                        if (
+                            changes[0] == ("change", "name", name_diff)
+                            and changes[1] == ("change", "db_column", column_diff)
+                            and old_data_field_name not in new_data_fields_name
+                        ):
+                            if upgrade:
+                                if (rename_fields := cls._rename_fields.get(new_model_str)) and (
+                                    old_data_field_name in rename_fields
+                                    or new_data_field_name in rename_fields.values()
+                                ):
+                                    continue
+                                prefix = f"({new_model_str}) "
+                                if new_model_str not in models_with_rename_field:
+                                    if models_with_rename_field:
+                                        # When there are multi rename fields with different models,
+                                        # print a empty line to warn that is another model
+                                        prefix = "\n" + prefix
+                                    models_with_rename_field.add(new_model_str)
+                                is_rename = no_input or click.prompt(
+                                    f"{prefix}Rename {old_data_field_name} to {new_data_field_name}?",
+                                    default=True,
+                                    type=bool,
+                                    show_choices=True,
+                                )
+                                if is_rename:
+                                    if rename_fields is None:
+                                        rename_fields = cls._rename_fields[new_model_str] = {}
+                                    rename_fields[old_data_field_name] = new_data_field_name
+                            else:
+                                is_rename = False
+                                if rename_to := cls._rename_fields.get(new_model_str, {}).get(
+                                    new_data_field_name
+                                ):
+                                    is_rename = True
+                                    if rename_to != old_data_field_name:
+                                        continue
+                            if is_rename:
+                                # only MySQL8+ has rename syntax
+                                if (
+                                    cls.dialect == "mysql"
+                                    and cls._db_version
+                                    and cls._db_version.startswith("5.")
+                                ):
+                                    cls._add_operator(
+                                        cls._change_field(model, old_data_field, new_data_field),
+                                        upgrade,
+                                    )
+                                else:
+                                    cls._add_operator(
+                                        cls._rename_field(model, *changes[1][2]),
+                                        upgrade,
+                                    )
+                if not is_rename:
+                    cls._add_operator(cls._add_field(model, new_data_field), upgrade)
                     if (
-                        old_data_field["indexed"]
-                        and old_data_field["db_column"] not in old_o2o_columns
+                        new_data_field["indexed"]
+                        and new_data_field["db_column"] not in new_o2o_columns
                     ):
-                        is_unique_field = old_data_field.get("unique")
-                        cls._add_operator(
-                            cls._drop_index(model, {db_column}, is_unique_field),
-                            upgrade,
-                            True,
-                        )
-
-                # change fields
-                for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):
-                    cls._handle_field_changes(
-                        model, field_name, old_data_fields, new_data_fields, upgrade
+                        unique = new_data_field["unique"]
+                        if not unique or cls.ddl.should_add_unique_index_when_adding_column():
+                            cls._add_operator(
+                                cls._add_index(model, (new_data_field["db_column"],), unique),
+                                upgrade,
+                                True,
+                            )
+            # remove fields
+            rename_fields = cls._rename_fields.get(new_model_str)
+            for old_data_field_name in set(old_data_fields_name).difference(
+                set(new_data_fields_name)
+            ):
+                # don't remove field if is renamed
+                if rename_fields and (
+                    (upgrade and old_data_field_name in rename_fields)
+                    or (not upgrade and old_data_field_name in rename_fields.values())
+                ):
+                    continue
+                old_data_field = cls.get_field_by_name(old_data_field_name, old_data_fields)
+                db_column = cast(str, old_data_field["db_column"])
+                cls._add_operator(
+                    cls._remove_field(model, db_column),
+                    upgrade,
+                )
+                if old_data_field["indexed"] and old_data_field["db_column"] not in old_o2o_columns:
+                    is_unique_field = old_data_field.get("unique")
+                    cls._add_operator(
+                        cls._drop_index(model, {db_column}, is_unique_field),
+                        upgrade,
+                        True,
                     )
 
+            # change fields
+            for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):
+                cls._handle_field_changes(
+                    model, field_name, old_data_fields, new_data_fields, upgrade
+                )
+
+        if post_hook_sql := cls.ddl.schema_generator._post_table_hook().strip():
+            cls._add_operator(post_hook_sql, upgrade)
         dropped_m2m_tables: set[str] = set()
         for old_model in old_models.keys() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
