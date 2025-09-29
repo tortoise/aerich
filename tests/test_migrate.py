@@ -17,7 +17,14 @@ from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import get_models_describe
-from tests._utils import chdir, prepare_py_files, requires_dialect, run_shell, tmp_daily_db
+from tests._utils import (
+    chdir,
+    prepare_py_files,
+    requires_dialect,
+    run_shell,
+    skip_dialect,
+    tmp_daily_db,
+)
 from tests.indexes import CustomIndex
 
 
@@ -1350,3 +1357,10 @@ def test_drop_field_unique(tmp_work_dir):
 def test_delete_model_with_m2m_field(tmp_work_dir):
     prepare_py_files("delete_model_with_m2m_field")
     _test_migrate_upgrade(3)
+
+
+@skip_dialect("sqlite")
+def test_table_creations(tmp_work_dir):
+    prepare_py_files("table_creations")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
