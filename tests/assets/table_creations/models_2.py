@@ -4,6 +4,7 @@ from tortoise import Model, fields
 class Foo(Model):
     name = fields.CharField(20)
     g = fields.OneToOneField("models.G", null=True)
+    h = fields.ForeignKeyField("models.H", null=True)
 
 
 class B(Model):
@@ -15,6 +16,10 @@ class C(Model):
 
 
 class G(Model):
+    name = fields.CharField(20)
+
+
+class H(Model):
     name = fields.CharField(20)
 
 
