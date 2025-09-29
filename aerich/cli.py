@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 from typing import cast
 
@@ -44,6 +45,9 @@ def _check_aerich_models_included(tortoise_config: dict) -> None:
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
 async def cli(ctx: Context, config: str, app: str) -> None:
+    if any(opt in sys.argv for opt in ctx.help_option_names):
+        # Skip init to print help message
+        return
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
 
