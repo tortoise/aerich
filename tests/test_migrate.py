@@ -17,7 +17,14 @@ from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import get_models_describe
-from tests._utils import chdir, prepare_py_files, requires_dialect, run_shell, tmp_daily_db
+from tests._utils import (
+    chdir,
+    prepare_py_files,
+    requires_dialect,
+    run_shell,
+    skip_dialect,
+    tmp_daily_db,
+)
 from tests.indexes import CustomIndex
 
 
@@ -1125,7 +1132,8 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_email_email_4a1a33" ON "email" ("email")',
             'CREATE INDEX IF NOT EXISTS "idx_product_no_e4d701" ON "product" ("no")',
             'CREATE TABLE "email_user" (\n    "email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
-            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\'',
+            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n)',
+            'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
             'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
             'CREATE UNIQUE INDEX IF NOT EXISTS "uid_user_usernam_9987ab" ON "user" ("username")',
             'CREATE TABLE "product_user" (\n    "product_id" BIGINT NOT NULL REFERENCES "product" ("id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
@@ -1350,3 +1358,10 @@ def test_drop_field_unique(tmp_work_dir):
 def test_delete_model_with_m2m_field(tmp_work_dir):
     prepare_py_files("delete_model_with_m2m_field")
     _test_migrate_upgrade(3)
+
+
+@skip_dialect("sqlite")
+def test_table_creations(tmp_work_dir):
+    prepare_py_files("table_creations")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
