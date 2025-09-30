@@ -4,14 +4,14 @@ import contextlib
 import importlib
 import pkgutil
 import re
-from collections.abc import Iterable
+from collections.abc import Awaitable, Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Literal, cast, overload
 
 import asyncclick as click
 from dictdiffer import diff
-from pydantic import BaseModel
 from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import OperationalError
 from tortoise.indexes import Index
@@ -49,15 +49,16 @@ async def downgrade(db: BaseDBAsyncClient) -> str:
         {downgrade_sql}\"\"\"
 
 
-MODELS_STATE = ( 
+MODELS_STATE = (
     {models_state}
 )
 """
 
 
-class MigrationFile(BaseModel):
-    upgrade: Callable[[BaseDBAsyncClient], str]
-    downgrade: Callable[[BaseDBAsyncClient], str]
+@dataclass
+class MigrationFile:
+    upgrade: Callable[[BaseDBAsyncClient], Awaitable[str]]
+    downgrade: Callable[[BaseDBAsyncClient], Awaitable[str]]
     models_state: dict[str, Any] | None
 
 
