@@ -221,14 +221,22 @@ class Migrate:
                 tip = f"Migration file exists({file}). Do you want to remove it?"
             else:
                 tip = f"Migration file exists({[py_module_path(m) for m in conflict_modules]}). Do you want to remove them?"
-            overwrite = no_input or click.prompt(
-                tip,
-                default=False,
-                type=bool,
-                show_choices=True,
-            )
+            overwrite = no_input
             if not overwrite:
-                return None
+                confirm = functools.partial(
+                    click.prompt,
+                    tip,
+                    default=False,
+                    type=bool,
+                    show_choices=True,
+                )
+                if inspect.iscoroutinefunction(click.prompt):
+                    # For asyncclick>=8.3
+                    overwrite = await confirm()
+                else:
+                    overwrite = bool(confirm())
+                if not overwrite:
+                    return None
             # delete same version files
             for version_module in conflict_modules:
                 py_module_path(version_module).unlink()
