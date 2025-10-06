@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 from pathlib import Path
 from typing import cast
 
@@ -10,19 +11,42 @@ from aerich._compat import tomllib
 from aerich.utils import (
     BadOptionUsage,
     ClickException,
+    _load_tortoise_aerich_config,
+    add_src_path,
     decompress_dict,
+    file_module_info,
     get_dict_diff_by_key,
     get_formatted_compressed_data,
     get_tortoise_config,
     import_py_file,
+    import_py_module,
     load_tortoise_config,
 )
-from tests._utils import ASSETS, copy_asset, describe_index, requires_dialect, run_shell
+from tests._utils import ASSETS, chdir, copy_asset, describe_index, requires_dialect, run_shell
+
+
+def test_add_src_path(tmp_work_dir: Path):
+    d = Path("./relative_dir/")
+    d.mkdir()
+    p = d / "submodule_1.py"
+    p.write_text("foo = 1", encoding="utf-8")
+    with pytest.raises(ImportError):
+        from submodule_1 import foo  # type:ignore
+    with pytest.raises(ClickException):
+        add_src_path("not-exist-dir")
+    abspath = os.path.abspath(d)
+    assert add_src_path(str(d)) == abspath
+    assert sys.path[0] == abspath
+    from submodule_1 import foo
+
+    assert foo == 1
 
 
 def test_import_py_file() -> None:
     m = import_py_file("aerich/utils.py")
     assert getattr(m, "import_py_file", None)
+    m2 = import_py_module(file_module_info("aerich", "utils"))
+    assert m.CONFIG_DEFAULT_VALUES == m2.CONFIG_DEFAULT_VALUES
 
 
 class TestDiffFields:
@@ -257,21 +281,35 @@ def test_read_config_from_class_var(tmp_work_dir):
     assert "error" not in output.lower()
 
 
-def test_get_tortoise_config():
-    tortoise_orm = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["tool"][
-        "aerich"
-    ]["tortoise_orm"]
+def test_get_tortoise_config(tmp_path):
+    doc = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    tortoise_orm = doc["tool"]["aerich"]["tortoise_orm"]
     backwards_style = get_tortoise_config(None, tortoise_orm)  # type:ignore
     assert get_tortoise_config(tortoise_orm) == backwards_style
     with pytest.raises(TypeError):
         get_tortoise_config(None, tortoise_orm=tortoise_orm)  # type:ignore
     assert get_tortoise_config(ctx=None, tortoise_orm=tortoise_orm) == backwards_style
     assert get_tortoise_config(tortoise_orm=tortoise_orm) == backwards_style
+    with pytest.raises(ClickException):
+        get_tortoise_config("aerich.migrate.NotExistClass.get_all_version_modules")
+    # class var support
+    with chdir(tmp_path):
+        Path("my_app_config.py").write_text("""
+class Settings:
+    @property
+    def tortoise_orm(self):
+        return {'connections': {'default': 'sqlite://db.sqlite3'}, 'apps': {}}
+
+settings = Settings()
+""")
+        add_src_path(".")
+        config = get_tortoise_config("my_app_config.settings.tortoise_orm")
+        assert config == {"connections": {"default": "sqlite://db.sqlite3"}, "apps": {}}
 
 
 @requires_dialect("sqlite")
-def test_load_tortoise_config():
-    assert load_tortoise_config() == {
+def test_load_tortoise_config(monkeypatch, tmp_path):
+    expected = {
         "apps": {
             "models": {
                 "default_connection": "default",
@@ -306,6 +344,24 @@ def test_load_tortoise_config():
             },
         },
     }
+    assert load_tortoise_config() == expected
+    tortoise_config, aerich_config = _load_tortoise_aerich_config()
+    assert tortoise_config == expected
+    assert aerich_config == {
+        "location": "./migrations",
+        "src_folder": "./.",
+        "tortoise_orm": "conftest.tortoise_orm",
+    }
+    assert load_tortoise_config("conftest.tortoise_orm") == expected
+    with chdir(tmp_path):
+        with pytest.raises(ClickException):
+            load_tortoise_config()
+        Path("pyproject.toml").touch()
+        Path("settings.py").write_text('tortoise_orm={"apps":{"models":{}}}', encoding="utf-8")
+        with pytest.raises(ClickException):
+            load_tortoise_config()
+        monkeypatch.setenv("TORTOISE_ORM", "settings.tortoise_orm")
+        assert load_tortoise_config() == {"apps": {"models": {}}}
 
 
 @pytest.fixture
