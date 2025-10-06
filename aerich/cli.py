@@ -85,7 +85,6 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         # Call ``command.__aexit__()`` when the context is popped
         ctx.obj["command"] = await ctx.with_async_resource(command)
         _check_aerich_models_included(tortoise_config)
-        # TODO: whether init-migrations/fix-migrations no need to run command.init
         if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
             if not Path(location, app).exists():
                 raise UsageError(

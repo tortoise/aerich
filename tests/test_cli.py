@@ -57,7 +57,8 @@ def test_auto_add_aerich_models() -> None:
     output = run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS")
     assert "Success writing aerich config to pyproject.toml" in output
     output = run_shell("aerich init-db")
-    assert "Success" in output
+    db = "db.sqlite3"
+    assert f'Success writing schemas to database "{db}"' in output
     with open("models.py", "a+") as f:
         f.write("    b = fields.IntField(null=True)\n")
     output = run_shell("aerich migrate")

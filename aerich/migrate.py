@@ -61,7 +61,7 @@ MODELS_STATE = (
 class MigrationFile:
     upgrade: Callable[[BaseDBAsyncClient], Awaitable[str]]
     downgrade: Callable[[BaseDBAsyncClient], Awaitable[str]]
-    models_state: dict[str, Any] | None
+    models_state: dict[str, Any] | None  # e.g.: aerich.utils.get_models_describe(app='models')
 
 
 class Migrate:
@@ -116,10 +116,9 @@ class Migrate:
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
-        migrations = cls.get_all_version_files()
-        if not migrations:
-            return None
-        return migrations[-1]
+        if m := cls.get_last_version_module():
+            return m.name
+        return None
 
     @classmethod
     def get_last_version_module(cls) -> pkgutil.ModuleInfo | None:
@@ -136,10 +135,10 @@ class Migrate:
         )
         model_state_str = getattr(module, "MODELS_STATE", None)
 
-        model_state = decompress_dict(model_state_str) if model_state_str else None
+        models_state = decompress_dict(model_state_str) if model_state_str else None
 
         return MigrationFile(
-            upgrade=module.upgrade, downgrade=module.downgrade, models_state=model_state
+            upgrade=module.upgrade, downgrade=module.downgrade, models_state=models_state
         )
 
     @classmethod
@@ -184,7 +183,6 @@ class Migrate:
 
     @classmethod
     async def _get_last_version_num(cls, offline: bool = False) -> int | None:
-        # TODO: use get last version module instead
         last_version = cls.get_last_version_file() if offline else (await cls.get_last_version())
         if not last_version:
             return None
@@ -337,7 +335,7 @@ class Migrate:
             return indexes
         if index_classes := set(index.__class__ for index in indexes if isinstance(index, Index)):
             # Leave magic patch here to compare with older version of tortoise-orm
-            # TODO: limit tortoise>0.22.2 in pyproject.toml and remove this function when v0.9.0 released
+            # TODO: limit tortoise>0.22.2 in pyproject.toml and remove this function when v0.10.0 released
             for index_cls in index_classes:
                 if index_cls(fields=("id",)) != index_cls(fields=("id",)):
 

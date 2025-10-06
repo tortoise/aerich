@@ -212,15 +212,10 @@ class Command(AbstractAsyncContextManager):
             await conn.execute_script(await upgrade(conn))
 
         model_state_str = getattr(m, "MODELS_STATE", None)
-        if model_state_str:
-            model_state = decompress_dict(model_state_str)
-        else:
-            model_state = get_models_describe(self.app)
-        await Aerich.create(
-            version=version_file,
-            app=self.app,
-            content=model_state,
+        models_state = (
+            decompress_dict(model_state_str) if model_state_str else get_models_describe(self.app)
         )
+        await Aerich.create(version=version_file, app=self.app, content=models_state)
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
@@ -362,10 +357,7 @@ class Command(AbstractAsyncContextManager):
         version = await Migrate.generate_version(offline=offline)
         aerich_content = get_models_describe(app)
         version_file = Path(dirname, version)
-        content = Migrate.build_migration_file_text(
-            upgrade_sql=schema,
-            models_state=aerich_content,
-        )
+        content = Migrate.build_migration_file_text(upgrade_sql=schema, models_state=aerich_content)
         version_file.write_text(content, encoding="utf-8")
         Migrate._last_version_content = aerich_content
         if not offline:
