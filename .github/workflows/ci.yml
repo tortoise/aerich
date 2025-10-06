@@ -130,20 +130,18 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-    services: ${{ matrix.os == 'ubuntu-latest' && {
-      postgres: {
-        image: 'postgres:latest',
-        env: { POSTGRES_PASSWORD: 123456, POSTGRES_USER: 'postgres' },
-        options: '--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5',
-        ports: ['5432:5432']
-      }
-    } || null }}
     steps:
       - uses: actions/checkout@v5
-      - name: Install PostgreSQL
+      - name: Install PostgreSQL for Windows
         if: matrix.os == 'windows-latest'
         run: |
           choco install postgresql --version 15.5 -y --params '/SuperPassword:123456'
+      - name: Set up PostgreSQL service container for Linux
+        if: matrix.os == 'ubuntu-latest'
+        uses: docker://postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 123456
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
