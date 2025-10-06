@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: ankane/pgvector:latest
+        image: postgres
         ports:
           - 5432:5432
         env:
@@ -87,13 +87,41 @@ jobs:
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
           uv run --no-sync make test_psycopg
-          uv run --no-sync make test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
       - name: Show test coverage
         run: uv run --no-sync make report
+
+  postgresVector:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_USER: postgres
+        options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.x'
+          activate-environment: true
+      - name: Install dependencies
+        run: uv sync --all-groups --extra toml --extra asyncpg
+      - name: Test tortoise vector
+        run: make test_postgres_vector
+        env:
+          POSTGRES_PASS: 123456
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: make report
 
   psycopgAtWindows:
     runs-on: windows-latest
@@ -107,11 +135,13 @@ jobs:
           enable-cache: true
           python-version: '3.x'
           activate-environment: true
-      - name: Show test coverage
-        run: make report
       - name: Install dependencies
         run: uv sync --all-groups --extra toml --extra psycopg
       - name: Test psycopg
         run: make test_psycopg
+        env:
+          POSTGRES_PASS: 123456
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
       - name: Show test coverage
         run: make report
