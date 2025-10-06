@@ -102,9 +102,10 @@ def _init_tortoise_0_24_1_patch() -> None:
                 backward_fk = forward_fk = ""
             exists = "IF NOT EXISTS " if safe else ""
             through_table_name = field_object.through
-            backward_type = self._get_pk_field_sql_type(model._meta.pk)
-            forward_type = self._get_pk_field_sql_type(field_object.related_model._meta.pk)
-            comment = ""
+            backward_type = forward_type = comment = ""
+            if func := getattr(self, "_get_pk_field_sql_type", None):
+                backward_type = func(model._meta.pk)
+                forward_type = func(field_object.related_model._meta.pk)
             if desc := field_object.description:
                 comment = self._table_comment_generator(table=through_table_name, comment=desc)
             m2m_create_string = self.M2M_TABLE_TEMPLATE.format(

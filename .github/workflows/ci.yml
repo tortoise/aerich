@@ -97,17 +97,11 @@ jobs:
 
   psycopgAtWindows:
     runs-on: windows-latest
-    services:
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_PASSWORD: 123456
-          POSTGRES_USER: postgres
-        options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v5
+      - name: Install PostgreSQL
+        run: |
+          choco install postgresql --version 15.5 -y --params '/SuperPassword:123456'
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -116,7 +110,7 @@ jobs:
       - name: Show test coverage
         run: make report
       - name: Install dependencies
-        run: uv sync --all-groups --extra psycopg
+        run: uv sync --all-groups --extra toml --extra psycopg
       - name: Test psycopg
         run: make test_psycopg
       - name: Show test coverage
