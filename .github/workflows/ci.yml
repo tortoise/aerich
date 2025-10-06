@@ -94,3 +94,5 @@ jobs:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: uv run make report
