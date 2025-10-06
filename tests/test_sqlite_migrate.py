@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from aerich import decompress_dict, import_py_file
-from tests._utils import WINDOWS, Dialect, chdir, copy_files, prepare_py_files, requires_dialect
+from tests._utils import ASSETS, WINDOWS, chdir, copy_files, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str) -> subprocess.CompletedProcess:
@@ -44,8 +44,7 @@ def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
 
 @contextmanager
 def prepare_sqlite_old_style_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
-    test_dir = Path(__file__).parent
-    asset_dir = test_dir / "assets" / "sqlite_old_style"
+    asset_dir = ASSETS / "sqlite_old_style"
     with chdir(tmp_path):
         files = ("models.py", "settings.py", "_tests.py", "pyproject.toml", "example_db.sqlite3")
         copy_files(*(asset_dir / f for f in files), target_dir=Path())
@@ -93,11 +92,10 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
         assert r.returncode == 0
 
 
-def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
-        migration_directory = tmp_path / "migrations"
+@requires_dialect("sqlite")
+def test_sqlite_migrate_alter_indexed_unique_offline(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
+        migration_directory = Path("migrations")
         assert not migration_directory.exists()
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
@@ -108,12 +106,12 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 1
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
-        r = run_aerich("aerich migrate")  # migrations/models/1_
+        r = run_aerich("aerich migrate --offline")  # migrations/models/1_
         assert r.returncode == 0
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 2, created_migrations
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
-        run_aerich("aerich migrate")  # migrations/models/2_
+        run_aerich("aerich migrate --offline")  # migrations/models/2_
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 3, created_migrations
         run_aerich("aerich upgrade")
@@ -121,9 +119,8 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         assert r.returncode == 0
 
 
+@requires_dialect("sqlite")
 def test_sqlite_fix_migrations(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
     with prepare_sqlite_old_style_project(tmp_path) as (models_py, models_text):
         r = run_aerich("aerich upgrade")
         assert r.returncode == 1

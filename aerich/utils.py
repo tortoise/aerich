@@ -20,29 +20,13 @@ from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.log import logger
 
 from aerich._compat import tomllib
+from aerich.coder import decoder, encoder
 from aerich.exceptions import NotInitedError
 
 if sys.version_info >= (3, 11):
     from typing import ParamSpec, TypeVarTuple, Unpack
 else:
     from typing_extensions import ParamSpec, TypeVarTuple, Unpack
-
-try:
-    import orjson
-
-    def json_dump_bytes(data: Any) -> bytes:
-        return orjson.dumps(data)
-
-    def json_loads(content: bytes) -> dict[str, Any]:
-        return orjson.loads(content)
-except ImportError:
-    import json
-
-    def json_dump_bytes(data: Any) -> bytes:
-        return json.dumps(data, separators=(":", ",")).encode()
-
-    def json_loads(content: bytes) -> dict[str, Any]:
-        return json.loads(content)
 
 
 T_Retval = TypeVar("T_Retval")
@@ -306,7 +290,8 @@ def get_dict_diff_by_key(
 
 
 def compress_dict(dictionary: dict[str, Any]) -> str:
-    compressed_bytes = zlib.compress(json_dump_bytes(dictionary))
+    json_str = encoder(dictionary)
+    compressed_bytes = zlib.compress(json_str.encode("utf-8"))
     base64_str = base64.b64encode(compressed_bytes).decode("ascii")
 
     return base64_str
@@ -314,23 +299,17 @@ def compress_dict(dictionary: dict[str, Any]) -> str:
 
 def get_formatted_compressed_data(dictionary: dict[str, Any], row_length: int = 70) -> str:
     compressed_str = compress_dict(dictionary)
-
-    formatted_parts = []
-    current_cursor = 0
-    while True:
-        part = compressed_str[current_cursor : current_cursor + row_length]
-        if not part:
-            break
-        formatted_parts.append(f'"{part}"')
-        current_cursor += row_length
-
-    return "\n\t".join(formatted_parts)
+    formatted_parts = [
+        '"' + compressed_str[current_cursor : current_cursor + row_length] + '"'
+        for current_cursor in range(0, len(compressed_str), row_length)
+    ]
+    return "\n    ".join(formatted_parts)
 
 
 def decompress_dict(compressed_str: str) -> dict[str, Any]:
     compressed_bytes = base64.b64decode(compressed_str)
     json_bytes = zlib.decompress(compressed_bytes)
-    dictionary = json_loads(json_bytes)
+    dictionary = decoder(json_bytes)
     return dictionary
 
 

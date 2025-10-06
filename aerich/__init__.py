@@ -18,14 +18,13 @@ from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
-from aerich.migrate import MIGRATE_TEMPLATE, Migrate
+from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
     decompress_dict,
     file_module_info,
     get_app_connection,
     get_app_connection_name,
-    get_formatted_compressed_data,
     get_models_describe,
     import_py_file,
     import_py_module,
@@ -165,8 +164,8 @@ class Command(AbstractAsyncContextManager):
         Migrate.app = app
         self._init_when_aenter = True
 
-    async def init(self) -> None:
-        await Migrate.init(self.tortoise_config, self.app, self.location)
+    async def init(self, offline: bool = False) -> None:
+        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
 
     async def __aenter__(self) -> Command:
         if self._init_when_aenter:
@@ -247,7 +246,7 @@ class Command(AbstractAsyncContextManager):
     async def downgrade(self, version: int, delete: bool, fake: bool = False) -> list[str]:
         ret: list[str] = []
         if version == -1:
-            specified_version = await Aerich.filter(app=self.app).order_by("-id").first()
+            specified_version = await Migrate.get_last_version()
         else:
             specified_version = await Aerich.filter(
                 app=self.app, version__startswith=f"{version}_"
@@ -257,7 +256,7 @@ class Command(AbstractAsyncContextManager):
         if version == -1:
             versions = [specified_version]
         else:
-            versions = await Aerich.filter(app=self.app, pk__gt=specified_version.pk)
+            versions = await Aerich.filter(app=self.app, pk__gte=specified_version.pk)
         for version_obj in versions:
             file = version_obj.version
             async with in_transaction(
@@ -307,30 +306,48 @@ class Command(AbstractAsyncContextManager):
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: Literal[True] = True
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: Literal[True] = True,
+        offline: bool = False,
     ) -> str: ...
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None: ...
 
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None:
         # return None if same version migration file already exists, and new one not generated
         try:
-            return await Migrate.migrate(name, empty, no_input)
+            return await Migrate.migrate(name, empty, no_input, offline)
         except NotInitedError as e:
             raise NotInitedError("You have to call .init() first before migrate") from e
 
     async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
+        await self._do_init(safe, pre_sql)
+
+    async def _do_init(self, safe: bool, pre_sql: str | None = None, offline: bool = False) -> None:
         location = self.location
         app = self.app
+        config = self.tortoise_config
 
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
-        if pre_sql:
+        await Tortoise.init(config=config)
+        connection = get_app_connection(config, app)
+        if offline:
+            await Migrate.init(config, app, location, offline=True)
+        elif pre_sql:
             await connection.execute_script(pre_sql)
 
         dirname = Path(location, app)
@@ -340,65 +357,23 @@ class Command(AbstractAsyncContextManager):
             # If directory is empty, go ahead, otherwise raise FileExistsError
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
-
-        await generate_schema_for_client(connection, safe)
-
         schema = get_schema_sql(connection, safe)
 
-        # TODO: why init Migrate?
-        await Migrate.init(
-            config=self.tortoise_config,
-            app=app,
-            location=location,
-        )
-        version = await Migrate.generate_version()
+        version = await Migrate.generate_version(offline=offline)
         aerich_content = get_models_describe(app)
-        await Aerich.create(
-            version=version,
-            app=app,
-            content=aerich_content,
-        )
-        Migrate._last_version_content = aerich_content
         version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(
+        content = Migrate.build_migration_file_text(
             upgrade_sql=schema,
-            downgrade_sql="",
-            models_state=get_formatted_compressed_data(aerich_content),
+            models_state=aerich_content,
         )
-        with open(version_file, "w", encoding="utf-8") as f:
-            f.write(content)
+        version_file.write_text(content, encoding="utf-8")
+        Migrate._last_version_content = aerich_content
+        if not offline:
+            await generate_schema_for_client(connection, safe)
+            await Aerich.create(version=version, app=app, content=aerich_content)
 
     async def init_migrations(self, safe: bool) -> None:
-        location = self.location
-        app = self.app
-        dirname = Path(location, app)
-        if not dirname.exists():
-            dirname.mkdir(parents=True)
-        else:
-            # If directory is empty, go ahead, otherwise raise FileExistsError
-            for unexpected_file in dirname.glob("*"):
-                raise FileExistsError(str(unexpected_file))
-
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
-
-        schema = get_schema_sql(connection, safe)
-
-        await Migrate.init(
-            config=self.tortoise_config,
-            app=app,
-            location=location,
-        )
-        version = await Migrate.generate_version()
-        model_state = get_models_describe(app)
-        version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(
-            upgrade_sql=schema,
-            downgrade_sql="",
-            models_state=get_formatted_compressed_data(model_state),
-        )
-        with open(version_file, "w", encoding="utf-8") as f:
-            f.write(content)
+        await self._do_init(safe, offline=True)
 
     async def fix_migrations(self) -> list[str]:
         """

@@ -15,6 +15,9 @@ from tortoise import Tortoise, generate_schema_for_client
 from tortoise.contrib import test
 from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
+from tortoise.indexes import Index
+
+from aerich._compat import tortoise_version_less_than
 
 if sys.version_info >= (3, 11):
     from contextlib import chdir
@@ -139,3 +142,12 @@ def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
             ok, out = run_in_subprocess("python db.py drop")
             if not ok:
                 raise OperationalError(out)
+
+
+def describe_index(idx: Index) -> Index | dict:
+    # tortoise-orm>=0.24 changes Index desribe to be dict
+    if tortoise_version_less_than("0.24"):
+        return idx
+    if hasattr(idx, "describe"):
+        return idx.describe()
+    return idx

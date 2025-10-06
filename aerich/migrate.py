@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
+import inspect
 import pkgutil
 import re
 from collections.abc import Awaitable, Iterable
@@ -94,7 +96,6 @@ class Migrate:
                 return False
             return get_file_version(module).isdigit()
 
-        # TODO: files = list(filter(is_version_file, os.listdir(cls.migrate_location)))
         files = filter(is_version_file, pkgutil.iter_modules([str(cls.migrate_location)]))
         return sorted(files, key=lambda x: int(get_file_version(x)))
 
@@ -107,23 +108,38 @@ class Migrate:
         return Tortoise.apps[cls.app].get(model)  # type: ignore
 
     @classmethod
-    def get_last_version(cls) -> str | None:
+    async def get_last_version(cls) -> Aerich | None:
+        try:
+            return await Aerich.filter(app=cls.app).first()
+        except OperationalError:
+            return None
+
+    @classmethod
+    def get_last_version_file(cls) -> str | None:
         migrations = cls.get_all_version_files()
         if not migrations:
             return None
         return migrations[-1]
 
     @classmethod
-    def get_migration_info_for_file(cls, file_path: str) -> MigrationFile:
-        module = import_py_file(cls.migrate_location / file_path)
+    def get_last_version_module(cls) -> pkgutil.ModuleInfo | None:
+        if ms := cls.get_all_version_modules():
+            return ms[-1]
+        return None
+
+    @classmethod
+    def get_migration_info_for_file(cls, file_path: str | pkgutil.ModuleInfo) -> MigrationFile:
+        module = (
+            import_py_module(file_path)
+            if isinstance(file_path, pkgutil.ModuleInfo)
+            else import_py_file(cls.migrate_location / file_path)
+        )
         model_state_str = getattr(module, "MODELS_STATE", None)
 
         model_state = decompress_dict(model_state_str) if model_state_str else None
 
         return MigrationFile(
-            upgrade=module.upgrade,
-            downgrade=module.downgrade,
-            models_state=model_state,
+            upgrade=module.upgrade, downgrade=module.downgrade, models_state=model_state
         )
 
     @classmethod
@@ -134,42 +150,51 @@ class Migrate:
             cls._db_version = ret[1][0].get("version")
 
     @classmethod
-    def load_ddl_class(cls) -> type[BaseDDL]:
+    async def load_ddl_class(cls) -> type[BaseDDL]:
         ddl_dialect_module = importlib.import_module(f"aerich.ddl.{cls.dialect}")
         return getattr(ddl_dialect_module, f"{cls.dialect.capitalize()}DDL")
 
     @classmethod
-    async def init(cls, config: dict, app: str, location: str) -> None:
-        await Tortoise.init(config=config)
-        cls.migrate_location = Path(location, app)
+    async def init(cls, config: dict, app: str, location: str, offline: bool = False) -> None:
+        if not Tortoise._inited:
+            # TODO: init tortoise without create db connection for offline mode
+            await Tortoise.init(config=config)
         cls.app = app
-
-        last_version = cls.get_last_version()
-        if last_version:
-            last_version_info = cls.get_migration_info_for_file(last_version)
-            if not last_version_info.models_state:
-                raise RuntimeError(
-                    "Old format of migration file detected, run fix_migrations to upgrade format"
-                )
-            cls._last_version_content = last_version_info.models_state
-
+        cls.migrate_location = Path(location, app)
+        if last_version_module := cls.get_last_version_module():
+            try:
+                last_version_info = cls.get_migration_info_for_file(last_version_module)
+            except AttributeError:
+                # Skip invalid migration file
+                pass
+            else:
+                if not last_version_info.models_state:
+                    raise RuntimeError(
+                        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format"
+                    )
+                if offline:
+                    cls._last_version_content = last_version_info.models_state
+            if not offline and (last_version := await cls.get_last_version()):
+                cls._last_version_content = cast(dict, last_version.content)
         connection = get_app_connection(config, app)
         cls.dialect = connection.schema_generator.DIALECT
-        cls.ddl_class = cls.load_ddl_class()
+        cls.ddl_class = await cls.load_ddl_class()
         cls.ddl = cls.ddl_class(connection)
         await cls._get_db_version(connection)
 
     @classmethod
-    def _get_last_version_num(cls) -> int | None:
-        last_version = cls.get_last_version()
+    async def _get_last_version_num(cls, offline: bool = False) -> int | None:
+        # TODO: use get last version module instead
+        last_version = cls.get_last_version_file() if offline else (await cls.get_last_version())
         if not last_version:
             return None
-        return int(last_version.split("_", 1)[0])
+        version = getattr(last_version, "version", str(last_version))
+        return int(version.split("_", 1)[0])
 
     @classmethod
-    async def generate_version(cls, name: str | None = None) -> str:
+    async def generate_version(cls, name: str | None = None, offline: bool = False) -> str:
         now = datetime.now().strftime("%Y%m%d%H%M%S").replace("/", "")
-        last_version_num = cls._get_last_version_num()
+        last_version_num = await cls._get_last_version_num(offline=offline)
         if last_version_num is None:
             return f"0_{now}_init.py"
         version = f"{last_version_num + 1}_{now}_{name}.py"
@@ -178,14 +203,20 @@ class Migrate:
         return version
 
     @classmethod
-    async def _generate_diff_py(cls, name, no_input: bool = False) -> str | None:
+    async def _generate_diff_py(
+        cls, name, no_input: bool = False, offline: bool = False
+    ) -> str | None:
         content = cls._get_diff_file_content()
-        version = await cls.generate_version(name)  # '<num>_<date>_<name>.py'
-        conflict_modules = [
-            version_module
-            for version_module in cls.get_all_version_modules()
-            if version_module.name.startswith(version.split("_")[0])
-        ]
+        version = await cls.generate_version(name, offline=offline)  # '<num>_<date>_<name>.py'
+        conflict_modules = (
+            []
+            if offline
+            else [
+                version_module
+                for version_module in cls.get_all_version_modules()
+                if version_module.name.startswith(version.split("_")[0])
+            ]
+        )
         if conflict_modules:
             if len(conflict_modules) == 1:
                 file = py_module_path(conflict_modules[0])
@@ -225,22 +256,30 @@ class Migrate:
 
     @overload
     @classmethod
-    async def migrate(cls, name: str, empty: bool, no_input: Literal[True]) -> str: ...
+    async def migrate(
+        cls, name: str, empty: bool, no_input: Literal[True], offline: bool = False
+    ) -> str: ...
 
     @overload
     @classmethod
-    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None: ...
+    async def migrate(
+        cls, name: str, empty: bool, no_input: bool = False, offline: bool = False
+    ) -> str | None: ...
 
     @classmethod
-    async def migrate(cls, name: str, empty: bool, no_input: bool = False) -> str | None:
+    async def migrate(
+        cls, name: str, empty: bool, no_input: bool = False, offline: bool = False
+    ) -> str | None:
         """
         diff old models and new models to generate diff content
         :param name: str name for migration
         :param empty: bool if True generates empty migration
+        :param no_input: bool if True skip click.prompt and cast return of it as true
+        :param offline: bool if True generates migration without connecting to db
         :return:
         """
         if empty:
-            return await cls._generate_diff_py(name, no_input=no_input)
+            return await cls._generate_diff_py(name, no_input=no_input, offline=offline)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
         cls.diff_models(last_version, new_version_content, no_input=no_input)
@@ -251,7 +290,7 @@ class Migrate:
         if not cls.upgrade_operators:
             return ""
 
-        return await cls._generate_diff_py(name, no_input=no_input)
+        return await cls._generate_diff_py(name, no_input=no_input, offline=offline)
 
     @classmethod
     def _get_diff_file_content(cls) -> str:
@@ -264,12 +303,10 @@ class Migrate:
                 return ""
             return ";\n        ".join(lines) + ";"
 
-        compressed_model_state = get_formatted_compressed_data(get_models_describe(cls.app))
-
-        return MIGRATE_TEMPLATE.format(
+        return cls.build_migration_file_text(
             upgrade_sql=join_lines(cls.upgrade_operators),
             downgrade_sql=join_lines(cls.downgrade_operators),
-            models_state=compressed_model_state,
+            models_state=get_models_describe(cls.app),
         )
 
     @classmethod
@@ -651,12 +688,19 @@ class Migrate:
                                         # print a empty line to warn that is another model
                                         prefix = "\n" + prefix
                                     models_with_rename_field.add(new_model_str)
-                                is_rename = no_input or click.prompt(
-                                    f"{prefix}Rename {old_data_field_name} to {new_data_field_name}?",
-                                    default=True,
-                                    type=bool,
-                                    show_choices=True,
-                                )
+                                if not (is_rename := no_input):
+                                    tip = f"{prefix}Rename {old_data_field_name} to {new_data_field_name}?"
+                                    confirm = functools.partial(
+                                        click.prompt,
+                                        default=True,
+                                        type=bool,
+                                        show_choices=True,
+                                    )
+                                    if inspect.iscoroutinefunction(click.prompt):
+                                        # For asyncclick>=8.3
+                                        is_rename = run_async(confirm, tip)
+                                    elif isinstance(r := confirm(tip), bool):
+                                        is_rename = r
                                 if is_rename:
                                     if rename_fields is None:
                                         rename_fields = cls._rename_fields[new_model_str] = {}
@@ -1039,19 +1083,19 @@ class Migrate:
     @classmethod
     async def fix_migrations(cls, config: dict[str, Any]) -> list[str]:
         """
-        Fix old migration files to include models state for aerich 0.6.0+
+        Fix old migration files to include MODELS_STATE for aerich 0.9.2+
         :return: List of updated migration file paths
         """
-        updated_files: list[str] = []
-        migration_files = cls.get_all_version_files()
-        if not migration_files:
-            return updated_files
+        version_modules = cls.get_all_version_modules()
+        if not version_modules:
+            return []
 
-        await Tortoise.init(config=config)
+        if not Tortoise._inited:
+            await Tortoise.init(config=config)
         connection = get_app_connection(config, cls.app)
 
         try:
-            await Aerich.first()
+            await Aerich.first().values("id")
         except OperationalError:
             click.secho(
                 "⚠️ Warning: Aerich table not found. "
@@ -1059,16 +1103,18 @@ class Migrate:
                 "existing database with all migrations applied.",
                 fg=Color.yellow,
             )
-            return updated_files
+            return []
+        updated_files: list[str] = []
 
         # Get model state from Aerich table for each migration
-        for file_name in migration_files:
-            file_path = cls.migrate_location / file_name
+        for version_module in version_modules:
             # Check if file already has MODELS_STATE
-            migration_info = import_py_file(file_path)
+            migration_info = import_py_module(version_module)
             if getattr(migration_info, "MODELS_STATE", None):
                 # File is already in the new format
                 continue
+            file_name = version_module.name + ".py"
+            file_path = cls.migrate_location / file_name
 
             # Find the corresponding record in the Aerich table
             aerich_models = await Aerich.filter(version=file_name, app=cls.app).first()
@@ -1091,14 +1137,11 @@ class Migrate:
             upgrade_sql = await migration_info.upgrade(connection)
             downgrade_sql = await migration_info.downgrade(connection)
 
-            # Format models state for inclusion in the template
-            formatted_models_state = get_formatted_compressed_data(models_state)
-
             # Generate new content with the template
-            new_content = MIGRATE_TEMPLATE.format(
-                upgrade_sql=upgrade_sql.strip(),
-                downgrade_sql=downgrade_sql.strip(),
-                models_state=formatted_models_state,
+            new_content = cls.build_migration_file_text(
+                upgrade_sql=upgrade_sql,
+                downgrade_sql=downgrade_sql,
+                models_state=models_state,
             )
 
             # Write the new content to the file
@@ -1106,3 +1149,15 @@ class Migrate:
             updated_files.append(str(file_path))
 
         return updated_files
+
+    @classmethod
+    def build_migration_file_text(
+        cls, upgrade_sql: str, models_state: str | dict, downgrade_sql=""
+    ) -> str:
+        if isinstance(models_state, dict):
+            models_state = get_formatted_compressed_data(models_state)
+        return MIGRATE_TEMPLATE.format(
+            upgrade_sql=upgrade_sql.strip(),
+            downgrade_sql=downgrade_sql.strip(),
+            models_state=models_state,
+        )

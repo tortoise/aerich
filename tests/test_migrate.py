@@ -9,7 +9,6 @@ import tortoise
 from pytest_mock import MockerFixture
 from tortoise.indexes import Index
 
-from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
@@ -19,6 +18,7 @@ from aerich.models import Aerich
 from aerich.utils import get_formatted_compressed_data, get_models_describe
 from tests._utils import (
     chdir,
+    describe_index,
     prepare_py_files,
     requires_dialect,
     run_shell,
@@ -26,16 +26,6 @@ from tests._utils import (
     tmp_daily_db,
 )
 from tests.indexes import CustomIndex
-
-
-def describe_index(idx: Index) -> Index | dict:
-    # tortoise-orm>=0.24 changes Index desribe to be dict
-    if tortoise_version_less_than("0.24"):
-        return idx
-    if hasattr(idx, "describe"):
-        return idx.describe()
-    return idx
-
 
 # tortoise-orm>=0.21 changes IntField constraints
 # from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
@@ -1248,8 +1238,17 @@ def test_sort_files_containing_non_migrations(mocker):
     ]
 
 
-async def test_empty_migration(mocker, tmp_path: Path) -> None:
+@pytest.fixture
+def tmp_migrate_dir(tmp_path):
+    Migrate.app = "foo"
+    Migrate.migrate_location = tmp_path
+    with chdir(tmp_path):
+        yield
+
+
+async def test_empty_migration(mocker, tmp_work_dir: Path) -> None:
     mocker.patch("os.listdir", return_value=[])
+    Migrate.migrate_location = tmp_work_dir
     Migrate.app = "models_second"
     expected_content = MIGRATE_TEMPLATE.format(
         upgrade_sql="",
@@ -1260,17 +1259,14 @@ async def test_empty_migration(mocker, tmp_path: Path) -> None:
     assert Path(migration_file).read_text() == expected_content
 
 
-@pytest.fixture
-def tmp_migrate_dir(tmp_path):
-    Migrate.app = "foo"
-    Migrate.migrate_location = tmp_path
-    with chdir(tmp_path):
-        yield
-
-
 async def test_remove_conflicts_empty(mocker, tmp_migrate_dir) -> None:
+    Migrate.app = "models"
     # empty migration
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     pre_migrate_file = Path("0_datetime_name.py")
     pre_migrate_file.write_text("Invalid migration content")
     mocker.patch("asyncclick.prompt", side_effect=(False,))
