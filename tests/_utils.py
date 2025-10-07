@@ -17,6 +17,7 @@ from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
 from tortoise.indexes import Index
 
+from aerich import Command
 from aerich._compat import tortoise_version_less_than
 
 if sys.version_info >= (3, 11):
@@ -44,6 +45,7 @@ async def drop_db(tortoise_orm) -> None:
     await Tortoise.init(config=tortoise_orm)
     with contextlib.suppress(DBConnectionError, OperationalError):
         await Tortoise._drop_databases()
+    await Command.aclose()
 
 
 async def init_db(tortoise_orm, generate_schemas=True) -> None:
@@ -51,6 +53,7 @@ async def init_db(tortoise_orm, generate_schemas=True) -> None:
     await Tortoise.init(config=tortoise_orm, _create_db=True)
     if generate_schemas:
         await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
+    await Command.aclose()
 
 
 class Dialect:
