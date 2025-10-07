@@ -353,15 +353,17 @@ def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
     monkeypatch.setenv("TORTOISE_ORM", "")
     with pytest.raises(ClickException, match="Failed to load tortoise config"):
         load_tortoise_config()
-    settings_py = Path("settings_errors.py")
+    settings = "settings_errors"
+    settings_py = Path(settings + ".py")
     shutil.copy(ASSETS / "settings.py", settings_py)
-    output = run_shell(f"aerich init -t {settings_py.stem}.TORTOISE_ORM")
+    output = run_shell(f"aerich init -t {settings}.TORTOISE_ORM")
     assert "error" not in output.lower()
-    shutil.move(settings_py.name, settings_py.stem)
-    msg = f"Error while importing configuration module: No module named '{settings_py.stem}'"
+    settings_py.unlink()
+    msg = f"Error while importing configuration module: No module named '{settings}'"
     with pytest.raises(ClickException, match=msg):
         load_tortoise_config()
     Path(settings_py.name).touch()
+    add_src_path(".")
     with pytest.raises(BadOptionUsage, match='Can\'t get "TORTOISE_ORM" from module'):
         load_tortoise_config()
 
