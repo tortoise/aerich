@@ -99,9 +99,10 @@ def copy_files(*src_files: Path, target_dir: Path | str = ".") -> None:
         shutil.copy(src, target_dir)
 
 
-def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> None:
+def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> Path:
     asset_dir = assets / asset_name
     copy_files(*asset_dir.glob(f"*{suffix}"))
+    return asset_dir
 
 
 def copy_asset(name: str, parent: Path = ASSETS) -> None:
