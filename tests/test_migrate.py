@@ -22,7 +22,6 @@ from tests._utils import (
     prepare_py_files,
     requires_dialect,
     run_shell,
-    skip_dialect,
     tmp_daily_db,
 )
 from tests.indexes import CustomIndex
@@ -1319,14 +1318,14 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
     assert new_migration_file and new_migration_file.startswith("1_")
 
 
-def _test_migrate_upgrade(max_model_num: int = 2) -> None:
+def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
     run_shell("aerich init-db", capture_output=False)
     output = run_shell("pytest -s _tests.py::test_1")
     assert "error" not in output.lower()
     for num in range(2, max_model_num + 1):
         shutil.move(f"models_{num}.py", "models.py")
-        output = run_shell("aerich migrate")
+        output = run_shell("aerich migrate" + " --offline" * offline)
         assert "error" not in output.lower()
         output = run_shell("aerich upgrade")
         assert "error" not in output.lower()
@@ -1360,7 +1359,13 @@ def test_delete_model_with_m2m_field(tmp_work_dir):
     _test_migrate_upgrade(3)
 
 
-@skip_dialect("sqlite")
+@requires_dialect("sqlite")
+def test_migrate_custom_index_offline(tmp_work_dir):
+    prepare_py_files("custom_index_offline")
+    _test_migrate_upgrade(3, offline=True)
+
+
+@requires_dialect("postgres", "mysql")
 def test_table_creations(tmp_work_dir):
     prepare_py_files("table_creations")
     with tmp_daily_db():
