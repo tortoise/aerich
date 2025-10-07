@@ -142,12 +142,13 @@ jobs:
           enable-cache: true
           python-version: '3.13'
       - name: Install dependencies
-        run: uv sync --all-groups --extra toml --extra psycopg --extra mysql
+        run: |
+          uv pip install --system --group dev --group test -e ".[toml,psycopg,mysql]"
       - name: Test psycopg
-        run: uv run --no-sync make test_psycopg
+        run: make test_psycopg
         env:
-          POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PASS: 123456
           POSTGRES_PORT: 5432
       - name: Show test coverage
-        run: uv run --no-sync make report
+        run: make report
