@@ -115,7 +115,7 @@ jobs:
           python-version: '3.13'
           activate-environment: true
       - name: Install dependencies
-        run: uv sync --all-groups --extra toml --extra asyncpg
+        run: uv sync --all-groups --extra toml --extra asyncpg --extra mysql
       - name: Test tortoise vector
         run: make test_postgres_vector
         env:
@@ -148,7 +148,7 @@ jobs:
           python-version: '3.13'
           activate-environment: true
       - name: Install dependencies
-        run: uv sync --all-groups --extra toml --extra psycopg
+        run: uv sync --all-groups --extra toml --extra psycopg --extra mysql
       - name: Test psycopg
         run: make test_psycopg
         env:
