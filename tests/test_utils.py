@@ -364,27 +364,17 @@ def test_load_tortoise_config(monkeypatch, tmp_path):
         assert load_tortoise_config() == {"apps": {"models": {}}}
 
 
-@pytest.fixture
-def no_tortoise_env():
-    env_name = "TORTOISE_ORM"
-    env_value = os.environ.pop(env_name, None)
-    try:
-        yield
-    finally:
-        if env_value is not None:
-            os.environ[env_name] = env_value
-
-
 @requires_dialect("sqlite")
-def test_load_tortoise_config_errors(tmp_work_dir, no_tortoise_env):
+def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
+    monkeypatch.setenv("TORTOISE_ORM", "")
     with pytest.raises(ClickException, match="Failed to load tortoise config"):
         load_tortoise_config()
-    settings_py = ASSETS / "settings.py"
-    shutil.copy(settings_py, ".")
-    output = run_shell("aerich init -t settings.TORTOISE_ORM")
+    settings_py = Path("settings_errors.py")
+    shutil.copy(ASSETS / "settings.py", settings_py)
+    output = run_shell(f"aerich init -t {settings_py.stem}.TORTOISE_ORM")
     assert "error" not in output.lower()
     shutil.move(settings_py.name, settings_py.stem)
-    msg = "Error while importing configuration module: No module named 'settings'"
+    msg = f"Error while importing configuration module: No module named '{settings_py.stem}'"
     with pytest.raises(ClickException, match=msg):
         load_tortoise_config()
     Path(settings_py.name).touch()
