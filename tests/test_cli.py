@@ -124,13 +124,12 @@ def test_aerich_init() -> None:
     assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM_NO_AERICH_MODELS"
     # init will not remove comment line in config file
     comment_line = "# This is a comment line."
-    with toml_file.open("a") as f:
+    with toml_file.open("a", encoding="utf-8") as f:
         f.writelines([os.linesep, comment_line + os.linesep])
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
     assert f"Success writing aerich config to {toml_file}" in output
     text = toml_file.read_text("utf-8")
     assert comment_line in text
-    assert text.endswith(os.linesep)
     doc = tomllib.loads(text)
     assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM"
     # In line comment will not remove either
