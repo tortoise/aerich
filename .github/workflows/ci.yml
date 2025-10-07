@@ -133,6 +133,9 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
       - uses: ikalnytskyi/action-setup-postgres@v7
         with:
           username: postgres
@@ -140,7 +143,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          python-version: '3.13'
       - name: Install dependencies
         run: |
           uv pip install --system --group dev --group test -e ".[toml,psycopg,mysql]"
