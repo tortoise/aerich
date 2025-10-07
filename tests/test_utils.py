@@ -303,8 +303,7 @@ class Settings:
 
 settings = Settings()
 """)
-    if "." not in sys.path:
-        sys.path.append(".")
+    add_src_path(".")
     config = get_tortoise_config("my_app_config.settings.tortoise_orm")
     assert config == {"connections": {"default": "sqlite://db.sqlite3"}, "apps": {}}
 
