@@ -5,6 +5,8 @@ from settings import TORTOISE_ORM
 from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
 
+from aerich import Command
+
 try:
     # This error does not translate to tortoise's OperationalError
     from psycopg.errors import UndefinedColumn
@@ -25,7 +27,7 @@ async def init_connections():
     try:
         yield
     finally:
-        await Tortoise.close_connections()
+        await Command.aclose()
 
 
 @pytest.mark.anyio

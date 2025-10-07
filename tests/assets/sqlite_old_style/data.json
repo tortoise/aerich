@@ -1,0 +1,326 @@
+[
+    {
+        "version": "0_20250405163033_init.py",
+        "content": {
+            "models.Foo": {
+                "name": "models.Foo",
+                "app": "models",
+                "table": "foo",
+                "abstract": false,
+                "description": null,
+                "docstring": null,
+                "unique_together": [],
+                "indexes": [],
+                "pk_field": {
+                    "name": "id",
+                    "field_type": "IntField",
+                    "db_column": "id",
+                    "python_type": "int",
+                    "generated": true,
+                    "nullable": false,
+                    "unique": true,
+                    "indexed": true,
+                    "default": null,
+                    "description": null,
+                    "docstring": null,
+                    "constraints": {
+                        "ge": -2147483648,
+                        "le": 2147483647
+                    },
+                    "db_field_types": {
+                        "": "INT"
+                    }
+                },
+                "data_fields": [
+                    {
+                        "name": "name",
+                        "field_type": "CharField",
+                        "db_column": "name",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 60
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(60)",
+                            "oracle": "NVARCHAR2(60)"
+                        }
+                    }
+                ],
+                "fk_fields": [],
+                "backward_fk_fields": [],
+                "o2o_fields": [],
+                "backward_o2o_fields": [],
+                "m2m_fields": [],
+                "managed": null
+            },
+            "models.Aerich": {
+                "name": "models.Aerich",
+                "app": "models",
+                "table": "aerich",
+                "abstract": false,
+                "description": null,
+                "docstring": null,
+                "unique_together": [],
+                "indexes": [],
+                "pk_field": {
+                    "name": "id",
+                    "field_type": "IntField",
+                    "db_column": "id",
+                    "python_type": "int",
+                    "generated": true,
+                    "nullable": false,
+                    "unique": true,
+                    "indexed": true,
+                    "default": null,
+                    "description": null,
+                    "docstring": null,
+                    "constraints": {
+                        "ge": -2147483648,
+                        "le": 2147483647
+                    },
+                    "db_field_types": {
+                        "": "INT"
+                    }
+                },
+                "data_fields": [
+                    {
+                        "name": "version",
+                        "field_type": "CharField",
+                        "db_column": "version",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 255
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(255)",
+                            "oracle": "NVARCHAR2(255)"
+                        }
+                    },
+                    {
+                        "name": "app",
+                        "field_type": "CharField",
+                        "db_column": "app",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 100
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(100)",
+                            "oracle": "NVARCHAR2(100)"
+                        }
+                    },
+                    {
+                        "name": "content",
+                        "field_type": "JSONField",
+                        "db_column": "content",
+                        "python_type": "Union[dict, list]",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {},
+                        "db_field_types": {
+                            "": "JSON",
+                            "mssql": "NVARCHAR(MAX)",
+                            "oracle": "NCLOB",
+                            "postgres": "JSONB"
+                        }
+                    }
+                ],
+                "fk_fields": [],
+                "backward_fk_fields": [],
+                "o2o_fields": [],
+                "backward_o2o_fields": [],
+                "m2m_fields": [],
+                "managed": null
+            }
+        },
+        "app": "models"
+    },
+    {
+        "version": "1_20250405163135_update.py",
+        "content": {
+            "models.Foo": {
+                "name": "models.Foo",
+                "app": "models",
+                "table": "foo",
+                "abstract": false,
+                "description": null,
+                "docstring": null,
+                "unique_together": [],
+                "indexes": [],
+                "pk_field": {
+                    "name": "id",
+                    "field_type": "IntField",
+                    "db_column": "id",
+                    "python_type": "int",
+                    "generated": true,
+                    "nullable": false,
+                    "unique": true,
+                    "indexed": true,
+                    "default": null,
+                    "description": null,
+                    "docstring": null,
+                    "constraints": {
+                        "ge": -2147483648,
+                        "le": 2147483647
+                    },
+                    "db_field_types": {
+                        "": "INT"
+                    }
+                },
+                "data_fields": [
+                    {
+                        "name": "name",
+                        "field_type": "CharField",
+                        "db_column": "name",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": true,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 60
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(60)",
+                            "oracle": "NVARCHAR2(60)"
+                        }
+                    }
+                ],
+                "fk_fields": [],
+                "backward_fk_fields": [],
+                "o2o_fields": [],
+                "backward_o2o_fields": [],
+                "m2m_fields": [],
+                "managed": null
+            },
+            "models.Aerich": {
+                "name": "models.Aerich",
+                "app": "models",
+                "table": "aerich",
+                "abstract": false,
+                "description": null,
+                "docstring": null,
+                "unique_together": [],
+                "indexes": [],
+                "pk_field": {
+                    "name": "id",
+                    "field_type": "IntField",
+                    "db_column": "id",
+                    "python_type": "int",
+                    "generated": true,
+                    "nullable": false,
+                    "unique": true,
+                    "indexed": true,
+                    "default": null,
+                    "description": null,
+                    "docstring": null,
+                    "constraints": {
+                        "ge": -2147483648,
+                        "le": 2147483647
+                    },
+                    "db_field_types": {
+                        "": "INT"
+                    }
+                },
+                "data_fields": [
+                    {
+                        "name": "version",
+                        "field_type": "CharField",
+                        "db_column": "version",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 255
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(255)",
+                            "oracle": "NVARCHAR2(255)"
+                        }
+                    },
+                    {
+                        "name": "app",
+                        "field_type": "CharField",
+                        "db_column": "app",
+                        "python_type": "str",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {
+                            "max_length": 100
+                        },
+                        "db_field_types": {
+                            "": "VARCHAR(100)",
+                            "oracle": "NVARCHAR2(100)"
+                        }
+                    },
+                    {
+                        "name": "content",
+                        "field_type": "JSONField",
+                        "db_column": "content",
+                        "python_type": "Union[dict, list]",
+                        "generated": false,
+                        "nullable": false,
+                        "unique": false,
+                        "indexed": false,
+                        "default": null,
+                        "description": null,
+                        "docstring": null,
+                        "constraints": {},
+                        "db_field_types": {
+                            "": "JSON",
+                            "mssql": "NVARCHAR(MAX)",
+                            "oracle": "NCLOB",
+                            "postgres": "JSONB"
+                        }
+                    }
+                ],
+                "fk_fields": [],
+                "backward_fk_fields": [],
+                "o2o_fields": [],
+                "backward_o2o_fields": [],
+                "m2m_fields": [],
+                "managed": null
+            }
+        },
+        "app": "models"
+    }
+]

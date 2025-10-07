@@ -4,6 +4,7 @@
 [![image](https://img.shields.io/github/license/tortoise/aerich)](https://github.com/tortoise/aerich)
 [![image](https://github.com/tortoise/aerich/workflows/pypi/badge.svg)](https://github.com/tortoise/aerich/actions?query=workflow:pypi)
 [![image](https://github.com/tortoise/aerich/workflows/ci/badge.svg)](https://github.com/tortoise/aerich/actions?query=workflow:ci)
+![Python Versions](https://img.shields.io/pypi/pyversions/aerich)
 
 English | [Русский](./README_RU.md)
 
@@ -85,6 +86,8 @@ Initialize the config file and migrations location:
 Success create migrate location ./migrations
 Success write config to pyproject.toml
 ```
+
+*Note*: aerich will import the config file when running init-db/migrate/upgrade/heads/history commands, so it is better to keep this file simple and clean.
 
 ### Init db
 

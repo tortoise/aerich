@@ -2,10 +2,28 @@ import uuid
 
 import pytest
 from models import Foo
+from settings import TORTOISE_ORM
+from tortoise import Tortoise
 from tortoise.exceptions import IntegrityError
 
+from aerich import Command
 
-@pytest.mark.asyncio
+
+@pytest.fixture(scope="session")
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+async def init_connections():
+    await Tortoise.init(TORTOISE_ORM)
+    try:
+        yield
+    finally:
+        await Command.aclose()
+
+
+@pytest.mark.anyio
 async def test_allow_duplicate() -> None:
     await Foo.all().delete()
     await Foo.create(name="foo")
@@ -14,14 +32,14 @@ async def test_allow_duplicate() -> None:
     await obj.delete()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_unique_is_true() -> None:
     with pytest.raises(IntegrityError):
         await Foo.create(name="foo")
         await Foo.create(name="foo")
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_add_unique_field() -> None:
     if not await Foo.filter(age=0).exists():
         await Foo.create(name="0_" + uuid.uuid4().hex, age=0)
@@ -29,14 +47,14 @@ async def test_add_unique_field() -> None:
         await Foo.create(name=uuid.uuid4().hex, age=0)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_drop_unique_field() -> None:
     name = "1_" + uuid.uuid4().hex
     await Foo.create(name=name, age=0)
     assert await Foo.filter(name=name).exists()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_with_age_field() -> None:
     name = "2_" + uuid.uuid4().hex
     await Foo.create(name=name, age=0)
@@ -44,7 +62,7 @@ async def test_with_age_field() -> None:
     assert obj.age == 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_without_age_field() -> None:
     name = "3_" + uuid.uuid4().hex
     await Foo.create(name=name, age=0)
@@ -52,7 +70,7 @@ async def test_without_age_field() -> None:
     assert getattr(obj, "age", None) is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_m2m_with_custom_through() -> None:
     from models import FooGroup, Group
 
@@ -65,7 +83,7 @@ async def test_m2m_with_custom_through() -> None:
     assert not foo_group.is_active
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_add_m2m_field_after_init_db() -> None:
     from models import Group
 

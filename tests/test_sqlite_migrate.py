@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import json
 import os
-import platform
 import shlex
 import shutil
 import subprocess
@@ -9,15 +9,19 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from aerich import decompress_dict, import_py_file
-from tests._utils import Dialect, chdir, copy_files
+from tortoise import Tortoise
+
+from aerich import Command, decompress_dict, import_py_file
+from aerich.models import Aerich
+from aerich.utils import load_tortoise_config, run_async
+from tests._utils import WINDOWS, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str) -> subprocess.CompletedProcess:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
-        if platform.system() == "Windows":
+        if WINDOWS:
             cmd = "python -m " + cmd
     r = subprocess.run(shlex.split(cmd), timeout=2)
     return r
@@ -35,52 +39,48 @@ def _get_empty_db() -> Path:
 
 
 @contextmanager
-def prepare_sqlite_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
-    test_dir = Path(__file__).parent
-    asset_dir = test_dir / "assets" / "sqlite_migrate"
-    with chdir(tmp_path):
-        files = ("models.py", "settings.py", "_tests.py")
-        copy_files(*(asset_dir / f for f in files), target_dir=Path())
-        models_py, settings_py, test_py = (Path(f) for f in files)
-        copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
-        _get_empty_db()
-        yield models_py, models_py.read_text("utf-8")
+def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
+    prepare_py_files("sqlite_migrate")
+    shutil.move("conftest_.py", "conftest.py")
+    _get_empty_db()
+    models_py = Path("models.py")
+    yield models_py, models_py.read_text("utf-8")
 
 
 @contextmanager
-def prepare_sqlite_old_style_project(tmp_path: Path) -> Generator[tuple[Path, str]]:
-    test_dir = Path(__file__).parent
-    asset_dir = test_dir / "assets" / "sqlite_old_style"
-    with chdir(tmp_path):
-        files = ("models.py", "settings.py", "_tests.py", "pyproject.toml", "example_db.sqlite3")
-        copy_files(*(asset_dir / f for f in files), target_dir=Path())
-        models_py = Path(files[0])
-        copy_files(asset_dir / "conftest_.py", target_dir=Path("conftest.py"))
+def prepare_sqlite_old_style_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
+    asset_dir = prepare_py_files("sqlite_old_style")
+    migrations_source = asset_dir / "_migrations"
+    migrations_target = Path("migrations")
+    _get_empty_db()
+    run_aerich("init -t settings.TORTOISE_ORM")
+    run_aerich("init-db")
+    if migrations_target.exists():
+        shutil.rmtree(migrations_target)
+    shutil.copytree(migrations_source, migrations_target)
 
-        migrations_source = asset_dir / "_migrations"
-        migrations_target = Path("migrations")
-        if migrations_source.exists():
-            if migrations_target.exists():
-                shutil.rmtree(migrations_target)
-            shutil.copytree(migrations_source, migrations_target)
+    async def init_data() -> None:
+        data = json.loads(asset_dir.joinpath("data.json").read_bytes())
+        await Tortoise.init(config=load_tortoise_config())
+        await Aerich.bulk_create([Aerich(**d) for d in data])
+        await Command.aclose()
 
-        _get_empty_db()
-        yield models_py, models_py.read_text("utf-8")
+    run_async(init_data)
+    models_py = Path("models.py")
+    yield models_py, models_py.read_text("utf-8")
 
 
-def test_close_tortoise_connections_patch(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_close_tortoise_connections_patch(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir):
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         r = run_aerich("aerich init-db")
-        assert r is not None
+        assert r.returncode == 0
 
 
-def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         run_aerich("aerich init-db")
@@ -100,11 +100,10 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_path: Path) -> None:
         assert r.returncode == 0
 
 
-def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
-        migration_directory = tmp_path / "migrations"
+@requires_dialect("sqlite")
+def test_sqlite_migrate_alter_indexed_unique_offline(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
+        migration_directory = Path("migrations")
         assert not migration_directory.exists()
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
         run_aerich("aerich init -t settings.TORTOISE_ORM")
@@ -115,12 +114,12 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 1
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
-        r = run_aerich("aerich migrate")  # migrations/models/1_
+        r = run_aerich("aerich migrate --offline")  # migrations/models/1_
         assert r.returncode == 0
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 2, created_migrations
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
-        run_aerich("aerich migrate")  # migrations/models/2_
+        run_aerich("aerich migrate --offline")  # migrations/models/2_
         created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
         assert len(created_migrations) == 3, created_migrations
         run_aerich("aerich upgrade")
@@ -128,17 +127,16 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_path: Path) -> None:
         assert r.returncode == 0
 
 
-def test_sqlite_fix_migrations(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_old_style_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_old_style_project(tmp_work_dir) as (models_py, models_text):
         r = run_aerich("aerich upgrade")
         assert r.returncode == 1
 
         r = run_aerich("aerich fix-migrations")
         assert r.returncode == 0
 
-        migrations_dir = tmp_path / "migrations" / "models"
+        migrations_dir = tmp_work_dir / "migrations" / "models"
 
         migration_files = list(migrations_dir.glob("*.py"))
 
@@ -155,7 +153,7 @@ def test_sqlite_fix_migrations(tmp_path: Path) -> None:
         assert r.returncode == 0
 
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
-        r = run_aerich("aerich migrate")
+        r = run_aerich("aerich migrate --offline")
         assert r.returncode == 0
 
         r = run_aerich("aerich upgrade")
@@ -181,10 +179,9 @@ class FooGroup(Model):
 """
 
 
-def test_sqlite_migrate(tmp_path: Path) -> None:
-    if not Dialect.is_sqlite():
-        return
-    with prepare_sqlite_project(tmp_path) as (models_py, models_text):
+@requires_dialect("sqlite")
+def test_sqlite_migrate(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
         MODELS = models_text
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         config_file = Path("pyproject.toml")

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:latest
+        image: postgres
         ports:
           - 5432:5432
         env:
@@ -20,66 +20,50 @@ jobs:
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         tortoise-orm:
           - tortoise021
           - tortoise022
           - tortoise023
           - tortoise024
-          # TODO: add dev back when drop python3.8 support
-          # - tortoisedev
+          - tortoise025
+          - tortoisedev
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
         with:
+          enable-cache: true
+          activate-environment: true
           python-version: ${{ matrix.python-version }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install and configure Poetry
-        run: |
-          pip install -U pip
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            # poetry2.0+ does not support installed by python3.8, but can manage project using py38
-            python3.12 -m pip install "poetry>=2.0"
-          else
-            pip install "poetry>=2.0"
-          fi
-          poetry env use python${{ matrix.python-version }}
-      - name: Install dependencies and check style
-        run: poetry run make check
+      - name: Install dependencies
+        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
       - name: Install TortoiseORM v0.21
         if: matrix.tortoise-orm == 'tortoise021'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.21,<0.22"
+        run: uv pip install --upgrade "tortoise-orm>=0.21,<0.22"
       - name: Install TortoiseORM v0.22
         if: matrix.tortoise-orm == 'tortoise022'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.22,<0.23"
+        run: uv pip install --upgrade "tortoise-orm>=0.22,<0.23"
       - name: Install TortoiseORM v0.23
         if: matrix.tortoise-orm == 'tortoise023'
-        run: poetry run pip install --upgrade "tortoise-orm>=0.23,<0.24"
+        run: uv pip install --upgrade "tortoise-orm>=0.23,<0.24"
       - name: Install TortoiseORM v0.24
         if: matrix.tortoise-orm == 'tortoise024'
-        run: |
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            echo "Skip test for tortoise v0.24 as it does not support Python3.8"
-          else
-            poetry run pip install --upgrade "tortoise-orm>=0.24,<0.25"
-          fi
+        run: uv pip install --upgrade "tortoise-orm>=0.24,<0.25"
+      - name: Install TortoiseORM v0.25
+        if: matrix.tortoise-orm == 'tortoise025'
+        run: uv pip install --upgrade "tortoise-orm>=0.25,<0.26"
       - name: Install TortoiseORM develop branch
         if: matrix.tortoise-orm == 'tortoisedev'
         run: |
-          if [[ "${{ matrix.python-version }}" == "3.8" ]]; then
-            echo "Skip test for tortoise develop branch as it does not support Python3.8"
-          else
-            poetry run pip uninstall -y tortoise-orm
-            poetry run pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-          fi
-      - name: CI
+          uv pip uninstall tortoise-orm
+          uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
+      - name: Build sdist
+        run: make _build
+      - name: Check style
+        run: make _check
+      - name: Run tests
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
@@ -87,23 +71,86 @@ jobs:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
-        run: poetry run make _testall
-      - name: Verify aiomysql support
-        # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoise024'
+        run: make _testall
+      - name: Show test coverage
+        run: make report
+
+  asyncmySupport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start MySQL
+        run: sudo systemctl start mysql.service
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.13'
+          activate-environment: true
+      - name: Install dependencies
+        run: uv sync --all-groups --extra toml --extra asyncmy
+      - name: Test MySQL with asyncmy
+        run: make test_mysql
+        env:
+          MYSQL_PASS: root
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+      - name: Show test coverage
+        run: make report
+
+  postgresVector:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_USER: postgres
+        options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.13'
+          activate-environment: true
+      - name: Install dependencies
+        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
+      - name: Test tortoise vector
+        run: make test_postgres_vector
+        env:
+          POSTGRES_PASS: 123456
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: make report
+
+  psycopgSupport:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          username: postgres
+          password: 123456
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
         run: |
-            poetry run pip uninstall -y asyncmy
-            poetry run make test_mysql
-            poetry run pip install asyncmy
+          uv pip install --system --group dev --group test -e ".[toml,psycopg,mysql]"
+      - name: Test psycopg
+        run: make test_psycopg
         env:
-          MYSQL_PASS: root
-          MYSQL_HOST: 127.0.0.1
-          MYSQL_PORT: 3306
-      - name: Verify psycopg support
-        # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoise024'
-        run: poetry run make test_psycopg
-        env:
-          POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PASS: 123456
           POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: make report

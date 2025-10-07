@@ -1,13 +1,54 @@
 # ChangeLog
 
-## 0.8
+## 0.9
 
-### [0.8.3]**(Unreleased)**
+### [0.9.2]**(Unreleased)**
+
+#### Changed
+- refactor: use dataclass instead of pydantic for inspectdb ([#466])
 
 #### Fixed
-- fix: `aerich init-db` process is suspended. ([#435])
+- fix: pgvector data types cause errors ([#468])
+- fix: postgres does not drop unique constraint when migrating ([#484])
 
+[#484]: https://github.com/tortoise/aerich/pull/484
+[#468]: https://github.com/tortoise/aerich/pull/468
+[#466]: https://github.com/tortoise/aerich/pull/466
+
+### [0.9.1](../../releases/tag/v0.9.1) - 2025-05-14
+
+#### Fixed
+- fix: `Command.migrate()` programmatically raises KeyError ([#462])
+- fix: `aerich init` removed comments in toml file ([#461])
+- fix: cryptic error message when 'aerich.models' not included. ([#454])
+
+[#462]: https://github.com/tortoise/aerich/pull/462
+[#461]: https://github.com/tortoise/aerich/pull/461
+[#454]: https://github.com/tortoise/aerich/pull/454
+
+### [0.9.0](../../releases/tag/v0.9.0) - 2025-05-12
+
+#### Added
+- Support `--no-input` for aerich migrate. ([#450])
+
+#### Changed
+- Drop support for Python3.8. ([#446])
+- Ask confirm before delete same version migration file. ([#451])
+
+#### Fixed
+- fix: m2m migrate raises TypeError. ([#448])
+- fix: `aerich init-db` process is suspended. ([#435])
+- fix: migration will incorrectly remove constraints with index deletions. ([#450])
+- fix: aerich migrate crashes without init-db & aerich init-db should create folder after validating app. ([#443])
+
+[#451]: https://github.com/tortoise/aerich/pull/451
+[#450]: https://github.com/tortoise/aerich/pull/450
+[#448]: https://github.com/tortoise/aerich/pull/448
+[#446]: https://github.com/tortoise/aerich/pull/446
+[#443]: https://github.com/tortoise/aerich/pull/443
 [#435]: https://github.com/tortoise/aerich/pull/435
+
+## 0.8
 
 ### [0.8.2](../../releases/tag/v0.8.2) - 2025-02-28
 
@@ -25,7 +66,7 @@
 - fix: inspectdb raise KeyError 'int2' for smallint. ([#401])
 - fix: inspectdb not match data type 'DOUBLE' and 'CHAR' for MySQL. ([#187])
 
-### Changed
+#### Changed
 - Refactored version management to use `importlib.metadata.version(__package__)` instead of hardcoded version string ([#412])
 
 [#397]: https://github.com/tortoise/aerich/pull/397
