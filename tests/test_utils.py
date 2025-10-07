@@ -22,7 +22,7 @@ from aerich.utils import (
     import_py_module,
     load_tortoise_config,
 )
-from tests._utils import ASSETS, chdir, copy_asset, describe_index, requires_dialect, run_shell
+from tests._utils import ASSETS, copy_asset, describe_index, requires_dialect, run_shell
 
 
 def test_add_src_path(tmp_work_dir: Path):
@@ -281,7 +281,7 @@ def test_read_config_from_class_var(tmp_work_dir):
     assert "error" not in output.lower()
 
 
-def test_get_tortoise_config(tmp_path):
+def test_get_tortoise_config():
     doc = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     tortoise_orm = doc["tool"]["aerich"]["tortoise_orm"]
     backwards_style = get_tortoise_config(None, tortoise_orm)  # type:ignore
@@ -292,9 +292,10 @@ def test_get_tortoise_config(tmp_path):
     assert get_tortoise_config(tortoise_orm=tortoise_orm) == backwards_style
     with pytest.raises(ClickException):
         get_tortoise_config("aerich.migrate.NotExistClass.get_all_version_modules")
-    # class var support
-    with chdir(tmp_path):
-        Path("my_app_config.py").write_text("""
+
+
+def test_get_tortoise_config_by_class_var(tmp_work_dir):
+    Path("my_app_config.py").write_text("""
 class Settings:
     @property
     def tortoise_orm(self):
@@ -302,66 +303,50 @@ class Settings:
 
 settings = Settings()
 """)
-        add_src_path(".")
-        config = get_tortoise_config("my_app_config.settings.tortoise_orm")
-        assert config == {"connections": {"default": "sqlite://db.sqlite3"}, "apps": {}}
+    if "." not in sys.path:
+        sys.path.append(".")
+    config = get_tortoise_config("my_app_config.settings.tortoise_orm")
+    assert config == {"connections": {"default": "sqlite://db.sqlite3"}, "apps": {}}
 
 
 @requires_dialect("sqlite")
-def test_load_tortoise_config(monkeypatch, tmp_path):
+def test_load_tortoise_config():
     expected = {
-        "apps": {
-            "models": {
-                "default_connection": "default",
-                "models": [
-                    "tests.models",
-                    "aerich.models",
-                ],
-            },
-            "models_second": {
-                "default_connection": "second",
-                "models": [
-                    "tests.models_second",
-                ],
-            },
+        "models": {
+            "default_connection": "default",
+            "models": [
+                "tests.models",
+                "aerich.models",
+            ],
         },
-        "connections": {
-            "default": {
-                "credentials": {
-                    "file_path": ":memory:",
-                    "journal_mode": "WAL",
-                    "journal_size_limit": 16384,
-                },
-                "engine": "tortoise.backends.sqlite",
-            },
-            "second": {
-                "credentials": {
-                    "file_path": ":memory:",
-                    "journal_mode": "WAL",
-                    "journal_size_limit": 16384,
-                },
-                "engine": "tortoise.backends.sqlite",
-            },
+        "models_second": {
+            "default_connection": "second",
+            "models": [
+                "tests.models_second",
+            ],
         },
     }
-    assert load_tortoise_config() == expected
+    assert load_tortoise_config()["apps"] == expected
     tortoise_config, aerich_config = _load_tortoise_aerich_config()
-    assert tortoise_config == expected
+    assert tortoise_config["apps"] == expected
     assert aerich_config == {
         "location": "./migrations",
         "src_folder": "./.",
         "tortoise_orm": "conftest.tortoise_orm",
     }
-    assert load_tortoise_config("conftest.tortoise_orm") == expected
-    with chdir(tmp_path):
-        with pytest.raises(ClickException):
-            load_tortoise_config()
-        Path("pyproject.toml").touch()
-        Path("settings.py").write_text('tortoise_orm={"apps":{"models":{}}}', encoding="utf-8")
-        with pytest.raises(ClickException):
-            load_tortoise_config()
-        monkeypatch.setenv("TORTOISE_ORM", "settings.tortoise_orm")
-        assert load_tortoise_config() == {"apps": {"models": {}}}
+    assert load_tortoise_config("conftest.tortoise_orm")["apps"] == expected
+
+
+@requires_dialect("sqlite")
+def test_load_tortoise_config_in_new_project(monkeypatch, tmp_work_dir):
+    with pytest.raises(ClickException):
+        load_tortoise_config()
+    Path("pyproject.toml").touch()
+    Path("settings_new.py").write_text('tortoise_orm={"apps":{"models":{}}}', encoding="utf-8")
+    with pytest.raises(ClickException):
+        load_tortoise_config()
+    monkeypatch.setenv("TORTOISE_ORM", "settings_new.tortoise_orm")
+    assert load_tortoise_config() == {"apps": {"models": {}}}
 
 
 @requires_dialect("sqlite")

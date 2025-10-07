@@ -25,7 +25,7 @@ db_url_second = os.getenv("TEST_DB_SECOND", MEMORY_SQLITE)
 try:
     default_db = expand_db_url(db_url, testing=True)
 except KeyError as e:
-    if str(e) == "/":
+    if str(e) == "'/'":
         # Auto convert invalid path for Windows
         db_url = db_url.replace("/{/}", "{}")
         default_db = expand_db_url(db_url, testing=True)
