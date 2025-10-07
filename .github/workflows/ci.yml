@@ -35,6 +35,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          activate-environment: true
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
@@ -61,7 +62,7 @@ jobs:
       - name: Build sdist
         run: make _build
       - name: Check style
-        run: uv run --no-sync make _check
+        run: make _check
       - name: Run tests
         env:
           MYSQL_PASS: root
@@ -70,9 +71,9 @@ jobs:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
-        run: uv run --no-sync make _testall
+        run: make _testall
       - name: Show test coverage
-        run: uv run --no-sync make report
+        run: make report
 
   asyncmySupport:
     runs-on: ubuntu-latest
@@ -115,7 +116,7 @@ jobs:
           python-version: '3.13'
           activate-environment: true
       - name: Install dependencies
-        run: uv sync --all-groups --extra toml --extra asyncpg --extra mysql
+        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
       - name: Test tortoise vector
         run: make test_postgres_vector
         env:
@@ -140,14 +141,13 @@ jobs:
         with:
           enable-cache: true
           python-version: '3.13'
-          activate-environment: true
       - name: Install dependencies
         run: uv sync --all-groups --extra toml --extra psycopg --extra mysql
       - name: Test psycopg
-        run: make test_psycopg
+        run: uv run --no-sync make test_psycopg
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
       - name: Show test coverage
-        run: make report
+        run: uv run --no-sync make report
