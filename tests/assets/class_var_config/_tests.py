@@ -1,4 +1,5 @@
 import pytest
+from aerich import Command
 from tortoise import Tortoise
 
 from app.core.config import settings
@@ -16,7 +17,7 @@ async def init_connections():
     try:
         yield
     finally:
-        await Tortoise.close_connections()
+        await Command.aclose()
 
 
 @pytest.mark.anyio

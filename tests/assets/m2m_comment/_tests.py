@@ -1,7 +1,9 @@
 import pytest
 from models import DataLibGroup
 from settings import TORTOISE_ORM
-from tortoise import Tortoise, connections
+from tortoise import Tortoise
+
+from aerich import Command
 
 
 @pytest.fixture(scope="session")
@@ -15,7 +17,7 @@ async def init_connections():
     try:
         yield
     finally:
-        await connections.close_all()
+        await Command.aclose()
 
 
 @pytest.mark.anyio
