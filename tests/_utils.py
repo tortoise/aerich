@@ -117,7 +117,7 @@ def copy_asset(name: str, parent: Path = ASSETS) -> None:
         if p.name.startswith("."):
             continue
         copy_func = shutil.copytree if p.is_dir() else shutil.copyfile
-        copy_func(p, p.name)
+        copy_func(p, "conftest.py" if p.name == "conftest_.py" else p.name)
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
