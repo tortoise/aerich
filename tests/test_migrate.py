@@ -9,33 +9,22 @@ import tortoise
 from pytest_mock import MockerFixture
 from tortoise.indexes import Index
 
-from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
-from aerich.utils import get_models_describe
+from aerich.utils import get_formatted_compressed_data, get_models_describe
 from tests._utils import (
     chdir,
+    describe_index,
     prepare_py_files,
     requires_dialect,
     run_shell,
-    skip_dialect,
     tmp_daily_db,
 )
 from tests.indexes import CustomIndex
-
-
-def describe_index(idx: Index) -> Index | dict:
-    # tortoise-orm>=0.24 changes Index desribe to be dict
-    if tortoise_version_less_than("0.24"):
-        return idx
-    if hasattr(idx, "describe"):
-        return idx.describe()
-    return idx
-
 
 # tortoise-orm>=0.21 changes IntField constraints
 # from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
@@ -1256,17 +1245,27 @@ def tmp_migrate_dir(tmp_path):
         yield
 
 
-async def test_empty_migration(mocker, tmp_migrate_dir) -> None:
+async def test_empty_migration(mocker, tmp_work_dir: Path) -> None:
     mocker.patch("os.listdir", return_value=[])
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
-
+    Migrate.migrate_location = tmp_work_dir
+    Migrate.app = "models_second"
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     migration_file = await Migrate.migrate("update", True, no_input=True)
     assert Path(migration_file).read_text() == expected_content
 
 
 async def test_remove_conflicts_empty(mocker, tmp_migrate_dir) -> None:
+    Migrate.app = "models"
     # empty migration
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     pre_migrate_file = Path("0_datetime_name.py")
     pre_migrate_file.write_text("Invalid migration content")
     mocker.patch("asyncclick.prompt", side_effect=(False,))
@@ -1319,14 +1318,14 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
     assert new_migration_file and new_migration_file.startswith("1_")
 
 
-def _test_migrate_upgrade(max_model_num: int = 2) -> None:
+def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
     run_shell("aerich init-db", capture_output=False)
     output = run_shell("pytest -s _tests.py::test_1")
     assert "error" not in output.lower()
     for num in range(2, max_model_num + 1):
         shutil.move(f"models_{num}.py", "models.py")
-        output = run_shell("aerich migrate")
+        output = run_shell("aerich migrate" + " --offline" * offline)
         assert "error" not in output.lower()
         output = run_shell("aerich upgrade")
         assert "error" not in output.lower()
@@ -1360,7 +1359,13 @@ def test_delete_model_with_m2m_field(tmp_work_dir):
     _test_migrate_upgrade(3)
 
 
-@skip_dialect("sqlite")
+@requires_dialect("sqlite")
+def test_migrate_custom_index_offline(tmp_work_dir):
+    prepare_py_files("custom_index_offline")
+    _test_migrate_upgrade(3, offline=True)
+
+
+@requires_dialect("postgres", "mysql")
 def test_table_creations(tmp_work_dir):
     prepare_py_files("table_creations")
     with tmp_daily_db():

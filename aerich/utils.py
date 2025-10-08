@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
 import os
 import pkgutil
 import re
 import sys
+import zlib
 from collections.abc import Awaitable, Callable, Generator
 from importlib.machinery import FileFinder
 from pathlib import Path
@@ -18,6 +20,7 @@ from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.log import logger
 
 from aerich._compat import tomllib
+from aerich.coder import decoder, encoder
 from aerich.exceptions import NotInitedError
 
 if sys.version_info >= (3, 11):
@@ -283,6 +286,30 @@ def get_dict_diff_by_key(
         if additions:
             for index in sorted(additions):
                 yield from diff([], [new_fields[index]])  # add
+
+
+def compress_dict(dictionary: dict[str, Any]) -> str:
+    json_str = encoder(dictionary)
+    compressed_bytes = zlib.compress(json_str.encode("utf-8"))
+    base64_str = base64.b64encode(compressed_bytes).decode("ascii")
+
+    return base64_str
+
+
+def get_formatted_compressed_data(dictionary: dict[str, Any], row_length: int = 70) -> str:
+    compressed_str = compress_dict(dictionary)
+    formatted_parts = [
+        '"' + compressed_str[current_cursor : current_cursor + row_length] + '"'
+        for current_cursor in range(0, len(compressed_str), row_length)
+    ]
+    return "\n    ".join(formatted_parts)
+
+
+def decompress_dict(compressed_str: str) -> dict[str, Any]:
+    compressed_bytes = base64.b64decode(compressed_str)
+    json_bytes = zlib.decompress(compressed_bytes)
+    dictionary = decoder(json_bytes)
+    return dictionary
 
 
 def run_async(

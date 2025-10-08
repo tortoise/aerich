@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: ankane/pgvector:latest
+        image: postgres
         ports:
           - 5432:5432
         env:
@@ -32,18 +32,13 @@ jobs:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
       - uses: astral-sh/setup-uv@v6
-      - name: Install dependencies and check style
-        run: uv run make check
+        with:
+          enable-cache: true
+          activate-environment: true
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
       - name: Install TortoiseORM v0.21
         if: matrix.tortoise-orm == 'tortoise021'
         run: uv pip install --upgrade "tortoise-orm>=0.21,<0.22"
@@ -64,7 +59,11 @@ jobs:
         run: |
           uv pip uninstall tortoise-orm
           uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-      - name: CI
+      - name: Build sdist
+        run: make _build
+      - name: Check style
+        run: make _check
+      - name: Run tests
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
@@ -72,25 +71,86 @@ jobs:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
-        run: uv run make _testall
-      - name: Verify aiomysql support
-        # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoisedev'
-        run: |
-            uv pip uninstall asyncmy
-            uv run make test_mysql
-            uv pip install asyncmy
+        run: make _testall
+      - name: Show test coverage
+        run: make report
+
+  asyncmySupport:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start MySQL
+        run: sudo systemctl start mysql.service
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.13'
+          activate-environment: true
+      - name: Install dependencies
+        run: uv sync --all-groups --extra toml --extra asyncmy
+      - name: Test MySQL with asyncmy
+        run: make test_mysql
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
-      - name: Verify psycopg/tortoise-vector support
-        # Only check the latest version of tortoise
-        if: matrix.tortoise-orm == 'tortoisedev'
-        run: |
-          uv run make test_psycopg
-          uv run make test_postgres_vector
+      - name: Show test coverage
+        run: make report
+
+  postgresVector:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_USER: postgres
+        options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: '3.13'
+          activate-environment: true
+      - name: Install dependencies
+        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
+      - name: Test tortoise vector
+        run: make test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: make report
+
+  psycopgSupport:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          username: postgres
+          password: 123456
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: |
+          uv pip install --system --group dev --group test -e ".[toml,psycopg,mysql]"
+      - name: Test psycopg
+        run: make test_psycopg
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PASS: 123456
+          POSTGRES_PORT: 5432
+      - name: Show test coverage
+        run: make report

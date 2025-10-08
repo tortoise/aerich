@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import contextlib
+import json
 import os
 import shlex
 import shutil
@@ -9,18 +9,21 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+from tortoise import Tortoise
+
+from aerich import Command, decompress_dict, import_py_file
+from aerich.models import Aerich
+from aerich.utils import load_tortoise_config, run_async
 from tests._utils import WINDOWS, prepare_py_files, requires_dialect
 
 
-def run_aerich(cmd: str) -> subprocess.CompletedProcess | None:
+def run_aerich(cmd: str) -> subprocess.CompletedProcess:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
         if WINDOWS:
             cmd = "python -m " + cmd
-    r = None
-    with contextlib.suppress(subprocess.TimeoutExpired):
-        r = subprocess.run(shlex.split(cmd), timeout=2)
+    r = subprocess.run(shlex.split(cmd), timeout=2)
     return r
 
 
@@ -44,12 +47,35 @@ def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
     yield models_py, models_py.read_text("utf-8")
 
 
+@contextmanager
+def prepare_sqlite_old_style_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
+    asset_dir = prepare_py_files("sqlite_old_style")
+    migrations_source = asset_dir / "_migrations"
+    migrations_target = Path("migrations")
+    _get_empty_db()
+    run_aerich("init -t settings.TORTOISE_ORM")
+    run_aerich("init-db")
+    if migrations_target.exists():
+        shutil.rmtree(migrations_target)
+    shutil.copytree(migrations_source, migrations_target)
+
+    async def init_data() -> None:
+        data = json.loads(asset_dir.joinpath("data.json").read_bytes())
+        await Tortoise.init(config=load_tortoise_config())
+        await Aerich.bulk_create([Aerich(**d) for d in data])
+        await Command.aclose()
+
+    run_async(init_data)
+    models_py = Path("models.py")
+    yield models_py, models_py.read_text("utf-8")
+
+
 @requires_dialect("sqlite")
 def test_close_tortoise_connections_patch(tmp_work_dir: Path) -> None:
     with prepare_sqlite_project(tmp_work_dir):
         run_aerich("aerich init -t settings.TORTOISE_ORM")
         r = run_aerich("aerich init-db")
-        assert r is not None
+        assert r.returncode == 0
 
 
 @requires_dialect("sqlite")
@@ -61,8 +87,10 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
         r = run_shell("pytest -s _tests.py::test_allow_duplicate")
         assert r.returncode == 0
         models_py.write_text(models_text.replace("db_index=False", "unique=True"))
-        run_aerich("aerich migrate")  # migrations/models/1_
-        run_aerich("aerich upgrade")
+        r = run_aerich("aerich migrate")  # migrations/models/1_
+        assert r.returncode == 0
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
         r = run_shell("pytest _tests.py::test_unique_is_true")
         assert r.returncode == 0
         models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
@@ -70,6 +98,69 @@ def test_sqlite_migrate_alter_indexed_unique(tmp_work_dir: Path) -> None:
         run_aerich("aerich upgrade")
         r = run_shell("pytest -s _tests.py::test_allow_duplicate")
         assert r.returncode == 0
+
+
+@requires_dialect("sqlite")
+def test_sqlite_migrate_alter_indexed_unique_offline(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_project(tmp_work_dir) as (models_py, models_text):
+        migration_directory = Path("migrations")
+        assert not migration_directory.exists()
+        models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
+        run_aerich("aerich init -t settings.TORTOISE_ORM")
+        run_aerich("aerich init-migrations")
+        assert migration_directory.exists()
+        app_migrations = migration_directory / "models"
+        assert app_migrations.exists()
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
+        assert len(created_migrations) == 1
+        models_py.write_text(models_text.replace("db_index=False", "unique=True"))
+        r = run_aerich("aerich migrate --offline")  # migrations/models/1_
+        assert r.returncode == 0
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
+        assert len(created_migrations) == 2, created_migrations
+        models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
+        run_aerich("aerich migrate --offline")  # migrations/models/2_
+        created_migrations = [m for m in os.listdir(app_migrations) if m.endswith(".py")]
+        assert len(created_migrations) == 3, created_migrations
+        run_aerich("aerich upgrade")
+        r = run_shell("pytest -s _tests.py::test_allow_duplicate")
+        assert r.returncode == 0
+
+
+@requires_dialect("sqlite")
+def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_old_style_project(tmp_work_dir) as (models_py, models_text):
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 1
+
+        r = run_aerich("aerich fix-migrations")
+        assert r.returncode == 0
+
+        migrations_dir = tmp_work_dir / "migrations" / "models"
+
+        migration_files = list(migrations_dir.glob("*.py"))
+
+        for file in migration_files:
+            imported_file = import_py_file(migrations_dir / file)
+
+            models_state = getattr(imported_file, "MODELS_STATE", None)
+            assert models_state is not None
+
+            parsed_state = decompress_dict(models_state)
+            assert isinstance(parsed_state, dict)
+
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
+
+        models_py.write_text(models_text.replace("db_index=False", "unique=True"))
+        r = run_aerich("aerich migrate --offline")
+        assert r.returncode == 0
+
+        r = run_aerich("aerich upgrade")
+        assert r.returncode == 0
+
+        created_migrations = migrations_dir.glob("*.py")
+        assert len(list(created_migrations)) == 3, created_migrations
 
 
 M2M_WITH_CUSTOM_THROUGH = """

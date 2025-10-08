@@ -22,9 +22,19 @@ from tests._utils import chdir, copy_files, init_db, run_shell
 
 db_url = os.getenv("TEST_DB", MEMORY_SQLITE)
 db_url_second = os.getenv("TEST_DB_SECOND", MEMORY_SQLITE)
+try:
+    default_db = expand_db_url(db_url, testing=True)
+except KeyError as e:
+    if str(e) == "'/'":
+        # Auto convert invalid path for Windows
+        db_url = db_url.replace("/{/}", "{}")
+        default_db = expand_db_url(db_url, testing=True)
+    else:
+        raise e
+
 tortoise_orm = {
     "connections": {
-        "default": expand_db_url(db_url, testing=True),
+        "default": default_db,
         "second": expand_db_url(db_url_second, testing=True),
     },
     "apps": {

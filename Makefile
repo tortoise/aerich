@@ -1,5 +1,7 @@
-checkfiles = aerich/ tests/ conftest.py
+src_dir = aerich
+checkfiles = $(src_dir) tests/ conftest.py
 py_warn = PYTHONDEVMODE=1
+pytest_opts = --cov=$(src_dir) --cov-append --tb=native -q
 MYSQL_HOST ?= "127.0.0.1"
 MYSQL_PORT ?= 3306
 MYSQL_PASS ?= "123456"
@@ -40,19 +42,22 @@ test_sqlite:
 	$(py_warn) TEST_DB=sqlite://:memory: pytest $(pytest_opts)
 
 test_mysql:
-	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" pytest -vv -s
+	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 test_postgres:
-	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
+	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 test_postgres_vector:
-	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s tests/test_inspectdb.py::test_inspect_vector
+	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s tests/test_inspectdb.py::test_inspect_vector $(pytest_opts)
 
 test_psycopg:
-	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s
+	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
+
+report:
+	coverage report -m
 
 _build:
 	rm -fR dist/

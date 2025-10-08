@@ -8,16 +8,20 @@ from typing import cast
 
 import asyncclick as click
 from asyncclick import Context, UsageError
+from tortoise.backends.base.config_generator import expand_db_url
 
 from aerich import Command
 from aerich._compat import imports_tomlkit, tomllib
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
+from aerich.migrate import Migrate
 from aerich.utils import (
     CONFIG_DEFAULT_VALUES,
     _load_tortoise_aerich_config,
     add_src_path,
+    get_models_describe,
     get_tortoise_config,
+    import_py_module,
 )
 from aerich.version import __version__
 
@@ -81,28 +85,46 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         # Call ``command.__aexit__()`` when the context is popped
         ctx.obj["command"] = await ctx.with_async_resource(command)
         _check_aerich_models_included(tortoise_config)
-        if invoked_subcommand != "init-db":
+        if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
             if not Path(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
-            await command.init()
+            await command.init(offline="--offline" in sys.argv)
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")
 @click.option("--name", default="update", show_default=True, help="Migration name.")
 @click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
 @click.option("--no-input", default=False, is_flag=True, help="Do not ask for prompt.")
+@click.option(
+    "--offline", default=False, is_flag=True, help="Generate migration without connecting to db."
+)
 @click.pass_context
-async def migrate(ctx: Context, name: str, empty: bool, no_input: bool) -> None:
+async def migrate(ctx: Context, name: str, empty: bool, no_input: bool, offline: bool) -> None:
     command = ctx.obj["command"]
-    ret = await command.migrate(name, empty, no_input)
+    ret = await command.migrate(name, empty, no_input, offline)
     if ret is None:
         return click.secho(
             "Aborted! You may need to run `aerich heads` to list avaliable unapplied migrations.",
             fg=Color.yellow,
         )
     if not ret:
+        if not offline:
+            # Auto fill MODELS_STATE to old style migration file
+            all_migrations = Migrate.get_all_version_modules()
+            last_one = all_migrations[-1]
+            module = import_py_module(last_one)
+            if not getattr(module, "MODELS_STATE", None):
+                upgrade = await module.upgrade(None)
+                downgrade = await module.downgrade(None)
+                models_state = get_models_describe(command.app)
+                content = Migrate.build_migration_file_text(
+                    upgrade, models_state=models_state, downgrade_sql=downgrade
+                )
+                file = Path(Migrate.migrate_location, last_one.name + ".py")
+                file.write_text(content, encoding="utf-8")
+                click.echo(f"Filled `MODELS_STATE` to migration file {file.name}")
         return click.secho("No changes detected", fg=Color.yellow)
     click.secho(f"Success creating migration file {ret}", fg=Color.green)
 
@@ -319,17 +341,49 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 @click.option("--pre", required=False, help="SQL to execute before generating schemas.")
 @click.pass_context
 async def init_db(ctx: Context, safe: bool, pre: str) -> None:
+    await _init_app(ctx, safe, pre)
+
+
+async def _init_app(ctx: Context, safe: bool, pre: str = "", offline: bool = False) -> None:
     command = ctx.obj["command"]
     app = command.app
     dirname = Path(command.location, app)
     try:
-        await command.init_db(safe, pre)
+        if offline:
+            await command.init_migrations(safe)
+        else:
+            await command.init_db(safe, pre)
         click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
         click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
+        if not offline:
+            default_connection = (
+                command.tortoise_config["apps"].get(app, {}).get("default_connection", "default")
+            )
+            db = command.tortoise_config["connections"].get(default_connection, "")
+            if isinstance(db, str):
+                db = expand_db_url(db)
+            if credentials := db.get("credentials"):
+                db = credentials.get("database", "") or credentials.get("file_path", "")
+            click.secho(f'Success writing schemas to database "{db}"', fg=Color.green)
     except FileExistsError:
-        return click.secho(
-            f"App {app} is already initialized. Delete {dirname} and try again.", fg=Color.yellow
+        click.secho(
+            f"App {app!r} is already initialized. Delete {dirname} and try again.", fg=Color.yellow
         )
+
+
+@cli.command(help="Generate app migration folder and your first migration.")
+@click.option(
+    "-s",
+    "--safe",
+    type=bool,
+    is_flag=True,
+    default=True,
+    help="Create tables only when they do not already exist.",
+    show_default=True,
+)
+@click.pass_context
+async def init_migrations(ctx: Context, safe: bool) -> None:
+    await _init_app(ctx, safe, offline=True)
 
 
 @cli.command(help="Prints the current database tables to stdout as Tortoise-ORM models.")
@@ -345,6 +399,22 @@ async def inspectdb(ctx: Context, table: list[str]) -> None:
     command = ctx.obj["command"]
     ret = await command.inspectdb(table)
     click.secho(ret)
+
+
+@cli.command(help="Fix migration files to include models state for aerich 0.6.0+.")
+@click.pass_context
+async def fix_migrations(ctx: Context) -> None:
+    command = ctx.obj["command"]
+    updated_files = await command.fix_migrations()
+    if not updated_files:
+        click.secho(
+            "No migration files to update. All files are already in the correct format.",
+            fg=Color.green,
+        )
+    else:
+        click.secho(f"Updated {len(updated_files)} migration files:", fg=Color.green)
+        for file in updated_files:
+            click.echo(f"  - {file}")
 
 
 def main() -> None:

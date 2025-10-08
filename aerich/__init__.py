@@ -18,9 +18,10 @@ from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
-from aerich.migrate import MIGRATE_TEMPLATE, Migrate
+from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
+    decompress_dict,
     file_module_info,
     get_app_connection,
     get_app_connection_name,
@@ -101,9 +102,10 @@ def _init_tortoise_0_24_1_patch() -> None:
                 backward_fk = forward_fk = ""
             exists = "IF NOT EXISTS " if safe else ""
             through_table_name = field_object.through
-            backward_type = self._get_pk_field_sql_type(model._meta.pk)
-            forward_type = self._get_pk_field_sql_type(field_object.related_model._meta.pk)
-            comment = ""
+            backward_type = forward_type = comment = ""
+            if func := getattr(self, "_get_pk_field_sql_type", None):
+                backward_type = func(model._meta.pk)
+                forward_type = func(field_object.related_model._meta.pk)
             if desc := field_object.description:
                 comment = self._table_comment_generator(table=through_table_name, comment=desc)
             m2m_create_string = self.M2M_TABLE_TEMPLATE.format(
@@ -163,8 +165,8 @@ class Command(AbstractAsyncContextManager):
         Migrate.app = app
         self._init_when_aenter = True
 
-    async def init(self) -> None:
-        await Migrate.init(self.tortoise_config, self.app, self.location)
+    async def init(self, offline: bool = False) -> None:
+        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
 
     async def __aenter__(self) -> Command:
         if self._init_when_aenter:
@@ -209,11 +211,12 @@ class Command(AbstractAsyncContextManager):
         upgrade = m.upgrade
         if not fake:
             await conn.execute_script(await upgrade(conn))
-        await Aerich.create(
-            version=version_file,
-            app=self.app,
-            content=get_models_describe(self.app),
+
+        model_state_str = getattr(m, "MODELS_STATE", None)
+        models_state = (
+            decompress_dict(model_state_str) if model_state_str else get_models_describe(self.app)
         )
+        await Aerich.create(version=version_file, app=self.app, content=models_state)
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
@@ -299,30 +302,48 @@ class Command(AbstractAsyncContextManager):
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: Literal[True] = True
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: Literal[True] = True,
+        offline: bool = False,
     ) -> str: ...
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None: ...
 
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None:
         # return None if same version migration file already exists, and new one not generated
         try:
-            return await Migrate.migrate(name, empty, no_input)
+            return await Migrate.migrate(name, empty, no_input, offline)
         except NotInitedError as e:
             raise NotInitedError("You have to call .init() first before migrate") from e
 
     async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
+        await self._do_init(safe, pre_sql)
+
+    async def _do_init(self, safe: bool, pre_sql: str | None = None, offline: bool = False) -> None:
         location = self.location
         app = self.app
+        config = self.tortoise_config
 
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
-        if pre_sql:
+        await Tortoise.init(config=config)
+        connection = get_app_connection(config, app)
+        if offline:
+            await Migrate.init(config, app, location, offline=True)
+        elif pre_sql:
             await connection.execute_script(pre_sql)
 
         dirname = Path(location, app)
@@ -332,20 +353,26 @@ class Command(AbstractAsyncContextManager):
             # If directory is empty, go ahead, otherwise raise FileExistsError
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
-
-        await generate_schema_for_client(connection, safe)
-
         schema = get_schema_sql(connection, safe)
 
-        version = await Migrate.generate_version()
+        version = await Migrate.generate_version(offline=offline)
         aerich_content = get_models_describe(app)
-        await Aerich.create(
-            version=version,
-            app=app,
-            content=aerich_content,
-        )
         version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(upgrade_sql=schema, downgrade_sql="")
-        with open(version_file, "w", encoding="utf-8") as f:
-            f.write(content)
+        content = Migrate.build_migration_file_text(upgrade_sql=schema, models_state=aerich_content)
+        version_file.write_text(content, encoding="utf-8")
         Migrate._last_version_content = aerich_content
+        if not offline:
+            await generate_schema_for_client(connection, safe)
+            await Aerich.create(version=version, app=app, content=aerich_content)
+
+    async def init_migrations(self, safe: bool) -> None:
+        await self._do_init(safe, offline=True)
+
+    async def fix_migrations(self) -> list[str]:
+        """
+        Fix migration files to include models state for aerich 0.6.0+
+        :return: List of updated migration files
+        """
+        Migrate.app = self.app
+        Migrate.migrate_location = Path(self.location, self.app)
+        return await Migrate.fix_migrations(self.tortoise_config)

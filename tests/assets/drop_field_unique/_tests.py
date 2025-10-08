@@ -4,6 +4,8 @@ from settings import TORTOISE_ORM
 from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
 
+from aerich import Command
+
 
 @pytest.fixture(scope="session")
 def anyio_backend() -> str:
@@ -16,7 +18,7 @@ async def init_connections():
     try:
         yield
     finally:
-        await Tortoise.close_connections()
+        await Command.aclose()
 
 
 async def assert_not_unique():
