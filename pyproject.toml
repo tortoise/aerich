@@ -122,8 +122,5 @@ extend-select = [
 ]
 ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
 
-[tool.ruff.lint.per-file-ignores]
-"aerich/_compat.py" = ["F401"]
-
 [tool.bandit]
 exclude_dirs = ["tests", "conftest.py"]
