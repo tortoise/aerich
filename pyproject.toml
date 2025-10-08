@@ -45,16 +45,19 @@ dev = [
     "bandit >=1.7.0",
     "mypy >=1.10.0",
     "twine >=6.1.0",
-    "pytest-cov>=7.0.0",
 ]
 test = [
     "pytest >=8.3.0",
     "pytest-mock >=3.14.0",
+    "pytest-cov>=7.0.0",
+
     # Breaking change in 0.23.*
     # https://github.com/pytest-dev/pytest-asyncio/issues/706
     "pytest-asyncio >=0.21.2,<0.23",
+
     # required for sha256_password by asyncmy
     "cryptography; python_version >='3.9.0,!=3.9.1'",
+
     "tortoise-vector >=0.1.4; python_version >='3.11'",
     "async-timeout >=5.0.1; python_version <'3.11'",
     "pydantic-settings >=2.10.1",

@@ -28,7 +28,6 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import ParamSpec, TypeVarTuple, Unpack
 
-
 T_Retval = TypeVar("T_Retval")
 PosArgsT = TypeVarTuple("PosArgsT")
 P = ParamSpec("P")
