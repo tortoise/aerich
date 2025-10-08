@@ -41,7 +41,6 @@ def _get_empty_db() -> Path:
 @contextmanager
 def prepare_sqlite_project(tmp_work_dir: Path) -> Generator[tuple[Path, str]]:
     prepare_py_files("sqlite_migrate")
-    shutil.move("conftest_.py", "conftest.py")
     _get_empty_db()
     models_py = Path("models.py")
     yield models_py, models_py.read_text("utf-8")

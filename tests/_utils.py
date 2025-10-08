@@ -99,7 +99,10 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
 
 def copy_files(*src_files: Path, target_dir: Path | str = ".") -> None:
     for src in src_files:
-        shutil.copy(src, target_dir)
+        if src.name == "conftest_.py":
+            shutil.copy(src, Path(target_dir, "conftest.py"))
+        else:
+            shutil.copy(src, target_dir)
 
 
 def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> Path:
