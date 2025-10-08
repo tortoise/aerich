@@ -27,10 +27,12 @@ from aerich.utils import (
     get_models_describe,
     import_py_file,
     import_py_module,
+    load_tortoise_config,
     py_module_path,
 )
 
 if TYPE_CHECKING:
+    from aerich._compat import Self
     from aerich.inspectdb import Inspect
 
 
@@ -38,43 +40,27 @@ _init_asyncio_patch()  # Change event_loop_policy for Windows
 _init_tortoise_0_24_1_patch()  # Patch m2m table generator for tortoise-orm==0.24.1
 
 
-class Command(AbstractAsyncContextManager):
-    def __init__(
-        self,
-        tortoise_config: dict,
-        app: str = "models",
-        location: str = "./migrations",
-        inspectdb_fields: dict[str, str] | None = None,
-    ) -> None:
+class TortoiseContext(AbstractAsyncContextManager):
+    def __init__(self, tortoise_config: dict | None = None) -> None:
+        if tortoise_config is None:
+            tortoise_config = load_tortoise_config()
         self.tortoise_config = tortoise_config
-        self.app = app
-        self.location = location
-        self._inspectdb_fields = inspectdb_fields
-        Migrate.app = app
         self._init_when_aenter = True
 
-    async def init(self, offline: bool = False) -> None:
-        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
+    async def init(self) -> None:
+        await Tortoise.init(config=self.tortoise_config)
 
-    async def __aenter__(self) -> Command:
+    async def __aenter__(self) -> Self:
         if self._init_when_aenter:
             await self.init()
         return self
 
-    def __await__(self) -> Generator[Any, None, Command]:
+    def __await__(self) -> Generator[Any, None, Self]:
         # To support `command = await Command(tortoise_config)`
-        async def _self() -> Command:
+        async def _self() -> Self:
             return await self.__aenter__()
 
         return _self().__await__()
-
-    async def close(self) -> None:
-        warnings.warn(
-            "`Command.close()` is deprecated, please use Command.aclose() instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        await self.aclose()
 
     @staticmethod
     async def aclose() -> None:
@@ -83,6 +69,32 @@ class Command(AbstractAsyncContextManager):
             await connections.close_all()
 
     async def __aexit__(self, *args, **kw) -> None:
+        await self.aclose()
+
+
+class Command(TortoiseContext):
+    def __init__(
+        self,
+        tortoise_config: dict,
+        app: str = "models",
+        location: str = "./migrations",
+        inspectdb_fields: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(tortoise_config)
+        self.app = app
+        self.location = location
+        self._inspectdb_fields = inspectdb_fields
+        Migrate.app = app
+
+    async def init(self, offline: bool = False) -> None:
+        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
+
+    async def close(self) -> None:
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         await self.aclose()
 
     async def _upgrade(

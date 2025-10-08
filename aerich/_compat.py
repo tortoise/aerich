@@ -10,8 +10,12 @@ from typing import TYPE_CHECKING, cast
 import tortoise
 
 if sys.version_info >= (3, 11):
+    from typing import Self
+
     import tomllib
 else:
+    from typing_extensions import Self
+
     try:
         import tomli as tomllib
     except ImportError:
@@ -22,7 +26,7 @@ if TYPE_CHECKING:
     from tortoise.fields.relational import ManyToManyFieldInstance
 
 
-__all__ = ("tomllib", "imports_tomlkit", "tortoise_version_less_than")
+__all__ = ("Self", "tomllib", "imports_tomlkit", "tortoise_version_less_than")
 
 
 def imports_tomlkit() -> ModuleType:
