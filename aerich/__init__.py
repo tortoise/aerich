@@ -30,6 +30,7 @@ from aerich.utils import (
     load_tortoise_config,
     py_module_path,
 )
+from aerich.version import __version__
 
 if TYPE_CHECKING:
     from aerich._compat import Self
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
 
 _init_asyncio_patch()  # Change event_loop_policy for Windows
 _init_tortoise_0_24_1_patch()  # Patch m2m table generator for tortoise-orm==0.24.1
+__all__ = ("Command", "TortoiseContext", "__version__")
 
 
 class TortoiseContext(AbstractAsyncContextManager):
