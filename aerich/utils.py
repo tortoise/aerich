@@ -319,13 +319,7 @@ def run_async(
     """Run async function in worker thread and get the result of it"""
     # `asyncio.run(async_func())` can get the result of async function,
     # but it will close the running loop.
-    result: list[T_Retval] = []
-
-    async def runner() -> None:
-        res = await async_func(*args)
-        result.append(res)
-
     with from_thread.start_blocking_portal() as portal:
-        portal.call(runner)
-
-    return result[0]
+        future = portal.start_task_soon(async_func, *args)
+        return_value = future.result()
+    return return_value
