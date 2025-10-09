@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import json
 import os
 import shlex
@@ -11,19 +12,20 @@ from pathlib import Path
 
 from tortoise import Tortoise
 
-from aerich import Command, decompress_dict, import_py_file
+from aerich import Command, Migrate, TortoiseContext, decompress_dict, import_py_file
 from aerich.models import Aerich
-from aerich.utils import load_tortoise_config, run_async
-from tests._utils import WINDOWS, prepare_py_files, requires_dialect
+from aerich.utils import get_app_connection, load_tortoise_config, run_async
+from tests._utils import ASSETS, WINDOWS, prepare_py_files, requires_dialect
 
 
-def run_aerich(cmd: str) -> subprocess.CompletedProcess:
+def run_aerich(cmd: str, capture_output=False) -> subprocess.CompletedProcess:
     if not cmd.startswith("poetry") and not cmd.startswith("python"):
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
         if WINDOWS:
             cmd = "python -m " + cmd
-    r = subprocess.run(shlex.split(cmd), timeout=2)
+    run_cmd = functools.partial(subprocess.run, shlex.split(cmd), timeout=2)
+    r = run_cmd(capture_output=True, encoding="utf-8") if capture_output else run_cmd()
     return r
 
 
@@ -160,6 +162,56 @@ def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
 
         created_migrations = migrations_dir.glob("*.py")
         assert len(list(created_migrations)) == 3, created_migrations
+
+        message = "No migration files to update. All files are already in the correct format."
+        r = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message in r.stdout
+
+        for p in migrations_dir.glob("*.py"):
+            p.unlink()
+        if (pycache := migrations_dir / "__pycache__").exists():
+            shutil.rmtree(pycache)
+        r2 = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message not in r2.stdout
+        assert "No migration file found for app 'models', nothing to do." in r2.stdout
+
+        shutil.rmtree(migrations_dir)
+        r3 = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message not in r3.stdout
+        assert "No migration file found for app 'models', nothing to do." in r3.stdout
+
+        asset_dir = ASSETS / "sqlite_old_style"
+        migrations_source = asset_dir / "_migrations"
+        shutil.copytree(migrations_source / "models", migrations_dir)
+
+        async def delete_first_aerich():
+            async with TortoiseContext():
+                await Aerich.filter(version__startswith="0").delete()
+
+        run_async(delete_first_aerich)
+        r4 = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message not in r4.stdout
+        assert "Warning: No matching record for migration" in r4.stdout
+
+        async def remove_aerich_records():
+            async with TortoiseContext():
+                await Aerich.all().delete()
+
+        run_async(remove_aerich_records)
+        r5 = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message not in r5.stdout
+        assert "Warning: Aerich table is empty." in r5.stdout
+
+        async def drop_aerich_table():
+            async with TortoiseContext():
+                conn = get_app_connection(load_tortoise_config(), "models")
+                sql = Migrate.drop_model("aerich")
+                await conn.execute_script(sql)
+
+        run_async(drop_aerich_table)
+        r6 = run_aerich("aerich fix-migrations", capture_output=True)
+        assert message not in r6.stdout
+        assert "Warning: Aerich table not found." in r6.stdout
 
 
 M2M_WITH_CUSTOM_THROUGH = """
