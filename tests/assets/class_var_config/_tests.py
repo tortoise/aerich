@@ -1,23 +1,6 @@
 import pytest
-from aerich import Command
-from tortoise import Tortoise
 
-from app.core.config import settings
 from app.models import Foo
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(settings.TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Command.aclose()
 
 
 @pytest.mark.anyio

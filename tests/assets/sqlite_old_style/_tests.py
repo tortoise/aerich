@@ -2,25 +2,7 @@ import uuid
 
 import pytest
 from models import Foo
-from settings import TORTOISE_ORM
-from tortoise import Tortoise
 from tortoise.exceptions import IntegrityError
-
-from aerich import Command
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Command.aclose()
 
 
 @pytest.mark.anyio

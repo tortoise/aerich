@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import pkgutil
-import platform
 import warnings
 from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-import tortoise
 from tortoise import BaseDBAsyncClient, Tortoise, connections
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import generate_schema_for_client, get_schema_sql
 
+from aerich._compat import _init_asyncio_patch, _init_tortoise_0_24_1_patch
 from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
@@ -28,165 +27,42 @@ from aerich.utils import (
     get_models_describe,
     import_py_file,
     import_py_module,
+    load_tortoise_config,
     py_module_path,
 )
+from aerich.version import __version__
 
 if TYPE_CHECKING:
-    from tortoise import Model
-    from tortoise.fields.relational import ManyToManyFieldInstance
-
+    from aerich._compat import Self
     from aerich.inspectdb import Inspect
 
 
-def _init_asyncio_patch() -> None:
-    """
-    Select compatible event loop for psycopg3.
-
-    As of Python 3.8+, the default event loop on Windows is `proactor`,
-    however psycopg3 requires the old default "selector" event loop.
-    See https://www.psycopg.org/psycopg3/docs/advanced/async.html
-    """
-    if platform.system() == "Windows":
-        try:
-            from asyncio import WindowsSelectorEventLoopPolicy  # type:ignore
-        except ImportError:
-            pass  # Can't assign a policy which doesn't exist.
-        else:
-            from asyncio import get_event_loop_policy, set_event_loop_policy
-
-            if not isinstance(get_event_loop_policy(), WindowsSelectorEventLoopPolicy):
-                set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+_init_asyncio_patch()  # Change event_loop_policy for Windows
+_init_tortoise_0_24_1_patch()  # Patch m2m table generator for tortoise-orm==0.24.1
+__all__ = ("Command", "TortoiseContext", "__version__")
 
 
-def _init_tortoise_0_24_1_patch() -> None:
-    # this patch is for "tortoise-orm==0.24.1" to fix:
-    # https://github.com/tortoise/tortoise-orm/issues/1893
-    if tortoise.__version__ != "0.24.1":
-        return
-    import re
-    from typing import cast
-
-    from tortoise.backends.base.schema_generator import BaseSchemaGenerator
-
-    def _get_m2m_tables(
-        self: BaseSchemaGenerator,
-        model: type[Model],
-        db_table: str,
-        safe: bool,
-        models_tables: list[str],
-    ) -> list[str]:  # Copied from tortoise-orm
-        m2m_tables_for_create = []
-        for m2m_field in model._meta.m2m_fields:
-            field_object = cast("ManyToManyFieldInstance", model._meta.fields_map[m2m_field])
-            if field_object._generated or field_object.through in models_tables:
-                continue
-            backward_key, forward_key = field_object.backward_key, field_object.forward_key
-            if field_object.db_constraint:
-                backward_fk = self._create_fk_string(
-                    "",
-                    backward_key,
-                    db_table,
-                    model._meta.db_pk_column,
-                    field_object.on_delete,
-                    "",
-                )
-                forward_fk = self._create_fk_string(
-                    "",
-                    forward_key,
-                    field_object.related_model._meta.db_table,
-                    field_object.related_model._meta.db_pk_column,
-                    field_object.on_delete,
-                    "",
-                )
-            else:
-                backward_fk = forward_fk = ""
-            exists = "IF NOT EXISTS " if safe else ""
-            through_table_name = field_object.through
-            backward_type = forward_type = comment = ""
-            if func := getattr(self, "_get_pk_field_sql_type", None):
-                backward_type = func(model._meta.pk)
-                forward_type = func(field_object.related_model._meta.pk)
-            if desc := field_object.description:
-                comment = self._table_comment_generator(table=through_table_name, comment=desc)
-            m2m_create_string = self.M2M_TABLE_TEMPLATE.format(
-                exists=exists,
-                table_name=through_table_name,
-                backward_fk=backward_fk,
-                forward_fk=forward_fk,
-                backward_key=backward_key,
-                backward_type=backward_type,
-                forward_key=forward_key,
-                forward_type=forward_type,
-                extra=self._table_generate_extra(table=field_object.through),
-                comment=comment,
-            )
-            if not field_object.db_constraint:
-                m2m_create_string = m2m_create_string.replace(
-                    """,
-    ,
-    """,
-                    "",
-                )  # may have better way
-            m2m_create_string += self._post_table_hook()
-            if getattr(field_object, "create_unique_index", field_object.unique):
-                unique_index_create_sql = self._get_unique_index_sql(
-                    exists, through_table_name, [backward_key, forward_key]
-                )
-                if unique_index_create_sql.endswith(";"):
-                    m2m_create_string += "\n" + unique_index_create_sql
-                else:
-                    lines = m2m_create_string.splitlines()
-                    lines[-2] += ","
-                    indent = m.group() if (m := re.match(r"\s+", lines[-2])) else ""
-                    lines.insert(-1, indent + unique_index_create_sql)
-                    m2m_create_string = "\n".join(lines)
-            m2m_tables_for_create.append(m2m_create_string)
-        return m2m_tables_for_create
-
-    setattr(BaseSchemaGenerator, "_get_m2m_tables", _get_m2m_tables)
-
-
-_init_asyncio_patch()
-_init_tortoise_0_24_1_patch()
-
-
-class Command(AbstractAsyncContextManager):
-    def __init__(
-        self,
-        tortoise_config: dict,
-        app: str = "models",
-        location: str = "./migrations",
-        inspectdb_fields: dict[str, str] | None = None,
-    ) -> None:
+class TortoiseContext(AbstractAsyncContextManager):
+    def __init__(self, tortoise_config: dict | None = None) -> None:
+        if tortoise_config is None:
+            tortoise_config = load_tortoise_config()
         self.tortoise_config = tortoise_config
-        self.app = app
-        self.location = location
-        self._inspectdb_fields = inspectdb_fields
-        Migrate.app = app
         self._init_when_aenter = True
 
-    async def init(self, offline: bool = False) -> None:
-        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
+    async def init(self) -> None:
+        await Tortoise.init(config=self.tortoise_config)
 
-    async def __aenter__(self) -> Command:
+    async def __aenter__(self) -> Self:
         if self._init_when_aenter:
             await self.init()
         return self
 
-    def __await__(self) -> Generator[Any, None, Command]:
+    def __await__(self) -> Generator[Any, None, Self]:
         # To support `command = await Command(tortoise_config)`
-        async def _self() -> Command:
+        async def _self() -> Self:
             return await self.__aenter__()
 
         return _self().__await__()
-
-    async def close(self) -> None:
-        warnings.warn(
-            "`Command.close()` is deprecated, please use Command.aclose() instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        await self.aclose()
 
     @staticmethod
     async def aclose() -> None:
@@ -195,6 +71,32 @@ class Command(AbstractAsyncContextManager):
             await connections.close_all()
 
     async def __aexit__(self, *args, **kw) -> None:
+        await self.aclose()
+
+
+class Command(TortoiseContext):
+    def __init__(
+        self,
+        tortoise_config: dict,
+        app: str = "models",
+        location: str = "./migrations",
+        inspectdb_fields: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(tortoise_config)
+        self.app = app
+        self.location = location
+        self._inspectdb_fields = inspectdb_fields
+        Migrate.app = app
+
+    async def init(self, offline: bool = False) -> None:
+        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
+
+    async def close(self) -> None:
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         await self.aclose()
 
     async def _upgrade(

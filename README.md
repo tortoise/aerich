@@ -275,10 +275,12 @@ You can use `aerich` out of cli by use `Command` class.
 
 ```python
 from aerich import Command
+from aerich.utils import load_tortoise_config
 
-async with Command(tortoise_config=config, app='models') as command:
+async with Command(tortoise_config=load_tortoise_config(), app='models') as command:
     await command.migrate('test')
     await command.upgrade()
+    print(await command.history())
 ```
 
 ## Upgrade/Downgrade with `--fake` option

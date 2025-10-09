@@ -99,7 +99,10 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
 
 def copy_files(*src_files: Path, target_dir: Path | str = ".") -> None:
     for src in src_files:
-        shutil.copy(src, target_dir)
+        if src.name == "conftest_.py":
+            shutil.copy(src, Path(target_dir, "conftest.py"))
+        else:
+            shutil.copy(src, target_dir)
 
 
 def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> Path:
@@ -114,7 +117,7 @@ def copy_asset(name: str, parent: Path = ASSETS) -> None:
         if p.name.startswith("."):
             continue
         copy_func = shutil.copytree if p.is_dir() else shutil.copyfile
-        copy_func(p, p.name)
+        copy_func(p, "conftest.py" if p.name == "conftest_.py" else p.name)
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:

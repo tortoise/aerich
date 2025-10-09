@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import os
+import shutil
 import sys
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -56,20 +56,12 @@ def reset_migrate() -> None:
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    policy = asyncio.get_event_loop_policy()
-    res = policy.new_event_loop()
-    asyncio.set_event_loop(res)
-    res._close = res.close  # type:ignore[attr-defined]
-    res.close = lambda: None  # type:ignore[method-assign]
-
-    yield res
-
-    res._close()  # type:ignore[attr-defined]
+def anyio_backend() -> str:
+    return "asyncio"
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def initialize_tests(event_loop, request) -> None:
+async def initialize_tests(anyio_backend):
     await init_db(tortoise_orm)
     client = Tortoise.get_connection("default")
     if client.schema_generator is MySQLSchemaGenerator:
@@ -79,7 +71,10 @@ async def initialize_tests(event_loop, request) -> None:
     elif issubclass(client.schema_generator, BasePostgresSchemaGenerator):
         Migrate.ddl = PostgresDDL(client)
     Migrate.dialect = Migrate.ddl.DIALECT
-    request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))
+    try:
+        yield
+    finally:
+        await Tortoise._drop_databases()
 
 
 @contextmanager
@@ -96,6 +91,8 @@ def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_d
     if should_remove := str(tmp_path) not in sys.path:
         sys.path.append(str(tmp_path))
     with chdir(tmp_path):
+        if (cf := asset_dir / "conftest_.py").exists():
+            shutil.copy(cf, "conftest.py")
         run_shell("python db.py create", capture_output=False)
         try:
             yield

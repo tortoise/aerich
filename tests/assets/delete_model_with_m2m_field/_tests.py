@@ -1,24 +1,7 @@
 import pytest
 from models import User
-from settings import TORTOISE_ORM
-from tortoise import Tortoise, connections
+from tortoise import connections
 from tortoise.exceptions import OperationalError
-
-from aerich import Command
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Command.aclose()
 
 
 async def _run_sql(statement: str) -> list[dict]:

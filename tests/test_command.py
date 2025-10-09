@@ -2,7 +2,7 @@ import shutil
 
 from aerich import Command
 from conftest import tortoise_orm
-from tests._utils import prepare_py_files, run_shell
+from tests._utils import prepare_py_files, requires_dialect, run_shell
 
 
 async def test_command(mocker):
@@ -14,6 +14,7 @@ async def test_command(mocker):
     assert heads == []
 
 
+@requires_dialect("sqlite")
 def test_await_command(tmp_work_dir):
     prepare_py_files("command_programmatically")
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
