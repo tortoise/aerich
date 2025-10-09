@@ -320,6 +320,6 @@ def run_async(
     # `asyncio.run(async_func())` can get the result of async function,
     # but it will close the running loop.
     with from_thread.start_blocking_portal() as portal:
-        future, _ = portal.start_task(async_func, *args)
+        future = portal.start_task_soon(async_func, *args)
         return_value = future.result()
     return return_value
