@@ -2,18 +2,52 @@
 
 ## 0.9
 
-### [0.9.2]**(Unreleased)**
+### [0.9.3]**(Unreleased)**
+
+### [0.9.2](../../releases/tag/v0.9.2) - 2025-10-09
+
+#### Added
+- Support `--offline` for aerich migrate. ([#441])
+- Add `RUN_IN_TRANSACTION` attr to migration files ([#470])
+- feat: support class var config ([#474])
+- feat: auto add aerich.models ([#476])
+- feat: add `load_tortoise_config` function ([#489])
 
 #### Changed
 - refactor: use dataclass instead of pydantic for inspectdb ([#466])
+- refactor: use `ctx.with_async_resource` instead of magic patch `Context.__aexit__` ([#488])
+- feat: migrate from poetry to uv ([#481])
+- refactor: simplify `run_async` ([#493])
+- refactor: use `anyio` instead of pytest-asyncio for async test ([#494])
 
 #### Fixed
 - fix: pgvector data types cause errors ([#468])
 - fix: postgres does not drop unique constraint when migrating ([#484])
+- fix: rescursive m2m generating migration error ([#478])
+- fix: postgres m2m set comment before table created ([#482])
+- fix: refactor module importing to work with byte compiled migrations ([#458])
+- fix: migration leads to constraint key error ([#491])
+- fix: m2m table not removed when dropping model ([#486])
+- fix: mysql alter column unique to indexed dropping error index name ([#473])
 
+[#494]: https://github.com/tortoise/aerich/pull/494
+[#493]: https://github.com/tortoise/aerich/pull/493
+[#491]: https://github.com/tortoise/aerich/pull/491
+[#489]: https://github.com/tortoise/aerich/pull/489
+[#488]: https://github.com/tortoise/aerich/pull/488
+[#486]: https://github.com/tortoise/aerich/pull/486
 [#484]: https://github.com/tortoise/aerich/pull/484
+[#482]: https://github.com/tortoise/aerich/pull/482
+[#481]: https://github.com/tortoise/aerich/pull/481
+[#478]: https://github.com/tortoise/aerich/pull/478
+[#476]: https://github.com/tortoise/aerich/pull/476
+[#474]: https://github.com/tortoise/aerich/pull/474
+[#473]: https://github.com/tortoise/aerich/pull/473
+[#470]: https://github.com/tortoise/aerich/pull/470
 [#468]: https://github.com/tortoise/aerich/pull/468
 [#466]: https://github.com/tortoise/aerich/pull/466
+[#458]: https://github.com/tortoise/aerich/pull/458
+[#441]: https://github.com/tortoise/aerich/pull/441
 
 ### [0.9.1](../../releases/tag/v0.9.1) - 2025-05-14
 
