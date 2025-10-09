@@ -1,24 +1,6 @@
 import pytest
 from models import UserTicketPackage as Foo
-from settings import TORTOISE_ORM
-from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
-
-from aerich import Command
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Command.aclose()
 
 
 async def assert_not_unique():

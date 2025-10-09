@@ -1,6 +1,9 @@
+import contextlib
+
 import pytest
 
-from aerich import TortoiseContext
+with contextlib.suppress(KeyError):  # Use suppress to fix ruff check issue I001
+    from aerich import TortoiseContext
 
 try:
     from settings import TORTOISE_ORM  # type:ignore[import-not-found]

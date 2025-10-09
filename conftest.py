@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import sys
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -96,6 +97,8 @@ def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_d
     if should_remove := str(tmp_path) not in sys.path:
         sys.path.append(str(tmp_path))
     with chdir(tmp_path):
+        if (cf := asset_dir / "conftest_.py").exists():
+            shutil.copy(cf, "conftest.py")
         run_shell("python db.py create", capture_output=False)
         try:
             yield

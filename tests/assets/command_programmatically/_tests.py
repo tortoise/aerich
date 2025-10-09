@@ -4,9 +4,8 @@ from pathlib import Path
 import pytest
 from models import Foo
 from settings import TORTOISE_ORM
-from tortoise import Tortoise
 
-from aerich import Command
+from aerich import Command, TortoiseContext
 from aerich.exceptions import NotInitedError
 
 
@@ -17,11 +16,8 @@ def anyio_backend() -> str:
 
 @pytest.fixture
 async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
+    async with TortoiseContext(TORTOISE_ORM):
         yield
-    finally:
-        await Command.aclose()
 
 
 @pytest.mark.anyio
