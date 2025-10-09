@@ -407,7 +407,8 @@ async def fix_migrations(ctx: Context) -> None:
     command = ctx.obj["command"]
     updated_files = await command.fix_migrations()
     if updated_files:
-        click.secho(f"Updated {len(updated_files)} migration files:", fg=Color.green)
+        count = len(updated_files)
+        click.secho(f"Updated {count} migration file{'s' * (count > 1)}:", fg=Color.green)
         for file in updated_files:
             click.echo(f"  - {file}")
     elif updated_files is not None:
