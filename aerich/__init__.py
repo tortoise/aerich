@@ -270,10 +270,10 @@ class Command(TortoiseContext):
     async def init_migrations(self, safe: bool) -> None:
         await self._do_init(safe, offline=True)
 
-    async def fix_migrations(self) -> list[str]:
+    async def fix_migrations(self) -> list[str] | None:
         """
         Fix migration files to include models state for aerich 0.6.0+
-        :return: List of updated migration files
+        :return: List of updated migration files (if no migration file or no aerich objects will return None)
         """
         Migrate.app = self.app
         Migrate.migrate_location = Path(self.location, self.app)

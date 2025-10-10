@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable, Literal, cast, overload
 
 import asyncclick as click
@@ -1087,32 +1088,17 @@ class Migrate:
                 cls.downgrade_operators.insert(0, _downgrade_fk_m2m_operator)
 
     @classmethod
-    async def fix_migrations(cls, config: dict[str, Any]) -> list[str]:
+    async def fix_migrations(cls, config: dict[str, Any]) -> list[str] | None:
         """
         Fix old migration files to include MODELS_STATE for aerich 0.9.2+
+
         :return: List of updated migration file paths
         """
         version_modules = cls.get_all_version_modules()
         if not version_modules:
-            return []
-
-        if not Tortoise._inited:
-            await Tortoise.init(config=config)
-        connection = get_app_connection(config, cls.app)
-
-        try:
-            await Aerich.first().values("id")
-        except OperationalError:
-            click.secho(
-                "⚠️ Warning: Aerich table not found. "
-                "fix-migrations can only be applied by using "
-                "existing database with all migrations applied.",
-                fg=Color.yellow,
-            )
-            return []
-        updated_files: list[str] = []
-
-        # Get model state from Aerich table for each migration
+            click.echo(f"No migration file found for app {cls.app!r}, nothing to do.")
+            return None
+        unfixed_file_modules: list[tuple[str, ModuleType]] = []
         for version_module in version_modules:
             # Check if file already has MODELS_STATE
             migration_info = import_py_module(version_module)
@@ -1120,11 +1106,41 @@ class Migrate:
                 # File is already in the new format
                 continue
             file_name = version_module.name + ".py"
-            file_path = cls.migrate_location / file_name
+            unfixed_file_modules.append((file_name, migration_info))
+        if not unfixed_file_modules:
+            return []
 
+        if not Tortoise._inited:
+            await Tortoise.init(config=config)
+        connection = get_app_connection(config, cls.app)
+
+        try:
+            fid = await Aerich.first().values("id")
+        except OperationalError:
+            click.secho(
+                "⚠️ Warning: Aerich table not found. "
+                "fix-migrations can only be applied by using "
+                "existing database with all migrations applied.",
+                fg=Color.yellow,
+            )
+            return None
+        if not fid:  # Aerich.all().count() == 0
+            click.secho(
+                "⚠️ Warning: Aerich table is empty. "
+                "fix-migrations can only be applied by using "
+                "existing database with all migrations applied.",
+                fg=Color.yellow,
+            )
+            return None
+
+        updated_files: list[str] = []
+
+        # Get model state from Aerich table for each migration
+        for file_name, migration_info in unfixed_file_modules:
+            file_path = cls.migrate_location / file_name
             # Find the corresponding record in the Aerich table
-            aerich_models = await Aerich.filter(version=file_name, app=cls.app).first()
-            if not aerich_models:
+            aerich_obj = await Aerich.filter(version=file_name, app=cls.app).first()
+            if aerich_obj is None:
                 click.secho(
                     f"⚠️ Warning: No matching record for migration {file_name} in Aerich table. Skipping.",
                     fg=Color.yellow,
@@ -1132,7 +1148,7 @@ class Migrate:
                 continue
 
             # Get models state from the content column
-            models_state = aerich_models.content
+            models_state = aerich_obj.content
             if not models_state:
                 click.secho(
                     f"⚠️ Warning: No content found for migration {file_name}. Skipping.",

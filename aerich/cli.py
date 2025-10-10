@@ -406,15 +406,16 @@ async def inspectdb(ctx: Context, table: list[str]) -> None:
 async def fix_migrations(ctx: Context) -> None:
     command = ctx.obj["command"]
     updated_files = await command.fix_migrations()
-    if not updated_files:
+    if updated_files:
+        count = len(updated_files)
+        click.secho(f"Updated {count} migration file{'s' * (count > 1)}:", fg=Color.green)
+        for file in updated_files:
+            click.echo(f"  - {file}")
+    elif updated_files is not None:
         click.secho(
             "No migration files to update. All files are already in the correct format.",
             fg=Color.green,
         )
-    else:
-        click.secho(f"Updated {len(updated_files)} migration files:", fg=Color.green)
-        for file in updated_files:
-            click.echo(f"  - {file}")
 
 
 def main() -> None:
