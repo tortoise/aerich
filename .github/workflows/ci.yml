@@ -32,7 +32,7 @@ jobs:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           activate-environment: true
@@ -81,7 +81,7 @@ jobs:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: '3.13'
@@ -110,7 +110,7 @@ jobs:
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v5
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: '3.13'
@@ -140,7 +140,7 @@ jobs:
         with:
           username: postgres
           password: 123456
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: Install dependencies
