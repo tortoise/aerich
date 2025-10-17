@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import re
 import shutil
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
 from aerich.utils import get_formatted_compressed_data, get_models_describe
 from tests._utils import (
+    Dialect,
     chdir,
     describe_index,
     prepare_py_files,
@@ -1370,3 +1373,28 @@ def test_table_creations(tmp_work_dir):
     prepare_py_files("table_creations")
     with tmp_daily_db():
         _test_migrate_upgrade()
+
+
+@pytest.mark.anyio
+async def test_get_last_version(caplog):
+    caplog.set_level(logging.DEBUG)
+    Migrate.app = "models"
+
+    quote = "`" if Dialect.is_mysql() else '"'
+    expected_sql = f"SELECT {quote}version{quote} {quote}version{quote} FROM {quote}aerich{quote}"
+    await Migrate._get_last_version_num()
+    text1 = caplog.text
+    assert expected_sql in text1
+    caplog.clear()
+
+    select_content = r'SELECT [`",a-z]*?[`"]content[`"][`",a-z]* FROM [`"]aerich[`"]'
+    await Migrate.get_last_version()
+    text2 = caplog.text
+    assert expected_sql not in text2
+    # select content column from aerich may cost too much when content length is large
+    assert re.search(select_content, text2)
+    caplog.clear()
+
+    await Migrate.get_last_version(fields=["id", "version"])
+    text3 = caplog.text
+    assert not re.search(select_content, text3)
