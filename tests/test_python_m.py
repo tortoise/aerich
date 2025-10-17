@@ -5,14 +5,14 @@ import sys
 from pathlib import Path
 
 from aerich.version import __version__
-from tests._utils import requires_dialect, run_shell
+from tests._utils import requires_env, run_shell
 
 
 def test_python_m_aerich():
     assert __version__ in run_shell("python -m aerich --version")
 
 
-@requires_dialect("sqlite")  # Cost too much time, so only test it in sqlite
+@requires_env("AERICH_TEST_POETRY_ADD")
 def test_poetry_add(tmp_work_dir: Path):
     poetry = "poetry"
     if shutil.which(poetry) is None:
