@@ -1380,14 +1380,17 @@ async def test_get_last_version(caplog):
     caplog.set_level(logging.DEBUG)
     Migrate.app = "models"
 
-    quote = "`" if Dialect.is_mysql() else '"'
-    expected_sql = f"SELECT {quote}version{quote} {quote}version{quote} FROM {quote}aerich{quote}"
+    expected_sql = 'SELECT "version" "version" FROM "aerich"'
+    if Dialect.is_mysql():
+        expected_sql = expected_sql.replace('"', "`")
     await Migrate._get_last_version_num()
     text1 = caplog.text
     assert expected_sql in text1
     caplog.clear()
 
-    select_content = r'SELECT [`",a-z]*?[`"]content[`"][`",a-z]* FROM [`"]aerich[`"]'
+    select_content = r'SELECT [",a-z]*?"content"[",a-z]* FROM "aerich"'
+    if Dialect.is_mysql():
+        select_content = select_content.replace('"', "`")
     await Migrate.get_last_version()
     text2 = caplog.text
     assert expected_sql not in text2
