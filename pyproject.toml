@@ -45,7 +45,7 @@ test = [
     "pytest >=8.3.0",
     "pytest-mock >=3.14.0",
     "pytest-cov>=7.0.0",
-    "tortoise-vector >=0.1.4; python_version >='3.11'",
+    "tortoise-vector >=0.2.0; python_version >='3.10'",
     "async-timeout >=5.0.1; python_version <'3.11'",
     "pydantic-settings >=2.10.1",
     # required for sha256_password by asyncmy

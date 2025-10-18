@@ -35,7 +35,7 @@ def test_inspect(new_aerich_project):
 
 
 @requires_dialect("postgres")
-@test.skipIf(sys.version_info < (3, 11), "tortoise-vector requires python>=3.11")
+@test.skipIf(sys.version_info < (3, 10), "tortoise-vector requires python>=3.10")
 @requires_env("AERICH_TEST_VECTOR")
 def test_inspect_vector(tmp_work_dir: Path):
     prepare_py_files("postgres_vector", suffix=".*")
