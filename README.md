@@ -21,6 +21,13 @@ Just install from pypi:
 pip install "aerich[toml]"
 ```
 
+Or install the latest **aerich** directly from *github* with the
+following command, assuming you have *git* installed on your **PATH**
+
+```shell
+pip install "aerich[toml] @git+https://github.com/tortoise/aerich"
+```
+
 ## Quick Start
 
 ```shell
