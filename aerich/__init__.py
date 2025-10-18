@@ -84,7 +84,7 @@ class Command(TortoiseContext):
     ) -> None:
         super().__init__(tortoise_config)
         self.app = app
-        self.location = location
+        self.location = location.format(app=app)
         self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
 
