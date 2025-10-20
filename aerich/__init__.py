@@ -84,7 +84,7 @@ class Command(TortoiseContext):
     ) -> None:
         super().__init__(tortoise_config)
         self.app = app
-        self.location = location.format(app=app)
+        self.location = location
         self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
 
@@ -248,7 +248,7 @@ class Command(TortoiseContext):
         elif pre_sql:
             await connection.execute_script(pre_sql)
 
-        dirname = Path(location, app)
+        dirname = Migrate.get_migration_dir(location, app)
         if not dirname.exists():
             dirname.mkdir(parents=True)
         else:
@@ -276,5 +276,5 @@ class Command(TortoiseContext):
         :return: List of updated migration files (if no migration file or no aerich objects will return None)
         """
         Migrate.app = self.app
-        Migrate.migrate_location = Path(self.location, self.app)
+        Migrate.migrate_location = Migrate.get_migration_dir(self.location, self.app)
         return await Migrate.fix_migrations(self.tortoise_config)
