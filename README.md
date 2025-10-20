@@ -10,8 +10,8 @@ English | [Русский](./README_RU.md)
 
 ## Introduction
 
-Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy, or like Django ORM with
-it\'s own migration solution.
+Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy,
+or like Django ORM with it\'s own migration solution.
 
 ## Install
 
@@ -21,8 +21,8 @@ Just install from pypi:
 pip install "aerich[toml]"
 ```
 
-Or install the latest **aerich** directly from *github* with the
-following command, assuming you have *git* installed on your **PATH**
+Or install the latest version directly from *github* with the
+following command:
 
 ```shell
 pip install "aerich[toml] @git+https://github.com/tortoise/aerich"
@@ -43,10 +43,12 @@ Options:
 
 Commands:
   downgrade  Downgrade to specified version.
+  fix-migrations   Fix migration files to include models state for aerich...
   heads      Show current available heads in migrate location.
   history    List all migrate items.
   init       Init config file and generate root migrate location.
   init-db    Generate schema and generate app migrate location.
+  init-migrations  Generate app migration folder and your first migration.
   inspectdb  Introspects the database tables to standard output as...
   migrate    Generate migrate changes file.
   upgrade    Upgrade to specified version.
@@ -95,6 +97,8 @@ Success write config to pyproject.toml
 ```
 
 *Note*: aerich will import the config file when running init-db/migrate/upgrade/heads/history commands, so it is better to keep this file simple and clean.
+
+To apply per app migrations style(like Django), set the location option with a '{app}', such as: `--location "./{app}/migrations"`
 
 ### Init db
 
