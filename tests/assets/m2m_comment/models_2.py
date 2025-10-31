@@ -13,4 +13,4 @@ class DataLibGroup(Model):
 
 class DataLibItem(Model):
     id = fields.IntField(pk=True)
-    by_group_list = fields.ManyToManyField("models.DataLibGroup", description="test")
+    by_group_list = fields.ManyToManyField("models.DataLibGroup", description="I'm testing")
