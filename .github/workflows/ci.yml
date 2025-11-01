@@ -87,7 +87,7 @@ jobs:
           python-version: '3.13'
           activate-environment: true
       - name: Install dependencies
-        run: uv sync --all-groups --extra toml --extra asyncmy
+        run: uv sync --group test --extra toml --extra asyncmy
       - name: Test MySQL with asyncmy
         run: make test_mysql
         env:
@@ -116,7 +116,7 @@ jobs:
           python-version: '3.13'
           activate-environment: true
       - name: Install dependencies
-        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
+        run: uv pip install --group vector --group test -e ".[toml,mysql]"
       - name: Test tortoise vector
         run: make test_postgres_vector
         env:
@@ -145,7 +145,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: |
-          uv pip install --system --group dev --group test -e ".[toml,psycopg,mysql]"
+          uv pip install --system --group test -e ".[toml,psycopg,mysql]"
       - name: Test psycopg
         run: make test_psycopg
         env:
