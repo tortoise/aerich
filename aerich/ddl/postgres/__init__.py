@@ -46,8 +46,10 @@ class PostgresDDL(BaseDDL):
             table_name=db_table,
             column=field_describe.get("db_column") or field_describe.get("raw_field"),
             comment=(
-                "'{}'".format(field_describe.get("description"))
-                if field_describe.get("description")
+                "{quote}{comment}{quote}".format(
+                    quote="'", comment=self.schema_generator._escape_comment(desc)
+                )
+                if (desc := field_describe.get("description"))
                 else "NULL"
             ),
         )
