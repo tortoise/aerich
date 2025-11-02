@@ -4,6 +4,11 @@
 
 ### [0.9.3]**(Unreleased)**
 
+#### Fixed
+- fix: postgres field comment error with single quote ([#503])
+
+[#503]: https://github.com/tortoise/aerich/pull/503
+
 ### [0.9.2](../../releases/tag/v0.9.2) - 2025-10-09
 
 #### Added

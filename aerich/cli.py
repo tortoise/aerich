@@ -86,7 +86,7 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         ctx.obj["command"] = await ctx.with_async_resource(command)
         _check_aerich_models_included(tortoise_config)
         if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
-            if not Path(location, app).exists():
+            if not Migrate.get_migration_dir(location, app).exists():
                 raise UsageError(
                     "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
                 )
@@ -260,8 +260,9 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(ctx=ctx, tortoise_orm=tortoise_orm)
+    tortoise_conf = get_tortoise_config(ctx=ctx, tortoise_orm=tortoise_orm)
     config_path = Path(config_file)
+    is_template_location = "{app}" in location
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
         text = "[tool.aerich]" + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())
@@ -274,7 +275,13 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
             aerich_config.get(k) == v for k, v in table.items()
         ):
             click.echo(f"Aerich config {config_file} already inited.")
-            if Path(location).exists():
+            if is_template_location:
+                if all(
+                    Migrate.get_migration_dir(location, app).exists()
+                    for app in tortoise_conf.get("apps", [])
+                ):
+                    return
+            elif Path(location).exists():
                 return
         else:
             item_title = "[tool.aerich]"
@@ -323,9 +330,15 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                     config_path.write_text(text, encoding="utf-8")
 
             click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
-
-    Path(location).mkdir(parents=True, exist_ok=True)
-    click.secho(f"Success creating migrations folder {location}", fg=Color.green)
+    if is_template_location:
+        for app in tortoise_conf.get("apps", []):
+            d = Migrate.get_migration_dir(location, app)
+            if not d.exists():
+                d.mkdir(parents=True, exist_ok=True)
+                click.secho(f"Success creating migrations folder {d}", fg=Color.green)
+    elif not Path(location).exists():
+        Path(location).mkdir(parents=True, exist_ok=True)
+        click.secho(f"Success creating migrations folder {location}", fg=Color.green)
 
 
 @cli.command(help="Generate schema and generate app migration folder.")
@@ -347,7 +360,7 @@ async def init_db(ctx: Context, safe: bool, pre: str) -> None:
 async def _init_app(ctx: Context, safe: bool, pre: str = "", offline: bool = False) -> None:
     command = ctx.obj["command"]
     app = command.app
-    dirname = Path(command.location, app)
+    dirname = Migrate.get_migration_dir(command.location, app)
     try:
         if offline:
             await command.init_migrations(safe)

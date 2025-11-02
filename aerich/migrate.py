@@ -6,7 +6,7 @@ import importlib
 import inspect
 import pkgutil
 import re
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -109,11 +109,16 @@ class Migrate:
         return Tortoise.apps[cls.app].get(model)  # type: ignore
 
     @classmethod
-    async def get_last_version(cls) -> Aerich | None:
+    async def get_last_version(cls, fields: Sequence[str] | None = None) -> Aerich | None:
+        qs = Aerich.filter(app=cls.app).first()
         try:
-            return await Aerich.filter(app=cls.app).first()
+            res = await (qs.values(*fields) if fields else qs)
         except OperationalError:
             return None
+        else:
+            if isinstance(res, dict):
+                res = Aerich(**res)
+            return res
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
@@ -154,13 +159,17 @@ class Migrate:
         ddl_dialect_module = importlib.import_module(f"aerich.ddl.{cls.dialect}")
         return getattr(ddl_dialect_module, f"{cls.dialect.capitalize()}DDL")
 
+    @staticmethod
+    def get_migration_dir(location: str, app: str) -> Path:
+        return Path(location.format(app=app)) if "{app}" in location else Path(location, app)
+
     @classmethod
     async def init(cls, config: dict, app: str, location: str, offline: bool = False) -> None:
         if not Tortoise._inited:
             # TODO: init tortoise without create db connection for offline mode
             await Tortoise.init(config=config)
         cls.app = app
-        cls.migrate_location = Path(location, app)
+        cls.migrate_location = cls.get_migration_dir(location, app)
         if last_version_module := cls.get_last_version_module():
             try:
                 last_version_info = cls.get_migration_info_for_file(last_version_module)
@@ -184,7 +193,11 @@ class Migrate:
 
     @classmethod
     async def _get_last_version_num(cls, offline: bool = False) -> int | None:
-        last_version = cls.get_last_version_file() if offline else (await cls.get_last_version())
+        last_version = (
+            cls.get_last_version_file()
+            if offline
+            else (await cls.get_last_version(fields=["version"]))
+        )
         if not last_version:
             return None
         version = getattr(last_version, "version", str(last_version))

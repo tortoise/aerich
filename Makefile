@@ -13,7 +13,7 @@ up:
 	@uv lock --upgrade
 
 deps:
-	@uv sync --all-extras --all-groups $(options)
+	@uv sync --all-extras --all-groups --no-group=vector $(options)
 
 _style:
 	@ruff format $(checkfiles)
