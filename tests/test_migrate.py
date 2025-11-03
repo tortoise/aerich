@@ -1083,7 +1083,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        if tortoise_version_less_than("0.24.2"):
+        if not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
@@ -1193,7 +1193,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        if tortoise_version_less_than("0.24.2"):
+        if not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
