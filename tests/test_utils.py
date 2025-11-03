@@ -353,6 +353,7 @@ def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
     monkeypatch.setenv("TORTOISE_ORM", "")
     with pytest.raises(ClickException, match="Failed to load tortoise config"):
         load_tortoise_config()
+
     settings = "settings_errors"
     settings_py = Path(settings + ".py")
     shutil.copy(ASSETS / "settings.py", settings_py)
@@ -362,8 +363,14 @@ def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
     msg = f"Error while importing configuration module: No module named '{settings}'"
     with pytest.raises(ClickException, match=msg):
         load_tortoise_config()
-    Path(settings_py.name).touch()
-    add_src_path(".")
+
+    new_settings = settings + "_v2"
+    settings_py.with_stem(new_settings).touch()
+    config_file = Path("pyproject.toml")
+    text = config_file.read_text(encoding="utf-8")
+    config_file.write_text(text.replace(settings, new_settings), encoding="utf-8")
+    if "." not in sys.path:
+        sys.path.append(".")
     with pytest.raises(BadOptionUsage, match='Can\'t get "TORTOISE_ORM" from module'):
         load_tortoise_config()
 
