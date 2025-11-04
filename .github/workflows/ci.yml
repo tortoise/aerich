@@ -2,10 +2,14 @@ name: ci
 on:
   push:
     branches-ignore:
-      - main
+      - dev
+    paths-ignore:
+      - "*.md"
   pull_request:
-    branches-ignore:
-      - main
+    branches:
+      - dev
+    paths-ignore:
+      - "*.md"
 jobs:
   ci:
     runs-on: ubuntu-latest
