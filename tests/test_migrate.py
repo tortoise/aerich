@@ -11,6 +11,7 @@ import tortoise
 from pytest_mock import MockerFixture
 from tortoise.indexes import Index
 
+from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
@@ -1082,7 +1083,11 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        assert warning_msg in capsys.readouterr().out
+        if not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = {
@@ -1188,7 +1193,11 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        assert warning_msg in capsys.readouterr().out
+        if not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []

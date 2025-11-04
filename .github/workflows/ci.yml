@@ -94,6 +94,8 @@ jobs:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
+          # Verify `poetry add aerich` work
+          AERICH_TEST_POETRY_ADD: 1
       - name: Show test coverage
         run: make report
 

@@ -133,6 +133,13 @@ def requires_dialect(
     return test.requireCapability("default", dialect=name)
 
 
+def requires_env(name: str) -> Callable:
+    return test.skipIf(
+        not (_v := os.getenv(name)) or _v.lower() not in ("1", "on", "yes", "true"),
+        f"Skip as os env {name!r} is not true",
+    )
+
+
 @contextlib.contextmanager
 def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
     me = Path(__file__)
