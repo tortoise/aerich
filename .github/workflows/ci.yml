@@ -2,10 +2,14 @@ name: ci
 on:
   push:
     branches-ignore:
-      - main
+      - dev
+    paths-ignore:
+      - "*.md"
   pull_request:
-    branches-ignore:
-      - main
+    branches:
+      - dev
+    paths-ignore:
+      - "*.md"
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -38,7 +42,7 @@ jobs:
           activate-environment: true
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        run: make deps options='--no-extra=asyncmy --no-extra=psycopg'
+        run: make deps options='--no-extra=psycopg'
       - name: Install TortoiseORM v0.21
         if: matrix.tortoise-orm == 'tortoise021'
         run: uv pip install --upgrade "tortoise-orm>=0.21,<0.22"

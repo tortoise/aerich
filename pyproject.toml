@@ -113,5 +113,8 @@ extend-select = [
 ]
 ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
 
+[tool.ruff.lint.isort]
+extra-standard-library = ["tomllib"]
+
 [tool.bandit]
 exclude_dirs = ["tests", "conftest.py"]
