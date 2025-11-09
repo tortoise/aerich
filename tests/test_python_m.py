@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from aerich.version import __version__
-from tests._utils import requires_env, run_shell
+from tests._utils import WINDOWS, requires_env, run_shell
 
 
 def test_python_m_aerich():
@@ -22,6 +22,14 @@ def test_poetry_add(tmp_work_dir: Path):
     run_shell(f"{poetry} config --local virtualenvs.in-project true")
     run_shell(f"{poetry} env use {py}")
     package = Path(__file__).parent.resolve().parent
+    if WINDOWS and package.anchor != tmp_work_dir.anchor:
+        # Fix: path is on mount 'D:', start on mount 'C:'
+        tmp_package = Path(package.name)
+        tmp_package.mkdir()
+        shutil.copytree(package / package.name, tmp_package / package.name)
+        for name in ("pyproject.toml", "README.md"):
+            shutil.copy(package / name, tmp_package)
+        package = tmp_package
     r = subprocess.run([*poetry.split(), "add", package])  # nosec
     assert r.returncode == 0
     out = subprocess.run(

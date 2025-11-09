@@ -1100,6 +1100,16 @@ class Migrate:
             else:
                 cls.downgrade_operators.insert(0, _downgrade_fk_m2m_operator)
 
+    @staticmethod
+    def secho_warning(msg: str) -> None:
+        import locale
+
+        msg = "⚠️ Warning: " + msg
+        if (encoding := locale.getpreferredencoding()) != "utf-8":
+            # Fixes `'gbk' codec can't encode character '\u26a0'` for make test
+            msg = msg.encode(encoding, errors="ignore").decode()
+        click.secho(msg, fg=Color.yellow)
+
     @classmethod
     async def fix_migrations(cls, config: dict[str, Any]) -> list[str] | None:
         """
@@ -1130,19 +1140,17 @@ class Migrate:
         try:
             fid = await Aerich.first().values("id")
         except OperationalError:
-            click.secho(
-                "⚠️ Warning: Aerich table not found. "
+            cls.secho_warning(
+                "Aerich table not found. "
                 "fix-migrations can only be applied by using "
-                "existing database with all migrations applied.",
-                fg=Color.yellow,
+                "existing database with all migrations applied."
             )
             return None
         if not fid:  # Aerich.all().count() == 0
-            click.secho(
-                "⚠️ Warning: Aerich table is empty. "
+            cls.secho_warning(
+                "Aerich table is empty. "
                 "fix-migrations can only be applied by using "
-                "existing database with all migrations applied.",
-                fg=Color.yellow,
+                "existing database with all migrations applied."
             )
             return None
 
@@ -1154,19 +1162,15 @@ class Migrate:
             # Find the corresponding record in the Aerich table
             aerich_obj = await Aerich.filter(version=file_name, app=cls.app).first()
             if aerich_obj is None:
-                click.secho(
-                    f"⚠️ Warning: No matching record for migration {file_name} in Aerich table. Skipping.",
-                    fg=Color.yellow,
+                cls.secho_warning(
+                    f"No matching record for migration {file_name} in Aerich table. Skipping."
                 )
                 continue
 
             # Get models state from the content column
             models_state = aerich_obj.content
             if not models_state:
-                click.secho(
-                    f"⚠️ Warning: No content found for migration {file_name}. Skipping.",
-                    fg=Color.yellow,
-                )
+                cls.secho_warning(f"No content found for migration {file_name}. Skipping.")
                 continue
 
             upgrade_sql = await migration_info.upgrade(connection)
