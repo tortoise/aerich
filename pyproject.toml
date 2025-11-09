@@ -84,7 +84,6 @@ exclude_also = [
 
 [tool.mypy]
 pretty = true
-python_version = "3.9"
 check_untyped_defs = true
 warn_unused_ignores = true
 disallow_incomplete_defs = false

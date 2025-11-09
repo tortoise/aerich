@@ -11,9 +11,8 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Callable, Literal
 
+import pytest
 from tortoise import Tortoise, generate_schema_for_client
-from tortoise.contrib import test
-from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
 from tortoise.indexes import Index
 
@@ -148,7 +147,8 @@ def copy_asset(name: str, parent: Path = ASSETS) -> None:
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
-    return test.requireCapability("default", dialect=NotEQ(name))
+    func = getattr(Dialect, f"is_{name}")
+    return pytest.mark.skipif(func(), reason=f"Skip dialect {name!r}")
 
 
 def requires_dialect(
@@ -156,14 +156,22 @@ def requires_dialect(
     *more: Literal["sqlite", "mysql", "postgres"],
 ) -> Callable:
     if more and set(more) != {name}:
-        return test.requireCapability("default", dialect=In(name, *more))
-    return test.requireCapability("default", dialect=name)
+        vals = {name, *more}
+
+        def check_capabilities() -> bool:
+            return all(not getattr(Dialect, f"is_{name}") for name in vals)
+
+        return pytest.mark.skipif(
+            check_capabilities(), reason=f"Capability dialect not in {list(vals)}"
+        )
+    func = getattr(Dialect, f"is_{name}")
+    return pytest.mark.skipif(not func(), reason=f"Capability dialect != {name}")
 
 
 def requires_env(name: str) -> Callable:
-    return test.skipIf(
+    return pytest.mark.skipif(
         not (_v := os.getenv(name)) or _v.lower() not in ("1", "on", "yes", "true"),
-        f"Skip as os env {name!r} is not true",
+        reason=f"Skip as os env {name!r} is not true",
     )
 
 
