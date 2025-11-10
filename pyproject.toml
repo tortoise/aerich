@@ -3,7 +3,7 @@ name = "aerich"
 dynamic = ["version"]
 description = "A database migrations tool for Tortoise ORM."
 authors = [{name="long2ice", email="long2ice@gmail.com>"}]
-license = "Apache-2.0"
+license = {text="Apache-2.0"}
 readme = "README.md"
 keywords = ["migrate", "Tortoise-ORM", "mysql", "postgresql"]
 requires-python = ">=3.9"
