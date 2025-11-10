@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from tortoise.contrib import test
+import pytest
 
 from tests._utils import (
     Dialect,
@@ -35,7 +35,9 @@ def test_inspect(new_aerich_project):
 
 
 @requires_dialect("postgres")
-@test.skipIf(sys.version_info < (3, 10), "tortoise-vector requires python>=3.10")
+@pytest.mark.skipif(
+    sys.version_info < (3, 10), reason="tortoise-vector requires python3.10 or higher"
+)
 @requires_env("AERICH_TEST_VECTOR")
 def test_inspect_vector(tmp_work_dir: Path):
     prepare_py_files("postgres_vector", suffix=".*")

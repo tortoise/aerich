@@ -11,9 +11,8 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Callable, Literal
 
+import pytest
 from tortoise import Tortoise, generate_schema_for_client
-from tortoise.contrib import test
-from tortoise.contrib.test.condition import In, NotEQ
 from tortoise.exceptions import DBConnectionError, OperationalError
 from tortoise.indexes import Index
 
@@ -79,6 +78,11 @@ class Dialect:
         cls.load_env()
         return not cls.test_db_url or "sqlite" in cls.test_db_url
 
+    @classmethod
+    def check(cls, name: Literal["sqlite", "mysql", "postgres"]) -> bool:
+        func = getattr(cls, f"is_{name}")
+        return func()
+
 
 ASSETS = Path(__file__).parent / "assets"
 WINDOWS = platform.system() == "Windows"
@@ -121,22 +125,26 @@ def copy_asset(name: str, parent: Path = ASSETS) -> None:
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
-    return test.requireCapability("default", dialect=NotEQ(name))
+    return pytest.mark.skipif(Dialect.check(name), reason=f"Skip dialect {name!r}")
 
 
 def requires_dialect(
     name: Literal["sqlite", "mysql", "postgres"],
     *more: Literal["sqlite", "mysql", "postgres"],
 ) -> Callable:
-    if more and set(more) != {name}:
-        return test.requireCapability("default", dialect=In(name, *more))
-    return test.requireCapability("default", dialect=name)
+    if more:
+        vals = {name, *more}
+        for name in vals:
+            if Dialect.check(name):
+                return pytest.mark.skipif(False, reason="")
+        return pytest.mark.skipif(True, reason=f"Capability dialect not in {list(vals)}")
+    return pytest.mark.skipif(not Dialect.check(name), reason=f"Capability dialect != {name}")
 
 
 def requires_env(name: str) -> Callable:
-    return test.skipIf(
+    return pytest.mark.skipif(
         not (_v := os.getenv(name)) or _v.lower() not in ("1", "on", "yes", "true"),
-        f"Skip as os env {name!r} is not true",
+        reason=f"Skip as os env {name!r} is not true",
     )
 
 
