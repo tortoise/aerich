@@ -62,7 +62,7 @@ class TestDiffFields:
         diffs = list(get_dict_diff_by_key(old, new))
         assert type(get_dict_diff_by_key(old, new)).__name__ == "generator"
         assert len(diffs) == 1
-        assert diffs == [("change", [0, "name"], ("users", "members"))]
+        assert diffs == [("change", ["members", "name"], ("users", "members"))]
 
     def test_same_through_with_different_orders(self) -> None:
         old = [
@@ -75,7 +75,7 @@ class TestDiffFields:
         ]
         diffs = list(get_dict_diff_by_key(old, new))
         assert len(diffs) == 1
-        assert diffs == [("change", [0, "name"], ("users", "members"))]
+        assert diffs == [("change", ["members", "name"], ("users", "members"))]
 
     def test_the_same_field_name_order(self) -> None:
         old = [
@@ -182,8 +182,8 @@ class TestDiffFields:
         diffs = list(get_dict_diff_by_key(old, new))
         assert len(diffs) == 3
         assert diffs == [
-            ("change", [0, "name"], ("staffs", "staffs_new")),
-            ("change", [0, "name"], ("admins", "admins_new")),
+            ("change", ["staffs_new", "name"], ("staffs", "staffs_new")),
+            ("change", ["admins_new", "name"], ("admins", "admins_new")),
             ("add", "", [(0, {"name": "users", "through": "users_group"})]),
         ]
 
@@ -201,9 +201,9 @@ class TestDiffFields:
         diffs = list(get_dict_diff_by_key(old, new))
         assert len(diffs) == 3
         assert diffs == [
-            ("change", [0, "name"], ("staffs", "staffs_new")),
-            ("change", [0, "name"], ("admins", "admins_new")),
-            ("change", [0, "name"], ("users", "users_new")),
+            ("change", ["staffs_new", "name"], ("staffs", "staffs_new")),
+            ("change", ["admins_new", "name"], ("admins", "admins_new")),
+            ("change", ["users_new", "name"], ("users", "users_new")),
         ]
 
     def test_use_second_key(self) -> None:

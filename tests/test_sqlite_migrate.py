@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -19,11 +20,12 @@ from tests._utils import ASSETS, WINDOWS, prepare_py_files, requires_dialect
 
 
 def run_aerich(cmd: str, capture_output=False) -> subprocess.CompletedProcess:
-    if not cmd.startswith("poetry") and not cmd.startswith("python"):
+    if not cmd.startswith("uv") and not cmd.startswith("python") and "-m aerich " not in cmd:
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
         if WINDOWS:
-            cmd = "python -m " + cmd
+            py = Path(sys.executable).as_posix()
+            cmd = f"{py} -m " + cmd
     run_cmd = functools.partial(subprocess.run, shlex.split(cmd), timeout=2)
     r = run_cmd(capture_output=True, encoding="utf-8") if capture_output else run_cmd()
     return r
