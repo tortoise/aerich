@@ -78,6 +78,11 @@ class Dialect:
         cls.load_env()
         return not cls.test_db_url or "sqlite" in cls.test_db_url
 
+    @classmethod
+    def check(cls, name: Literal["sqlite", "mysql", "postgres"]) -> bool:
+        func = getattr(cls, f"is_{name}")
+        return func()
+
 
 ASSETS = Path(__file__).parent / "assets"
 WINDOWS = platform.system() == "Windows"
@@ -147,8 +152,7 @@ def copy_asset(name: str, parent: Path = ASSETS) -> None:
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
-    func = getattr(Dialect, f"is_{name}")
-    return pytest.mark.skipif(func(), reason=f"Skip dialect {name!r}")
+    return pytest.mark.skipif(Dialect.check(name), reason=f"Skip dialect {name!r}")
 
 
 def requires_dialect(
@@ -158,12 +162,10 @@ def requires_dialect(
     if more:
         vals = {name, *more}
         for name in vals:
-            func = getattr(Dialect, f"is_{name}")
-            if func():
+            if Dialect.check(name):
                 return pytest.mark.skipif(False, reason="")
         return pytest.mark.skipif(True, reason=f"Capability dialect not in {list(vals)}")
-    func = getattr(Dialect, f"is_{name}")
-    return pytest.mark.skipif(not func(), reason=f"Capability dialect != {name}")
+    return pytest.mark.skipif(not Dialect.check(name), reason=f"Capability dialect != {name}")
 
 
 def requires_env(name: str) -> Callable:
