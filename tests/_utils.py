@@ -155,15 +155,13 @@ def requires_dialect(
     name: Literal["sqlite", "mysql", "postgres"],
     *more: Literal["sqlite", "mysql", "postgres"],
 ) -> Callable:
-    if more and set(more) != {name}:
+    if more:
         vals = {name, *more}
-
-        def check_capabilities() -> bool:
-            return all(not getattr(Dialect, f"is_{name}") for name in vals)
-
-        return pytest.mark.skipif(
-            check_capabilities(), reason=f"Capability dialect not in {list(vals)}"
-        )
+        for name in vals:
+            func = getattr(Dialect, f"is_{name}")
+            if func():
+                return pytest.mark.skipif(False, reason="")
+        return pytest.mark.skipif(True, reason=f"Capability dialect not in {list(vals)}")
     func = getattr(Dialect, f"is_{name}")
     return pytest.mark.skipif(not func(), reason=f"Capability dialect != {name}")
 
