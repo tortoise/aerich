@@ -93,8 +93,8 @@ def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, st
         py = Path(sys.executable).as_posix()
         if command.startswith("aerich "):
             command = f"{py} -m " + command
-        elif command.startswith(s := "python -m "):
-            command = f"{py} -m " + command[len(s) :]
+        elif command.startswith(s := "python "):
+            command = f"{py} " + command[len(s) :]
     r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
     ok = r.returncode == 0
     out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
