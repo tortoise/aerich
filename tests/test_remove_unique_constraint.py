@@ -1,19 +1,27 @@
 from __future__ import annotations
 
+import functools
 import shutil
 from pathlib import Path
 
-from tests._utils import run_shell, skip_dialect
+from tests._utils import prepare_py_files, run_shell, skip_dialect, tmp_daily_db
 
 
-def _update_model(from_file: str) -> None:
-    abspath = Path(__file__).parent / "assets" / "remove_constraint" / from_file
+def update_model(from_file: str, parent: Path) -> None:
+    abspath = parent / from_file
     shutil.copy(abspath, "models.py")
 
 
 # TODO: remove skip decorator to test sqlite if alter-column supported
 @skip_dialect("sqlite")
-def test_remove_unique_constraint(tmp_aerich_project):
+def test_remove_unique_constraint(tmp_work_dir):
+    asset_dir = prepare_py_files("remove_constraint")
+    with tmp_daily_db():
+        _test_remove_unique_constraint(asset_dir)
+
+
+def _test_remove_unique_constraint(asset_dir: Path) -> None:
+    _update_model = functools.partial(update_model, parent=asset_dir)
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
     assert "Success" in output
     output = run_shell("aerich init-db")

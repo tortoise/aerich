@@ -16,7 +16,13 @@ from tests._utils import (
 
 # TODO: remove skip decorator to test sqlite after #384 fixed
 @skip_dialect("sqlite")
-def test_inspect(new_aerich_project):
+def test_inspect(tmp_work_dir):
+    prepare_py_files("fake", with_testing_models=True)
+    with tmp_daily_db():
+        _test_inspect()
+
+
+def _test_inspect() -> None:
     ok, out = run_in_subprocess("aerich init -t settings.TORTOISE_ORM")
     if not ok:
         print("Failed to init:", out)

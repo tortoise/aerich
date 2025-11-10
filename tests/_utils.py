@@ -131,9 +131,18 @@ def copy_files(*src_files: Path, target_dir: Path | str = ".", parent: Path | No
             shutil.copy(src, target_dir)
 
 
-def prepare_py_files(asset_name: str, assets: Path = ASSETS, suffix: str = ".py") -> Path:
+def prepare_py_files(
+    asset_name: str, assets: Path = ASSETS, suffix: str = ".py", with_testing_models: bool = False
+) -> Path:
     asset_dir = assets / asset_name
     copy_files(*asset_dir.glob(f"*{suffix}"), parent=assets)
+    if with_testing_models:
+        test_dir = assets.parent
+        copy_files(test_dir / "models_second.py", test_dir / "models.py")
+        dst_dir = Path("tests")
+        dst_dir.mkdir()
+        dst_dir.joinpath("__init__.py").touch()
+        copy_files(test_dir / "_utils.py", test_dir / "indexes.py", target_dir=dst_dir)
     return asset_dir
 
 
