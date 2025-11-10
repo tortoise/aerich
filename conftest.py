@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 import os
-import shutil
-import sys
 from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -18,7 +15,7 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
-from tests._utils import chdir, copy_files, init_db, run_shell
+from tests._utils import chdir, init_db
 
 db_url = os.getenv("TEST_DB", MEMORY_SQLITE)
 db_url_second = os.getenv("TEST_DB_SECOND", MEMORY_SQLITE)
@@ -75,50 +72,6 @@ async def initialize_tests(anyio_backend):
         yield
     finally:
         await Tortoise._drop_databases()
-
-
-@contextmanager
-def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_dir=TEST_DIR):
-    settings_py = asset_dir / "settings.py"
-    _tests_py = asset_dir / "_tests.py"
-    db_py = asset_dir / "db.py"
-    models_second_py = test_dir / "models_second.py"
-    copy_files(settings_py, _tests_py, models_py, models_second_py, db_py, target_dir=tmp_path)
-    dst_dir = tmp_path / "tests"
-    dst_dir.mkdir()
-    dst_dir.joinpath("__init__.py").touch()
-    copy_files(test_dir / "_utils.py", test_dir / "indexes.py", target_dir=dst_dir)
-    if should_remove := str(tmp_path) not in sys.path:
-        sys.path.append(str(tmp_path))
-    with chdir(tmp_path):
-        if (cf := asset_dir / "conftest_.py").exists():
-            shutil.copy(cf, "conftest.py")
-        run_shell("python db.py create", capture_output=False)
-        try:
-            yield
-        finally:
-            if not os.getenv("AERICH_DONT_DROP_FAKE_DB"):
-                run_shell("python db.py drop", capture_output=False)
-            if should_remove:
-                sys.path.remove(str(tmp_path))
-
-
-@pytest.fixture
-def new_aerich_project(tmp_path: Path):
-    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/fake/
-    asset_dir = TEST_DIR / "assets" / "fake"
-    models_py = TEST_DIR / "models.py"
-    with _new_aerich_project(tmp_path, asset_dir, models_py):
-        yield
-
-
-@pytest.fixture
-def tmp_aerich_project(tmp_path: Path):
-    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/remove_constraint/
-    asset_dir = TEST_DIR / "assets" / "remove_constraint"
-    models_py = asset_dir / "models.py"
-    with _new_aerich_project(tmp_path, asset_dir, models_py):
-        yield
 
 
 @pytest.fixture
