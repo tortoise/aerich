@@ -403,6 +403,8 @@ class Migrate:
             if action == "change":
                 # Example:: action = 'change'; option = [0, 'unique']; change = (False, True)
                 attr = option[-1]
+                field_name = option[0]
+                full_name = f"{model._meta.full_name}.{field_name}"
                 if attr == "indexed":
                     # Ignore changing of indexed, as it usually changed by unique
                     continue
@@ -413,7 +415,7 @@ class Migrate:
                     # TODO: handle 'unique'
                     if upgrade:
                         click.secho(
-                            f"Aerich does not handle {attr!r} attribution for m2m field. You may need to change the constraints in db manually.",
+                            f"Aerich does not handle {attr!r} attribution for m2m field({full_name}). You may need to change the constraints in db manually.",
                             fg=Color.yellow,
                         )
                     continue

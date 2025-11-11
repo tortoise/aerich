@@ -237,6 +237,16 @@ def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
     return Path(spec.origin)
 
 
+def _get_field_diffs(old_field: dict, new_field: dict) -> Generator:
+    """Get diffs with field name"""
+    changes = list(diff([old_field], [new_field]))
+    if changes:
+        field_name = new_field.get("name") or old_field.get("name", "")
+        for c in changes:
+            c[1][0] = field_name
+    yield from changes
+
+
 def get_dict_diff_by_key(
     old_fields: list[dict],
     new_fields: list[dict],
@@ -264,8 +274,10 @@ def get_dict_diff_by_key(
 
     """
     length_old, length_new = len(old_fields), len(new_fields)
-    if length_old == 0 or length_new == 0 or length_old == length_new == 1:
+    if length_old == 0 or length_new == 0:
         yield from diff(old_fields, new_fields)
+    elif length_old == length_new == 1:
+        yield from _get_field_diffs(old_fields[0], new_fields[0])
     else:
         should_use_second_key = len({i[key] for i in old_fields}) < length_old or (
             len({i[key] for i in new_fields}) < length_new
@@ -280,7 +292,7 @@ def get_dict_diff_by_key(
             value = (field[key], field[second_key]) if should_use_second_key else field[key]
             if (index := value_index.get(value)) is not None:
                 additions.remove(index)
-                yield from diff([field], [new_fields[index]])  # change
+                yield from _get_field_diffs(field, new_fields[index])  # change
             else:
                 yield from diff([field], [])  # remove
         if additions:

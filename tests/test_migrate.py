@@ -985,7 +985,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         Migrate.diff_models(old_models_describe, models_describe)
         Migrate.diff_models(models_describe, old_models_describe, False)
         Migrate._merge_operators()
-    warning_msg = "Aerich does not handle 'unique' attribution for m2m field. You may need to change the constraints in db manually."
+    warning_msg = "Aerich does not handle 'unique' attribution for m2m field(models.Category.products). You may need to change the constraints in db manually."
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",

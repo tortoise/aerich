@@ -3,15 +3,36 @@ name = "aerich"
 dynamic = ["version"]
 description = "A database migrations tool for Tortoise ORM."
 authors = [{name="long2ice", email="long2ice@gmail.com>"}]
-license = "Apache-2.0"
+license = {text="Apache-2.0"}
 readme = "README.md"
-keywords = ["migrate", "Tortoise-ORM", "mysql"]
+keywords = ["migrate", "Tortoise-ORM", "mysql", "postgresql"]
 requires-python = ">=3.9"
 dependencies = [
   "tortoise-orm (>=0.21.0,<1.0.0)",
   "dictdiffer (>=0.9.0,<1.0.0)",
   "asyncclick (>=8.1.7,<9.0.0)",
   "anyio (>=3.6.2,<5.0.0)",
+]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: PL/SQL",
+    "Framework :: AsyncIO",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+    "Typing :: Typed",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
 ]
 
 [project.optional-dependencies]
