@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import os
 import platform
 import shlex
@@ -120,10 +121,15 @@ def _copy_file_with_symlink_target_followed(
         shutil.copy(src, dst)
 
 
+@functools.cache
+def get_symlink_targets(parent: Path = ASSETS) -> set[str]:
+    return {i.name for i in parent.glob("*.py")}
+
+
 def copy_files(*src_files: Path, target_dir: Path | str = ".", parent: Path | None = None) -> None:
     if parent is None:
         parent = src_files[0].parent
-    symlink_targets = {i.name for i in parent.glob("*.py")}
+    symlink_targets = get_symlink_targets(parent)
     for src in src_files:
         if src.name in symlink_targets:
             _copy_file_with_symlink_target_followed(src, target_dir, parent)
@@ -148,7 +154,7 @@ def prepare_py_files(
 
 def copy_asset(name: str, parent: Path = ASSETS) -> None:
     asset_dir = parent / name
-    symlink_targets = {i.name for i in parent.glob("*.py")}
+    symlink_targets = get_symlink_targets(parent)
     for p in asset_dir.glob("*"):
         filename = p.name
         if filename.startswith("."):
