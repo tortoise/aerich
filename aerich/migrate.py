@@ -524,7 +524,7 @@ class Migrate:
     def echo_on_delete_ignore(full_name: str, old: str, new: str) -> None:
         msg = (
             f"Ignore 'on_delete' changes {old!r} -> {new!r} for {full_name}"
-            " (on_delete was handled programmatically, not by db constraint)"
+            " (You may need to do it in db manually)."
         )
         click.secho(msg, fg=Color.yellow)
 
