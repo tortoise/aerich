@@ -411,6 +411,9 @@ class Migrate:
                 elif attr == "nullable":
                     # nullable of m2m relation is constrainted by orm framework, not by db
                     continue
+                elif attr == "on_delete":
+                    if upgrade:
+                        cls.echo_on_delete_ignore(full_name, *change)
                 elif attr in ("unique", "db_constraint"):
                     # TODO: handle 'unique'
                     if upgrade:
@@ -418,7 +421,9 @@ class Migrate:
                             f"Aerich does not handle {attr!r} attribution for m2m field({full_name}). You may need to change the constraints in db manually.",
                             fg=Color.yellow,
                         )
-                    continue
+                else:
+                    pass  # TODO: log attr/change
+                continue
             with contextlib.suppress(TypeError, KeyError):
                 if change[0][0] == "db_constraint":
                     continue
@@ -474,18 +479,18 @@ class Migrate:
         old_fk_fields = cast("list[dict]", old_model_describe.get(key))
         new_fk_fields = cast("list[dict]", new_model_describe.get(key))
 
-        old_fk_fields_name: list[str] = [i.get("name", "") for i in old_fk_fields]
-        new_fk_fields_name: list[str] = [i.get("name", "") for i in new_fk_fields]
+        old_fk_fields_name: set[str] = {i.get("name", "") for i in old_fk_fields}
+        new_fk_fields_name: set[str] = {i.get("name", "") for i in new_fk_fields}
 
         # add
-        for new_fk_field_name in set(new_fk_fields_name).difference(set(old_fk_fields_name)):
+        for new_fk_field_name in new_fk_fields_name - old_fk_fields_name:
             fk_field = cls.get_field_by_name(new_fk_field_name, new_fk_fields)
             if fk_field.get("db_constraint"):
                 ref_describe = cast(dict, new_models[fk_field["python_type"]])
                 sql = cls._add_fk(model, fk_field, ref_describe)
                 cls._add_operator(sql, upgrade, fk_m2m_index=True)
         # drop
-        for old_fk_field_name in set(old_fk_fields_name).difference(set(new_fk_fields_name)):
+        for old_fk_field_name in old_fk_fields_name - new_fk_fields_name:
             old_fk_field = cls.get_field_by_name(
                 old_fk_field_name, cast("list[dict]", old_fk_fields)
             )
@@ -494,27 +499,34 @@ class Migrate:
                 sql = cls._drop_fk(model, old_fk_field, ref_describe)
                 cls._add_operator(sql, upgrade, fk_m2m_index=True)
         # alter
-        for field_name in set(old_fk_fields_name) & set(new_fk_fields_name):
+        for field_name in old_fk_fields_name & new_fk_fields_name:
             old_fk_field = cls.get_field_by_name(field_name, old_fk_fields)
             new_fk_field = cls.get_field_by_name(field_name, new_fk_fields)
+            full_name = f"{model._meta.full_name}.{field_name}"
             for option, attr, old_new in diff(old_fk_field, new_fk_field):
-                if upgrade:
-                    print(f"{option = };{attr=};{old_new=};")
-                    print(f"{field_name=}; {new_fk_field=}")
                 if option != "change":
+                    # Ignore add/remove which may cause by different version of tortoise-orm
                     continue
                 if attr == "on_delete":
-                    # TODO: add operator for on delete changing
-                    pass
+                    if upgrade:
+                        cls.echo_on_delete_ignore(full_name, *old_new)
                 elif attr in ("nullable", "description"):
                     # Nullable/Description is handled by cls._handle_field_changes
-                    pass
+                    ...
                 elif upgrade:
                     msg = (
-                        f"Aerich does not handle {attr!r} changes for {key},"
+                        f"Aerich does not handle {attr!r} changes for {key}({full_name}),"
                         " you may need to do it manually."
                     )
                     click.secho(msg, fg=Color.yellow)
+
+    @staticmethod
+    def echo_on_delete_ignore(full_name: str, old: str, new: str) -> None:
+        msg = (
+            f"Ignore 'on_delete' changes {old!r} -> {new!r} for {full_name}"
+            " (on_delete was handled programmatically, not by db constraint)"
+        )
+        click.secho(msg, fg=Color.yellow)
 
     @classmethod
     def _handle_fk_fields(
