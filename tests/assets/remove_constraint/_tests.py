@@ -1,22 +1,6 @@
 import pytest
 from models import Foo, Sth
-from settings import TORTOISE_ORM
-from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Tortoise.close_connections()
 
 
 @pytest.mark.anyio

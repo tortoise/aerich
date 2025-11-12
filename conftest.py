@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import os
-import sys
 from collections.abc import Generator
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -18,13 +15,23 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
-from tests._utils import chdir, copy_files, init_db, run_shell
+from tests._utils import chdir, init_db
 
 db_url = os.getenv("TEST_DB", MEMORY_SQLITE)
 db_url_second = os.getenv("TEST_DB_SECOND", MEMORY_SQLITE)
+try:
+    default_db = expand_db_url(db_url, testing=True)
+except KeyError as e:
+    if str(e) == "'/'":
+        # Auto convert invalid path for Windows
+        db_url = db_url.replace("/{/}", "{}")
+        default_db = expand_db_url(db_url, testing=True)
+    else:
+        raise e
+
 tortoise_orm = {
     "connections": {
-        "default": expand_db_url(db_url, testing=True),
+        "default": default_db,
         "second": expand_db_url(db_url_second, testing=True),
     },
     "apps": {
@@ -46,20 +53,12 @@ def reset_migrate() -> None:
 
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    policy = asyncio.get_event_loop_policy()
-    res = policy.new_event_loop()
-    asyncio.set_event_loop(res)
-    res._close = res.close  # type:ignore[attr-defined]
-    res.close = lambda: None  # type:ignore[method-assign]
-
-    yield res
-
-    res._close()  # type:ignore[attr-defined]
+def anyio_backend() -> str:
+    return "asyncio"
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def initialize_tests(event_loop, request) -> None:
+async def initialize_tests(anyio_backend):
     await init_db(tortoise_orm)
     client = Tortoise.get_connection("default")
     if client.schema_generator is MySQLSchemaGenerator:
@@ -69,46 +68,13 @@ async def initialize_tests(event_loop, request) -> None:
     elif issubclass(client.schema_generator, BasePostgresSchemaGenerator):
         Migrate.ddl = PostgresDDL(client)
     Migrate.dialect = Migrate.ddl.DIALECT
-    request.addfinalizer(lambda: event_loop.run_until_complete(Tortoise._drop_databases()))
+    try:
+        yield
+    finally:
+        await Tortoise._drop_databases()
 
 
-@contextmanager
-def _new_aerich_project(tmp_path: Path, asset_dir: Path, models_py: Path, test_dir=TEST_DIR):
-    settings_py = asset_dir / "settings.py"
-    _tests_py = asset_dir / "_tests.py"
-    db_py = asset_dir / "db.py"
-    models_second_py = test_dir / "models_second.py"
-    copy_files(settings_py, _tests_py, models_py, models_second_py, db_py, target_dir=tmp_path)
-    dst_dir = tmp_path / "tests"
-    dst_dir.mkdir()
-    dst_dir.joinpath("__init__.py").touch()
-    copy_files(test_dir / "_utils.py", test_dir / "indexes.py", target_dir=dst_dir)
-    if should_remove := str(tmp_path) not in sys.path:
-        sys.path.append(str(tmp_path))
+@pytest.fixture
+def tmp_work_dir(tmp_path: Path) -> Generator[Path]:
     with chdir(tmp_path):
-        run_shell("python db.py create", capture_output=False)
-        try:
-            yield
-        finally:
-            if not os.getenv("AERICH_DONT_DROP_FAKE_DB"):
-                run_shell("python db.py drop", capture_output=False)
-            if should_remove:
-                sys.path.remove(str(tmp_path))
-
-
-@pytest.fixture
-def new_aerich_project(tmp_path: Path):
-    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/fake/
-    asset_dir = TEST_DIR / "assets" / "fake"
-    models_py = TEST_DIR / "models.py"
-    with _new_aerich_project(tmp_path, asset_dir, models_py):
-        yield
-
-
-@pytest.fixture
-def tmp_aerich_project(tmp_path: Path):
-    # Create a tortoise project in tmp_path that managed by aerich using assets from tests/assets/remove_constraint/
-    asset_dir = TEST_DIR / "assets" / "remove_constraint"
-    models_py = asset_dir / "models.py"
-    with _new_aerich_project(tmp_path, asset_dir, models_py):
-        yield
+        yield tmp_path

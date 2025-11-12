@@ -4,7 +4,7 @@ import os
 import re
 from pathlib import Path
 
-from tests._utils import Dialect, run_shell
+from tests._utils import prepare_py_files, run_shell, skip_dialect, tmp_daily_db
 
 
 def _append_field(*files: str, name="field_1") -> None:
@@ -15,10 +15,15 @@ def _append_field(*files: str, name="field_1") -> None:
             f.write(os.linesep + field)
 
 
-def test_fake(new_aerich_project):
-    if Dialect.is_sqlite():
-        # TODO: go ahead if sqlite alter-column supported
-        return
+# TODO: remove skip decorator to test sqlite if alter-column supported
+@skip_dialect("sqlite")
+def test_fake(tmp_work_dir):
+    prepare_py_files("fake", with_testing_models=True)
+    with tmp_daily_db():
+        _test_fake()
+
+
+def _test_fake():
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
     assert "Success" in output
     output = run_shell("aerich init-db")

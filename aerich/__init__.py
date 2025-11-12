@@ -1,202 +1,143 @@
 from __future__ import annotations
 
-import os
-import platform
+import pkgutil
+import warnings
+from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
-import tortoise
 from tortoise import BaseDBAsyncClient, Tortoise, connections
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import generate_schema_for_client, get_schema_sql
 
-from aerich.exceptions import DowngradeError
+from aerich._compat import _init_asyncio_patch, _init_tortoise_0_24_1_patch
+from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
 from aerich.inspectdb.sqlite import InspectSQLite
-from aerich.migrate import MIGRATE_TEMPLATE, Migrate
+from aerich.migrate import Migrate
 from aerich.models import Aerich
 from aerich.utils import (
+    decompress_dict,
+    file_module_info,
     get_app_connection,
     get_app_connection_name,
     get_models_describe,
     import_py_file,
+    import_py_module,
+    load_tortoise_config,
+    py_module_path,
 )
+from aerich.version import __version__
 
 if TYPE_CHECKING:
-    from tortoise import Model
-    from tortoise.fields.relational import ManyToManyFieldInstance
-
+    from aerich._compat import Self
     from aerich.inspectdb import Inspect
 
 
-def _init_asyncio_patch() -> None:
-    """
-    Select compatible event loop for psycopg3.
-
-    As of Python 3.8+, the default event loop on Windows is `proactor`,
-    however psycopg3 requires the old default "selector" event loop.
-    See https://www.psycopg.org/psycopg3/docs/advanced/async.html
-    """
-    if platform.system() == "Windows":
-        try:
-            from asyncio import WindowsSelectorEventLoopPolicy  # type:ignore
-        except ImportError:
-            pass  # Can't assign a policy which doesn't exist.
-        else:
-            from asyncio import get_event_loop_policy, set_event_loop_policy
-
-            if not isinstance(get_event_loop_policy(), WindowsSelectorEventLoopPolicy):
-                set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+_init_asyncio_patch()  # Change event_loop_policy for Windows
+_init_tortoise_0_24_1_patch()  # Patch m2m table generator for tortoise-orm==0.24.1
+__all__ = ("Command", "TortoiseContext", "__version__")
 
 
-def _init_tortoise_0_24_1_patch() -> None:
-    # this patch is for "tortoise-orm==0.24.1" to fix:
-    # https://github.com/tortoise/tortoise-orm/issues/1893
-    if tortoise.__version__ != "0.24.1":
-        return
-    import re
-    from typing import cast
+class TortoiseContext(AbstractAsyncContextManager):
+    def __init__(self, tortoise_config: dict | None = None) -> None:
+        if tortoise_config is None:
+            tortoise_config = load_tortoise_config()
+        self.tortoise_config = tortoise_config
+        self._init_when_aenter = True
 
-    from tortoise.backends.base.schema_generator import BaseSchemaGenerator
+    async def init(self) -> None:
+        await Tortoise.init(config=self.tortoise_config)
 
-    def _get_m2m_tables(
-        self: BaseSchemaGenerator,
-        model: type[Model],
-        db_table: str,
-        safe: bool,
-        models_tables: list[str],
-    ) -> list[str]:  # Copied from tortoise-orm
-        m2m_tables_for_create = []
-        for m2m_field in model._meta.m2m_fields:
-            field_object = cast("ManyToManyFieldInstance", model._meta.fields_map[m2m_field])
-            if field_object._generated or field_object.through in models_tables:
-                continue
-            backward_key, forward_key = field_object.backward_key, field_object.forward_key
-            if field_object.db_constraint:
-                backward_fk = self._create_fk_string(
-                    "",
-                    backward_key,
-                    db_table,
-                    model._meta.db_pk_column,
-                    field_object.on_delete,
-                    "",
-                )
-                forward_fk = self._create_fk_string(
-                    "",
-                    forward_key,
-                    field_object.related_model._meta.db_table,
-                    field_object.related_model._meta.db_pk_column,
-                    field_object.on_delete,
-                    "",
-                )
-            else:
-                backward_fk = forward_fk = ""
-            exists = "IF NOT EXISTS " if safe else ""
-            through_table_name = field_object.through
-            backward_type = self._get_pk_field_sql_type(model._meta.pk)
-            forward_type = self._get_pk_field_sql_type(field_object.related_model._meta.pk)
-            comment = ""
-            if desc := field_object.description:
-                comment = self._table_comment_generator(table=through_table_name, comment=desc)
-            m2m_create_string = self.M2M_TABLE_TEMPLATE.format(
-                exists=exists,
-                table_name=through_table_name,
-                backward_fk=backward_fk,
-                forward_fk=forward_fk,
-                backward_key=backward_key,
-                backward_type=backward_type,
-                forward_key=forward_key,
-                forward_type=forward_type,
-                extra=self._table_generate_extra(table=field_object.through),
-                comment=comment,
-            )
-            if not field_object.db_constraint:
-                m2m_create_string = m2m_create_string.replace(
-                    """,
-    ,
-    """,
-                    "",
-                )  # may have better way
-            m2m_create_string += self._post_table_hook()
-            if getattr(field_object, "create_unique_index", field_object.unique):
-                unique_index_create_sql = self._get_unique_index_sql(
-                    exists, through_table_name, [backward_key, forward_key]
-                )
-                if unique_index_create_sql.endswith(";"):
-                    m2m_create_string += "\n" + unique_index_create_sql
-                else:
-                    lines = m2m_create_string.splitlines()
-                    lines[-2] += ","
-                    indent = m.group() if (m := re.match(r"\s+", lines[-2])) else ""
-                    lines.insert(-1, indent + unique_index_create_sql)
-                    m2m_create_string = "\n".join(lines)
-            m2m_tables_for_create.append(m2m_create_string)
-        return m2m_tables_for_create
+    async def __aenter__(self) -> Self:
+        if self._init_when_aenter:
+            await self.init()
+        return self
 
-    setattr(BaseSchemaGenerator, "_get_m2m_tables", _get_m2m_tables)
+    def __await__(self) -> Generator[Any, None, Self]:
+        # To support `command = await Command(tortoise_config)`
+        async def _self() -> Self:
+            return await self.__aenter__()
+
+        return _self().__await__()
+
+    @staticmethod
+    async def aclose() -> None:
+        """Close tortoise connections if it was inited"""
+        if Tortoise._inited:
+            await connections.close_all()
+
+    async def __aexit__(self, *args, **kw) -> None:
+        await self.aclose()
 
 
-_init_asyncio_patch()
-_init_tortoise_0_24_1_patch()
-
-
-class Command(AbstractAsyncContextManager):
+class Command(TortoiseContext):
     def __init__(
         self,
         tortoise_config: dict,
         app: str = "models",
         location: str = "./migrations",
+        inspectdb_fields: dict[str, str] | None = None,
     ) -> None:
-        self.tortoise_config = tortoise_config
+        super().__init__(tortoise_config)
         self.app = app
         self.location = location
+        self._inspectdb_fields = inspectdb_fields
         Migrate.app = app
 
-    async def init(self) -> None:
-        await Migrate.init(self.tortoise_config, self.app, self.location)
-
-    async def __aenter__(self) -> Command:
-        await self.init()
-        return self
+    async def init(self, offline: bool = False) -> None:
+        await Migrate.init(self.tortoise_config, self.app, self.location, offline=offline)
 
     async def close(self) -> None:
-        await connections.close_all()
-
-    async def __aexit__(self, *args, **kw) -> None:
-        await self.close()
+        warnings.warn(
+            "`Command.close()` is deprecated, please use Command.aclose() instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        await self.aclose()
 
     async def _upgrade(
-        self, conn: BaseDBAsyncClient, version_file: str, fake: bool = False
+        self,
+        conn: BaseDBAsyncClient,
+        version_file: str,
+        fake: bool = False,
+        version_module: pkgutil.ModuleInfo | None = None,
     ) -> None:
-        file_path = Path(Migrate.migrate_location, version_file)
-        m = import_py_file(file_path)
+        if version_module is not None:
+            m = import_py_module(version_module)
+        else:
+            m = import_py_file(Path(Migrate.migrate_location, version_file))
         upgrade = m.upgrade
         if not fake:
             await conn.execute_script(await upgrade(conn))
-        await Aerich.create(
-            version=version_file,
-            app=self.app,
-            content=get_models_describe(self.app),
+
+        model_state_str = getattr(m, "MODELS_STATE", None)
+        models_state = (
+            decompress_dict(model_state_str) if model_state_str else get_models_describe(self.app)
         )
+        await Aerich.create(version=version_file, app=self.app, content=models_state)
 
     async def upgrade(self, run_in_transaction: bool = True, fake: bool = False) -> list[str]:
         migrated = []
-        for version_file in Migrate.get_all_version_files():
+        for version_module in Migrate.get_all_version_modules():
+            version_file = version_module.name + ".py"
             try:
                 exists = await Aerich.exists(version=version_file, app=self.app)
             except OperationalError:
                 exists = False
             if not exists:
                 app_conn_name = get_app_connection_name(self.tortoise_config, self.app)
-                if run_in_transaction:
+                m = import_py_module(version_module)
+                migration_run_in_transaction = getattr(m, "RUN_IN_TRANSACTION", run_in_transaction)
+                if migration_run_in_transaction:
                     async with in_transaction(app_conn_name) as conn:
-                        await self._upgrade(conn, version_file, fake=fake)
+                        await self._upgrade(conn, version_file, fake, version_module)
                 else:
                     app_conn = get_app_connection(self.tortoise_config, self.app)
-                    await self._upgrade(app_conn, version_file, fake=fake)
+                    await self._upgrade(app_conn, version_file, fake, version_module)
                 migrated.append(version_file)
         return migrated
 
@@ -219,8 +160,8 @@ class Command(AbstractAsyncContextManager):
             async with in_transaction(
                 get_app_connection_name(self.tortoise_config, self.app)
             ) as conn:
-                file_path = Path(Migrate.migrate_location, file)
-                m = import_py_file(file_path)
+                module_info = file_module_info(Migrate.migrate_location, Path(file).stem)
+                m = import_py_module(module_info)
                 downgrade = m.downgrade
                 downgrade_sql = await downgrade(conn)
                 if not downgrade_sql.strip():
@@ -229,7 +170,7 @@ class Command(AbstractAsyncContextManager):
                     await conn.execute_script(downgrade_sql)
                 await version_obj.delete()
                 if delete:
-                    os.unlink(file_path)
+                    py_module_path(module_info).unlink()
                 ret.append(file)
         return ret
 
@@ -257,50 +198,83 @@ class Command(AbstractAsyncContextManager):
         else:
             raise NotImplementedError(f"{dialect} is not supported")
         inspect = cls(connection, tables)
+        if self._inspectdb_fields:
+            inspect._special_fields = self._inspectdb_fields
         return await inspect.inspect()
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: Literal[True] = True
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: Literal[True] = True,
+        offline: bool = False,
     ) -> str: ...
 
     @overload
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None: ...
 
     async def migrate(
-        self, name: str = "update", empty: bool = False, no_input: bool = False
+        self,
+        name: str = "update",
+        empty: bool = False,
+        no_input: bool = False,
+        offline: bool = False,
     ) -> str | None:
         # return None if same version migration file already exists, and new one not generated
-        return await Migrate.migrate(name, empty, no_input)
+        try:
+            return await Migrate.migrate(name, empty, no_input, offline)
+        except NotInitedError as e:
+            raise NotInitedError("You have to call .init() first before migrate") from e
 
-    async def init_db(self, safe: bool) -> None:
+    async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
+        await self._do_init(safe, pre_sql)
+
+    async def _do_init(self, safe: bool, pre_sql: str | None = None, offline: bool = False) -> None:
         location = self.location
         app = self.app
+        config = self.tortoise_config
 
-        await Tortoise.init(config=self.tortoise_config)
-        connection = get_app_connection(self.tortoise_config, app)
+        await Tortoise.init(config=config)
+        connection = get_app_connection(config, app)
+        if offline:
+            await Migrate.init(config, app, location, offline=True)
+        elif pre_sql:
+            await connection.execute_script(pre_sql)
 
-        dirname = Path(location, app)
+        dirname = Migrate.get_migration_dir(location, app)
         if not dirname.exists():
             dirname.mkdir(parents=True)
         else:
             # If directory is empty, go ahead, otherwise raise FileExistsError
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
-
-        await generate_schema_for_client(connection, safe)
-
         schema = get_schema_sql(connection, safe)
 
-        version = await Migrate.generate_version()
-        await Aerich.create(
-            version=version,
-            app=app,
-            content=get_models_describe(app),
-        )
+        version = await Migrate.generate_version(offline=offline)
+        aerich_content = get_models_describe(app)
         version_file = Path(dirname, version)
-        content = MIGRATE_TEMPLATE.format(upgrade_sql=schema, downgrade_sql="")
-        with open(version_file, "w", encoding="utf-8") as f:
-            f.write(content)
+        content = Migrate.build_migration_file_text(upgrade_sql=schema, models_state=aerich_content)
+        version_file.write_text(content, encoding="utf-8")
+        Migrate._last_version_content = aerich_content
+        if not offline:
+            await generate_schema_for_client(connection, safe)
+            await Aerich.create(version=version, app=app, content=aerich_content)
+
+    async def init_migrations(self, safe: bool) -> None:
+        await self._do_init(safe, offline=True)
+
+    async def fix_migrations(self) -> list[str] | None:
+        """
+        Fix migration files to include models state for aerich 0.6.0+
+        :return: List of updated migration files (if no migration file or no aerich objects will return None)
+        """
+        Migrate.app = self.app
+        Migrate.migrate_location = Migrate.get_migration_dir(self.location, self.app)
+        return await Migrate.fix_migrations(self.tortoise_config)

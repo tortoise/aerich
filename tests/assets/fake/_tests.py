@@ -1,8 +1,6 @@
 import pytest
 from models import NewModel
 from models_second import Config
-from settings import TORTOISE_ORM
-from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
 
 try:
@@ -12,20 +10,6 @@ except ImportError:
     errors = (OperationalError,)
 else:
     errors = (OperationalError, UndefinedColumn)
-
-
-@pytest.fixture(scope="session")
-def anyio_backend() -> str:
-    return "asyncio"
-
-
-@pytest.fixture(autouse=True)
-async def init_connections():
-    await Tortoise.init(TORTOISE_ORM)
-    try:
-        yield
-    finally:
-        await Tortoise.close_connections()
 
 
 @pytest.mark.anyio

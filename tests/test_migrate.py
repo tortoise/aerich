@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import re
+import shutil
 from pathlib import Path
 
 import anyio
@@ -15,19 +18,17 @@ from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
-from aerich.utils import get_models_describe
-from tests._utils import chdir
+from aerich.utils import get_formatted_compressed_data, get_models_describe
+from tests._utils import (
+    Dialect,
+    chdir,
+    describe_index,
+    prepare_py_files,
+    requires_dialect,
+    run_shell,
+    tmp_daily_db,
+)
 from tests.indexes import CustomIndex
-
-
-def describe_index(idx: Index) -> Index | dict:
-    # tortoise-orm>=0.24 changes Index desribe to be dict
-    if tortoise_version_less_than("0.24"):
-        return idx
-    if hasattr(idx, "describe"):
-        return idx.describe()
-    return idx
-
 
 # tortoise-orm>=0.21 changes IntField constraints
 # from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
@@ -959,9 +960,10 @@ def test_migrate(mocker: MockerFixture, capsys):
     - remove unique: Category.title
     - add unique: User.username
     - change column: length User.password
+    - drop unique field: Product.uid
     - add unique_together: (name,type) of Product
     - add one more many to many field: Product.users
-    - drop unique field: Config.name
+    - change unique to normal index: Config.name
     - alter default: Config.status
     - rename column: Product.image -> Product.pic
     - rename column: Product.is_review -> Product.is_reviewed
@@ -983,7 +985,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         Migrate.diff_models(old_models_describe, models_describe)
         Migrate.diff_models(models_describe, old_models_describe, False)
         Migrate._merge_operators()
-    warning_msg = "Aerich does not handle 'unique' attribution for m2m field. You may need to change the constraints in db manually."
+    warning_msg = "Aerich does not handle 'unique' attribution for m2m field(models.Category.products). You may need to change the constraints in db manually."
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
@@ -994,8 +996,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `category` ADD FULLTEXT INDEX `idx_category_slug_e9bcff` (`slug`)",
             "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
             "ALTER TABLE `email` DROP COLUMN `user_id`",
-            "ALTER TABLE `config` DROP COLUMN `name`",
-            "ALTER TABLE `config` DROP INDEX `name`",
+            "ALTER TABLE `config` DROP INDEX `name`, ADD INDEX `idx_config_name_2c83c8` (`name`)",
             "ALTER TABLE `config` ADD `user_id` INT NOT NULL COMMENT 'User'",
             "ALTER TABLE `config` ADD CONSTRAINT `fk_config_user_17daa970` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
             "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
@@ -1043,8 +1044,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_110d4c63`",
             "ALTER TABLE `category` ADD INDEX `idx_category_slug_e9bcff` (`slug`)",
             "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
-            "ALTER TABLE `config` ADD `name` VARCHAR(100) NOT NULL UNIQUE",
-            "ALTER TABLE `config` ADD UNIQUE INDEX `name` (`name`)",
+            "ALTER TABLE `config` DROP INDEX `idx_config_name_2c83c8`, ADD UNIQUE (`name`)",
             "ALTER TABLE `config` DROP FOREIGN KEY `fk_config_user_17daa970`",
             "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
             "ALTER TABLE `config` DROP COLUMN `user_id`",
@@ -1055,11 +1055,10 @@ def test_migrate(mocker: MockerFixture, capsys):
             "ALTER TABLE `email` DROP COLUMN `config_id`",
             "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_config_88e28c1b`",
             "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
-            "ALTER TABLE `email` DROP INDEX `company`, ADD INDEX (`idx_email_company_1c9234`)",
+            "ALTER TABLE `email` DROP INDEX `company`, ADD INDEX `idx_email_company_1c9234` (`company`)",
             "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
             "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
             "ALTER TABLE `product` ADD `uuid` INT NOT NULL UNIQUE",
-            "ALTER TABLE `product` ADD UNIQUE INDEX `uuid` (`uuid`)",
             "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
             "ALTER TABLE `product` DROP COLUMN `price`",
             "ALTER TABLE `product` DROP COLUMN `no`",
@@ -1084,7 +1083,11 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        assert warning_msg in capsys.readouterr().out
+        if not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = {
@@ -1093,10 +1096,11 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
             'ALTER TABLE "category" RENAME COLUMN "user_id" TO "owner_id"',
             'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_110d4c63" FOREIGN KEY ("owner_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+            'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "category_title_key"',
             'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug")',
             'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
             'ALTER TABLE "configs" RENAME TO "config"',
-            'ALTER TABLE "config" DROP COLUMN "name"',
+            'CREATE INDEX IF NOT EXISTS "idx_config_name_2c83c8" ON "config" ("name")',
             'DROP INDEX IF EXISTS "uid_config_name_2c83c8"',
             'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
@@ -1125,7 +1129,8 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_email_email_4a1a33" ON "email" ("email")',
             'CREATE INDEX IF NOT EXISTS "idx_product_no_e4d701" ON "product" ("no")',
             'CREATE TABLE "email_user" (\n    "email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
-            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\'',
+            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n)',
+            'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
             'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
             'CREATE UNIQUE INDEX IF NOT EXISTS "uid_user_usernam_9987ab" ON "user" ("username")',
             'CREATE TABLE "product_user" (\n    "product_id" BIGINT NOT NULL REFERENCES "product" ("id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
@@ -1146,13 +1151,13 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_110d4c63"',
             'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
             'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" ("slug")',
-            'ALTER TABLE "config" ADD "name" VARCHAR(100) NOT NULL UNIQUE',
-            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_config_name_2c83c8" ON "config" ("name")',
             'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
             'ALTER TABLE "config" DROP CONSTRAINT IF EXISTS "fk_config_user_17daa970"',
-            'ALTER TABLE "config" RENAME TO "configs"',
             'ALTER TABLE "config" DROP COLUMN "user_id"',
             'ALTER TABLE "config" ALTER COLUMN "slug" TYPE VARCHAR(10) USING "slug"::VARCHAR(10)',
+            'DROP INDEX IF EXISTS "idx_config_name_2c83c8"',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_config_name_2c83c8" ON "config" ("name")',
+            'ALTER TABLE "config" RENAME TO "configs"',
             'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "email" DROP COLUMN "address"',
             'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
@@ -1161,7 +1166,6 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE INDEX IF NOT EXISTS "idx_email_company_1c9234" ON "email" ("company")',
             'DROP INDEX IF EXISTS "uid_email_company_1c9234"',
             'ALTER TABLE "product" ADD "uuid" INT NOT NULL UNIQUE',
-            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_uuid_d33c18" ON "product" ("uuid")',
             'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
             'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
             'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
@@ -1172,6 +1176,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL DEFAULT \'\'',
             'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
             'ALTER TABLE "user" ALTER COLUMN "longitude" TYPE DECIMAL(12,9) USING "longitude"::DECIMAL(12,9)',
+            'ALTER TABLE "user" DROP CONSTRAINT IF EXISTS "user_username_key"',
             'DROP TABLE IF EXISTS "product_user"',
             'DROP INDEX IF EXISTS "idx_product_name_869427"',
             'DROP INDEX IF EXISTS "idx_email_email_4a1a33"',
@@ -1188,7 +1193,11 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
-        assert warning_msg in capsys.readouterr().out
+        if not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in capsys.readouterr().out
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []
@@ -1222,7 +1231,7 @@ def test_sort_files_containing_non_migrations(mocker):
         return_value=[
             "1_datetime_update.py",
             "11_datetime_update.py",
-            "10_datetime_update.py",
+            "10_datetime_update.pyc",
             "2_datetime_update.py",
             "not_a_migration.py",
             "999.py",
@@ -1248,17 +1257,27 @@ def tmp_migrate_dir(tmp_path):
         yield
 
 
-async def test_empty_migration(mocker, tmp_migrate_dir) -> None:
+async def test_empty_migration(mocker, tmp_work_dir: Path) -> None:
     mocker.patch("os.listdir", return_value=[])
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
-
+    Migrate.migrate_location = tmp_work_dir
+    Migrate.app = "models_second"
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     migration_file = await Migrate.migrate("update", True, no_input=True)
     assert Path(migration_file).read_text() == expected_content
 
 
 async def test_remove_conflicts_empty(mocker, tmp_migrate_dir) -> None:
+    Migrate.app = "models"
     # empty migration
-    expected_content = MIGRATE_TEMPLATE.format(upgrade_sql="", downgrade_sql="")
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
     pre_migrate_file = Path("0_datetime_name.py")
     pre_migrate_file.write_text("Invalid migration content")
     mocker.patch("asyncclick.prompt", side_effect=(False,))
@@ -1309,3 +1328,85 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
     new_migration_file = await Migrate.migrate("update", empty=True, no_input=True)
     assert not Path(migration_file).exists()
     assert new_migration_file and new_migration_file.startswith("1_")
+
+
+def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
+    run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
+    run_shell("aerich init-db", capture_output=False)
+    output = run_shell("pytest -s _tests.py::test_1")
+    assert "error" not in output.lower()
+    for num in range(2, max_model_num + 1):
+        shutil.move(f"models_{num}.py", "models.py")
+        output = run_shell("aerich migrate" + " --offline" * offline)
+        assert "error" not in output.lower()
+        output = run_shell("aerich upgrade")
+        assert "error" not in output.lower()
+        output = run_shell(f"pytest -s _tests.py::test_{num}")
+        assert "error" not in output.lower()
+
+
+@requires_dialect("sqlite")
+def test_migrate_with_rescursive_m2m(tmp_work_dir):
+    prepare_py_files("m2m_rescursive")
+    _test_migrate_upgrade()
+
+
+@requires_dialect("postgres")
+def test_migrate_with_m2m_comment(tmp_work_dir):
+    prepare_py_files("m2m_comment")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
+
+
+@requires_dialect("postgres", "mysql")
+def test_drop_field_unique(tmp_work_dir):
+    prepare_py_files("drop_field_unique")
+    with tmp_daily_db():
+        _test_migrate_upgrade(5)
+
+
+@requires_dialect("sqlite")
+def test_delete_model_with_m2m_field(tmp_work_dir):
+    prepare_py_files("delete_model_with_m2m_field")
+    _test_migrate_upgrade(3)
+
+
+@requires_dialect("sqlite")
+def test_migrate_custom_index_offline(tmp_work_dir):
+    prepare_py_files("custom_index_offline")
+    _test_migrate_upgrade(3, offline=True)
+
+
+@requires_dialect("postgres", "mysql")
+def test_table_creations(tmp_work_dir):
+    prepare_py_files("table_creations")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
+
+
+@pytest.mark.anyio
+async def test_get_last_version(caplog):
+    caplog.set_level(logging.DEBUG)
+    Migrate.app = "models"
+
+    expected_sql = 'SELECT "version" "version" FROM "aerich"'
+    if Dialect.is_mysql():
+        expected_sql = expected_sql.replace('"', "`")
+    await Migrate._get_last_version_num()
+    text1 = caplog.text
+    assert expected_sql in text1
+    caplog.clear()
+
+    select_content = r'SELECT [",a-z]*?"content"[",a-z]* FROM "aerich"'
+    if Dialect.is_mysql():
+        select_content = select_content.replace('"', "`")
+    await Migrate.get_last_version()
+    text2 = caplog.text
+    assert expected_sql not in text2
+    # select content column from aerich may cost too much when content length is large
+    assert re.search(select_content, text2)
+    caplog.clear()
+
+    await Migrate.get_last_version(fields=["id", "version"])
+    text3 = caplog.text
+    assert not re.search(select_content, text3)
