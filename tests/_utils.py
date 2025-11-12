@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import os
 import platform
 import shlex
@@ -89,8 +90,12 @@ WINDOWS = platform.system() == "Windows"
 
 
 def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, str]:
-    if WINDOWS and command.startswith("aerich "):
-        command = "python -m " + command
+    if WINDOWS:
+        py = Path(sys.executable).as_posix()
+        if command.startswith("aerich "):
+            command = f"{py} -m " + command
+        elif command.startswith(s := "python "):
+            command = f"{py} " + command[len(s) :]
     r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
     ok = r.returncode == 0
     out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
@@ -101,10 +106,33 @@ def run_shell(command: str, capture_output=True, **kw) -> str:
     return run_in_subprocess(command, capture_output, **kw)[1]
 
 
-def copy_files(*src_files: Path, target_dir: Path | str = ".") -> None:
+def _copy_file_with_symlink_target_followed(
+    src: Path, target_dir: Path | str = ".", parent=ASSETS
+) -> None:
+    filename = src.name
+    dst = Path(target_dir, "conftest.py" if filename == "conftest_.py" else filename)
+    if WINDOWS:
+        content = src.read_bytes()
+        if content.startswith(b".."):
+            shutil.copy(parent / filename, dst)
+        else:
+            dst.write_bytes(content)
+    else:
+        shutil.copy(src, dst)
+
+
+@functools.cache
+def get_symlink_targets(parent: Path = ASSETS) -> set[str]:
+    return {i.name for i in parent.glob("*.py")}
+
+
+def copy_files(*src_files: Path, target_dir: Path | str = ".", parent: Path | None = None) -> None:
+    if parent is None:
+        parent = src_files[0].parent
+    symlink_targets = get_symlink_targets(parent)
     for src in src_files:
-        if src.name == "conftest_.py":
-            shutil.copy(src, Path(target_dir, "conftest.py"))
+        if src.name in symlink_targets:
+            _copy_file_with_symlink_target_followed(src, target_dir, parent)
         else:
             shutil.copy(src, target_dir)
 
@@ -113,7 +141,7 @@ def prepare_py_files(
     asset_name: str, assets: Path = ASSETS, suffix: str = ".py", with_testing_models: bool = False
 ) -> Path:
     asset_dir = assets / asset_name
-    copy_files(*asset_dir.glob(f"*{suffix}"))
+    copy_files(*asset_dir.glob(f"*{suffix}"), parent=assets)
     if with_testing_models:
         test_dir = assets.parent
         copy_files(test_dir / "models_second.py", test_dir / "models.py")
@@ -126,11 +154,16 @@ def prepare_py_files(
 
 def copy_asset(name: str, parent: Path = ASSETS) -> None:
     asset_dir = parent / name
+    symlink_targets = get_symlink_targets(parent)
     for p in asset_dir.glob("*"):
-        if p.name.startswith("."):
+        filename = p.name
+        if filename.startswith("."):
             continue
-        copy_func = shutil.copytree if p.is_dir() else shutil.copyfile
-        copy_func(p, "conftest.py" if p.name == "conftest_.py" else p.name)
+        if filename in symlink_targets:
+            _copy_file_with_symlink_target_followed(p, parent=parent)
+        else:
+            copy_func = shutil.copytree if p.is_dir() else shutil.copyfile
+            copy_func(p, "conftest.py" if p.name == "conftest_.py" else p.name)
 
 
 def skip_dialect(name: Literal["sqlite", "mysql", "postgres"]) -> Callable:
