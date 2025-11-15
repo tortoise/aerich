@@ -7,6 +7,7 @@ from enum import IntEnum
 from tortoise import Model, fields
 from tortoise.contrib.mysql.indexes import FullTextIndex
 from tortoise.contrib.postgres.indexes import HashIndex
+from tortoise.fields import OnDelete
 from tortoise.indexes import Index
 
 from tests._utils import Dialect
@@ -81,7 +82,7 @@ class Category(Model):
 class Product(Model):
     id = fields.BigIntField(primary_key=True)
     categories: fields.ManyToManyRelation[Category] = fields.ManyToManyField(
-        "models.Category", null=False
+        "models.Category", null=False, on_delete=OnDelete.NO_ACTION
     )
     users: fields.ManyToManyRelation[User] = fields.ManyToManyField(
         "models.User", related_name="products"

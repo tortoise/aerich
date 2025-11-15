@@ -986,6 +986,10 @@ def test_migrate(mocker: MockerFixture, capsys):
         Migrate.diff_models(models_describe, old_models_describe, False)
         Migrate._merge_operators()
     warning_msg = "Aerich does not handle 'unique' attribution for m2m field(models.Category.products). You may need to change the constraints in db manually."
+    ignore_on_delete = "Aerich does not handle 'unique' attribution for m2m field(models.Category.categories). You may need to change the constraints in db manually."
+    ignore_on_delete = (
+        "Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Product.categories"
+    )
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
@@ -1083,11 +1087,13 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
+        output = capsys.readouterr().out
         if not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
-            assert warning_msg in capsys.readouterr().out
+            assert warning_msg in output
+        assert ignore_on_delete in output
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = {
@@ -1193,11 +1199,13 @@ def test_migrate(mocker: MockerFixture, capsys):
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
+        output = capsys.readouterr().out
         if not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
-            assert warning_msg in capsys.readouterr().out
+            assert warning_msg in output
+        assert ignore_on_delete in output
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []
@@ -1330,7 +1338,7 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
     assert new_migration_file and new_migration_file.startswith("1_")
 
 
-def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
+def _test_migrate_upgrade(max_model_num: int = 2, offline=False, messages="") -> None:
     run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
     run_shell("aerich init-db", capture_output=False)
     output = run_shell("pytest -s _tests.py::test_1")
@@ -1339,6 +1347,8 @@ def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
         shutil.move(f"models_{num}.py", "models.py")
         output = run_shell("aerich migrate" + " --offline" * offline)
         assert "error" not in output.lower()
+        for line in messages.strip().splitlines():
+            assert line.strip() in output
         output = run_shell("aerich upgrade")
         assert "error" not in output.lower()
         output = run_shell(f"pytest -s _tests.py::test_{num}")
@@ -1349,6 +1359,17 @@ def _test_migrate_upgrade(max_model_num: int = 2, offline=False) -> None:
 def test_migrate_with_rescursive_m2m(tmp_work_dir):
     prepare_py_files("m2m_rescursive")
     _test_migrate_upgrade()
+
+
+@requires_dialect("sqlite")
+def test_ignore_on_delete(tmp_work_dir):
+    prepare_py_files("ignore_on_delete")
+    messages = """
+Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Profile.user (You may need to do it in db manually).
+Ignore 'on_delete' changes 'CASCADE' -> 'SET NULL' for models.User.group (You may need to do it in db manually).
+No changes detected
+    """
+    _test_migrate_upgrade(messages=messages)
 
 
 @requires_dialect("postgres")
