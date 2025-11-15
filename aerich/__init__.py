@@ -7,6 +7,7 @@ from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+import asyncclick as click
 from tortoise import BaseDBAsyncClient, Tortoise, connections
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
@@ -278,3 +279,31 @@ class Command(TortoiseContext):
         Migrate.app = self.app
         Migrate.migrate_location = Migrate.get_migration_dir(self.location, self.app)
         return await Migrate.fix_migrations(self.tortoise_config)
+
+    @staticmethod
+    async def get_applied_migrations(self, app: str | None = None) -> list[str]:
+        """
+        Get applied migrations by query the 'aerich' table
+
+        :param app: if None, query all app
+        :return: List of migration files
+        """
+        qs = Aerich.all()
+        if app is not None:
+            qs = qs.filter(app=app)
+        return await qs.values_list("version", flat=True)  # type:ignore[return-value]
+
+    @classmethod
+    def list_applied(cls, app: str | None = None) -> None:
+        @click.command
+        async def display() -> None:
+            async with TortoiseContext():
+                applied = await cls.get_applied_migrations(app)
+            if applied:
+                click.echo(click.style("Applied Migrations:", bold=True))
+                for migration_file in applied:
+                    click.echo(migration_file)
+            else:
+                click.echo("No applied migration for " + ("all apps" if app is None else f"{app=}"))
+
+        display()
