@@ -1431,3 +1431,19 @@ async def test_get_last_version(caplog):
     await Migrate.get_last_version(fields=["id", "version"])
     text3 = caplog.text
     assert not re.search(select_content, text3)
+
+
+@requires_dialect("mysql")
+@pytest.mark.anyio
+async def test_get_db_version(monkeypatch):
+    origin_db_version = Migrate._db_version
+    mysql_version = "5.7"
+    monkeypatch.setenv("AERICH_MYSQL_VERSION", mysql_version)
+    await Migrate._get_db_version(Migrate.ddl.client)
+    assert Migrate._db_version != mysql_version
+    await Migrate._get_db_version(Migrate.ddl.client, offline=True)
+    assert Migrate._db_version == mysql_version
+    monkeypatch.setenv("AERICH_MYSQL_VERSION", "8.0")
+    await Migrate._get_db_version(Migrate.ddl.client, offline=True)
+    assert Migrate._db_version == "8.0"
+    Migrate._db_version = origin_db_version

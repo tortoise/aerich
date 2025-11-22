@@ -4,6 +4,7 @@ import contextlib
 import functools
 import importlib
 import inspect
+import os
 import pkgutil
 import re
 from collections.abc import Awaitable, Iterable, Sequence
@@ -148,8 +149,19 @@ class Migrate:
         )
 
     @classmethod
-    async def _get_db_version(cls, connection: BaseDBAsyncClient) -> None:
+    async def _get_db_version(cls, connection: BaseDBAsyncClient, offline: bool = False) -> None:
         if cls.dialect == "mysql":
+            if offline:
+                if db_version := os.getenv("AERICH_MYSQL_VERSION"):
+                    cls._db_version = db_version
+                else:
+                    cls.secho_warning(
+                        "Env 'AERICH_MYSQL_VERSION' not defined! "
+                        "This env is required to determine field rename syntax."
+                        "If you are not using MySQL8+, please export it, "
+                        "e.g.: `export AERICH_MYSQL_VERSION=5.7`"
+                    )
+                return
             sql = "select version() as version"
             ret = await connection.execute_query(sql)
             cls._db_version = ret[1][0].get("version")
@@ -189,7 +201,7 @@ class Migrate:
         cls.dialect = connection.schema_generator.DIALECT
         cls.ddl_class = await cls.load_ddl_class()
         cls.ddl = cls.ddl_class(connection)
-        await cls._get_db_version(connection)
+        await cls._get_db_version(connection, offline)
 
     @classmethod
     async def _get_last_version_num(cls, offline: bool = False) -> int | None:
