@@ -4,9 +4,13 @@
 
 ### [0.9.3]**(Unreleased)**
 
+#### Added
+- feat: list applied migrations ([#512])
+
 #### Fixed
 - fix: postgres field comment error with single quote ([#503])
 
+[#512]: https://github.com/tortoise/aerich/pull/512
 [#503]: https://github.com/tortoise/aerich/pull/503
 
 ### [0.9.2](../../releases/tag/v0.9.2) - 2025-10-09
