@@ -16,19 +16,19 @@ deps:
 	@uv sync --all-extras --all-groups --no-extra asyncmy --no-group=vector $(options)
 
 _style:
-	@uv run --frozen ruff format $(checkfiles)
-	@uv run --frozen ruff check --fix $(checkfiles)
+	@ruff format $(checkfiles)
+	@ruff check --fix $(checkfiles)
 style: deps _style
 
 _codeqc:
-	uv run --frozen mypy $(checkfiles)
-	uv run --frozen bandit -c pyproject.toml -r $(checkfiles)
-	uv run --frozen twine check dist/*
+	mypy $(checkfiles)
+	bandit -c pyproject.toml -r $(checkfiles)
+	twine check dist/*
 codeqc: build _codeqc
 
 _check: _build
-	@uv run --frozen ruff format --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-	@uv run --frozen ruff check $(checkfiles)
+	@ruff format --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
+	@ruff check $(checkfiles)
 	$(MAKE) _codeqc
 check: deps _check
 
@@ -42,22 +42,22 @@ test_sqlite:
 	$(py_warn) TEST_DB=sqlite://:memory: pytest $(pytest_opts)
 
 test_mysql:
-	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" uv run --frozen pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 test_postgres:
-	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --frozen pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 test_postgres_vector:
 	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s tests/test_inspectdb.py::test_inspect_vector $(pytest_opts)
 
 test_psycopg:
-	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --frozen pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
 
 _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
 report:
-	uv run --frozen coverage report -m
+	coverage report -m
 
 _build:
 	uv build --clear
