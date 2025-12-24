@@ -56,12 +56,13 @@ jobs:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
       - uses: actions/checkout@v6
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
       - uses: astral-sh/setup-uv@v7
         with:
+          enable-cache: true
           activate-environment: true
       - name: Install dependencies
         run: make deps options='--no-extra=psycopg'
