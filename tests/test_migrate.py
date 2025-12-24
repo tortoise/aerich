@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import shutil
+import sys
 from pathlib import Path
 
 import anyio
@@ -1143,6 +1144,10 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category"',
         }
+        if sys.version_info >= (3, 14):
+            expected_upgrade_operators.add(
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
+            )
         upgrade_operators = set(Migrate.upgrade_operators)
         upgrade_more_than_expected = upgrade_operators - expected_upgrade_operators
         assert not upgrade_more_than_expected
@@ -1194,6 +1199,10 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category_map"',
         }
+        if sys.version_info >= (3, 14):
+            expected_downgrade_operators.add(
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
+            )
         downgrade_operators = set(Migrate.downgrade_operators)
         downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
         assert not downgrade_more_than_expected
