@@ -20,6 +20,7 @@ def new_project(tmp_work_dir: Path) -> Generator[Path]:
     yield tmp_work_dir
 
 
+@requires_dialect("sqlite")
 def test_empty_migrate_with_no_input(new_project: Path) -> None:
     output = run_shell("aerich migrate", cwd=new_project)
     assert "No changes detected" in output
@@ -44,6 +45,7 @@ async def project_with_unapplied_migrations(new_project: Path) -> None:
     run_shell("aerich migrate", cwd=new_project)
 
 
+@requires_dialect("sqlite")
 def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations) -> None:
     # CliRunner change the entire interpreter state, so run it in subprocess
     output = run_shell("pytest _tests.py")
