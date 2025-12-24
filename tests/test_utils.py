@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 from tortoise.indexes import Index
 
-from aerich._compat import tomllib
+from aerich._compat import tomllib, tortoise_version_less_than
 from aerich.utils import (
     BadOptionUsage,
     ClickException,
@@ -479,9 +479,7 @@ def test_model_state_compress_decompress():
     if isinstance(index, Index):  # tortoise-orm<0.24
         assert isinstance(s, str)
         assert all(len(i.strip().strip('"')) <= 70 for i in s.splitlines())
-        assert (
-            s
-            == """
+        expected = """
     "eJytkl1vmzAUhv9KxdUmdVNGk7XaHUUNST8lGkiWakLGmI/l2GZgQpuI/z7bhJEma7WLcY"
     "Ufv8bnPIetQXlEoPw85tz4drI1GKJEvuzj0xMD5XkPFRAoBJ2Ld4GwFAXCQqIYQUkkikiJ"
     "iywXGWeSsgpAQY5lMGNJjyqW/apIIHhCREoKufH0Q+KMReSZlGq5NcRLrm/TUN23RqDWif"
@@ -493,7 +491,20 @@ def test_model_state_compress_decompress():
     "Bu/I8i3Xnljuh9Hgo5Sm/rR4tedMgRDhVY2KKDja4SZ/K3u8RU16SBBDiRag2mia3ySpWd"
     "s="
         """.strip()
-        )
+        if sys.version_info >= (3, 14):
+            expected = """
+    "eJytkl1vmzAUhv9KxdUmbVPGkrXaHUULST8lGiDNNCFjzMdybDMwoU3Ef59tQsmSrdrFuM"
+    "KPX+NznsPOoDwmUH2Ycm58OdsZDFEiXw7xuzMDFcUAFRAoAp1L9oGoEiXCQqIEQUUkikmF"
+    "y7wQOWeSshpAQY5lMGfpgGqW/6xJKHhKREZKufHtu8Q5i8kTqdRyZ4jnQt+mobpvg0CtUy"
+    "vwg8baP/bt15m7wczdoOUd3FCoV44/Xi3vvR+WfxVRF8jVwwJsegkz07ueN86KAkSOu4Wp"
+    "KTPuNpr5DBzn9tKZZFEQeAve3KyWWYOpv8UmbCJ2710/NlPJRpg68oztxcG8NlpVcrEOk5"
+    "xA/JvIPFb1ah72bcyZmOqgMhKFmENN2RAunkXGWTg0LRRNCSMlEkR9XpS1UqwM7gfRW+9s"
+    "DpFO48GZmCSoBnEwkn+cE+ZMzVhWU+kGU3XLe/Pj+Hx88enz+EJGdCUv5Lzt2ht67w5qA3"
+    "cLo9X7SKAusR91762COj01Z2eo/LO6Pn8kT5Z8LK9X9Zq9Hgz6ht/6P/mj6CkEwlKRyeVk"
+    "9Ios33LtmeW+mYzeSmnqT0vWB84UiBBeN6iMw5MdbvK/ZU+3qEmPCWIo1QJUG237CzJpWd"
+    "8="
+    """.strip()
+        assert s == expected
     else:
         assert (
             s
@@ -508,4 +519,16 @@ def test_model_state_compress_decompress():
     "VzD4DWaJovHjE6og=="
         """.strip()
         )
-    assert decompress_dict(s) == describe
+    loaded_desc = decompress_dict(s)
+    if tortoise_version_less_than("0.23.0"):
+        # <tortoise.indexes.Index object at 0x7d1560b139d0>
+        loaded_index = loaded_desc["models.Foo"]["indexes"].pop()
+        # <tortoise.indexes.Index object at 0x7d1560c3cb00>
+        origin_index = describe["models.Foo"]["indexes"].pop()  # type:ignore[attr-defined]
+        assert isinstance(loaded_index, Index)
+        assert origin_index.name == loaded_index.name
+        assert origin_index.fields == loaded_index.fields
+        assert origin_index.expressions == loaded_index.expressions
+        assert origin_index.INDEX_TYPE == loaded_index.INDEX_TYPE
+        assert origin_index.extra == loaded_index.extra
+    assert loaded_desc == describe
