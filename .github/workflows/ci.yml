@@ -94,15 +94,23 @@ jobs:
         run: |
           uv pip uninstall tortoise-orm
           uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-      - name: Run tests
+      - name: Run tests for postgres
+        run:
+          make test_postgres
+        env:
+          POSTGRES_PASS: 123456
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+      - name: Run tests for mysql
+        run:
+          make test_mysql
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
-          POSTGRES_PASS: 123456
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_PORT: 5432
-        run: make _testall
+      - name: Run tests for sqlite
+        run:
+          make test_sqlite
       - name: Show test coverage
         run: make report
 
