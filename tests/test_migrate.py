@@ -1037,7 +1037,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         }
         if sys.version_info >= (3, 14):
             expected_upgrade_operators.add(
-                'ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL'
+                "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
             )
         upgrade_operators = set(Migrate.upgrade_operators)
         upgrade_more_than_expected = upgrade_operators - expected_upgrade_operators
@@ -1089,7 +1089,7 @@ def test_migrate(mocker: MockerFixture, capsys):
         }
         if sys.version_info >= (3, 14):
             expected_downgrade_operators.add(
-                'ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL'
+                "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
             )
         downgrade_operators = set(Migrate.downgrade_operators)
         downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
