@@ -1037,8 +1037,9 @@ def test_migrate(mocker: MockerFixture, capsys):
         }
         if sys.version_info >= (3, 14):
             expected_upgrade_operators.add(
-                "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
+                "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
             )
+
         upgrade_operators = set(Migrate.upgrade_operators)
         upgrade_more_than_expected = upgrade_operators - expected_upgrade_operators
         assert not upgrade_more_than_expected
