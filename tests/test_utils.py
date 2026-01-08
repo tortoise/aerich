@@ -348,6 +348,14 @@ def test_load_tortoise_config_in_new_project(monkeypatch, tmp_work_dir):
     assert load_tortoise_config() == {"apps": {"models": {}}}
 
 
+def _init_config(settings: str) -> Path:
+    settings_py = Path(settings + ".py")
+    shutil.copy(ASSETS / "settings.py", settings_py)
+    output = run_shell(f"aerich init -t {settings}.TORTOISE_ORM")
+    assert "error" not in output.lower()
+    return settings_py
+
+
 @requires_dialect("sqlite")
 def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
     monkeypatch.setenv("TORTOISE_ORM", "")
@@ -355,20 +363,21 @@ def test_load_tortoise_config_errors(tmp_work_dir, monkeypatch):
         load_tortoise_config()
 
     settings = "settings_errors"
-    settings_py = Path(settings + ".py")
-    shutil.copy(ASSETS / "settings.py", settings_py)
-    output = run_shell(f"aerich init -t {settings}.TORTOISE_ORM")
-    assert "error" not in output.lower()
+    settings_py = _init_config(settings)
     settings_py.unlink()
     msg = f"Error while importing configuration module: No module named '{settings}'"
     with pytest.raises(ClickException, match=msg):
         load_tortoise_config()
 
-    new_settings = settings + "_v2"
-    settings_py.with_stem(new_settings).touch()
-    config_file = Path("pyproject.toml")
-    text = config_file.read_text(encoding="utf-8")
-    config_file.write_text(text.replace(settings, new_settings), encoding="utf-8")
+
+@requires_dialect("sqlite")
+def test_load_tortoise_config_errors_v2(tmp_work_dir, monkeypatch):
+    monkeypatch.setenv("TORTOISE_ORM", "")
+    settings = "settings_errors_v2"
+    settings_py = _init_config(settings)
+    text = settings_py.read_text(encoding="utf-8")
+    new_text = text.replace("TORTOISE_ORM =", "TORTOISE_ORM_V2 =")
+    settings_py.write_text(new_text, encoding="utf-8")
     if "." not in sys.path:
         sys.path.append(".")
     with pytest.raises(BadOptionUsage, match='Can\'t get "TORTOISE_ORM" from module'):
