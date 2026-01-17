@@ -60,8 +60,7 @@ report:
 	coverage report -m
 
 _build:
-	rm -fR dist/
-	uv build
+	uv build --clear
 build: deps _build
 
 ci: build _check _testall

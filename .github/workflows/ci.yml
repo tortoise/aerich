@@ -11,8 +11,28 @@ on:
     paths-ignore:
       - "*.md"
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.14]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Python
+        id: setup-python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+      - uses: astral-sh/setup-uv@v7
+        with:
+          activate-environment: true
+      - name: Check code style and Type Hints
+        run: make check
+
   ci:
     runs-on: ubuntu-latest
+    needs: lint
     services:
       postgres:
         image: postgres
@@ -24,7 +44,7 @@ jobs:
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         tortoise-orm:
           - tortoise021
           - tortoise022
@@ -35,26 +55,37 @@ jobs:
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           activate-environment: true
-          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: make deps options='--no-extra=psycopg'
       - name: Install TortoiseORM v0.21
         if: matrix.tortoise-orm == 'tortoise021'
-        run: uv pip install --upgrade "tortoise-orm>=0.21,<0.22"
+        run: |
+          uv pip install --upgrade "tortoise-orm>=0.21,<0.22"
+          uv pip install --upgrade "aiosqlite<0.22"
       - name: Install TortoiseORM v0.22
         if: matrix.tortoise-orm == 'tortoise022'
-        run: uv pip install --upgrade "tortoise-orm>=0.22,<0.23"
+        run: |
+          uv pip install --upgrade "tortoise-orm>=0.22,<0.23"
+          uv pip install --upgrade "aiosqlite<0.22"
       - name: Install TortoiseORM v0.23
         if: matrix.tortoise-orm == 'tortoise023'
-        run: uv pip install --upgrade "tortoise-orm>=0.23,<0.24"
+        run: |
+          uv pip install --upgrade "tortoise-orm>=0.23,<0.24"
+          uv pip install --upgrade "aiosqlite<0.22"
       - name: Install TortoiseORM v0.24
         if: matrix.tortoise-orm == 'tortoise024'
-        run: uv pip install --upgrade "tortoise-orm>=0.24,<0.25"
+        run: |
+          uv pip install --upgrade "tortoise-orm>=0.24,<0.25"
+          uv pip install --upgrade "aiosqlite<0.22"
       - name: Install TortoiseORM v0.25
         if: matrix.tortoise-orm == 'tortoise025'
         run: uv pip install --upgrade "tortoise-orm>=0.25,<0.26"
@@ -63,28 +94,33 @@ jobs:
         run: |
           uv pip uninstall tortoise-orm
           uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-      - name: Build sdist
-        run: make _build
-      - name: Check style
-        run: make _check
-      - name: Run tests
+      - name: Run tests for postgres
+        run:
+          make test_postgres
+        env:
+          POSTGRES_PASS: 123456
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+      - name: Run tests for mysql
+        run:
+          make test_mysql
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
-          POSTGRES_PASS: 123456
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_PORT: 5432
-        run: make _testall
+      - name: Run tests for sqlite
+        run:
+          make test_sqlite
       - name: Show test coverage
         run: make report
 
   asyncmySupport:
     runs-on: ubuntu-latest
+    needs: lint
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -105,6 +141,7 @@ jobs:
 
   postgresVector:
     runs-on: ubuntu-latest
+    needs: lint
     services:
       postgres:
         image: ankane/pgvector:latest
@@ -115,7 +152,7 @@ jobs:
           POSTGRES_USER: postgres
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -134,11 +171,12 @@ jobs:
 
   psycopgSupport:
     runs-on: ${{ matrix.os }}
+    needs: lint
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
