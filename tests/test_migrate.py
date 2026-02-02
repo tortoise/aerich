@@ -1465,3 +1465,10 @@ async def test_get_db_version(monkeypatch):
     await Migrate._get_db_version(Migrate.ddl.client, offline=True)
     assert Migrate._db_version == "8.0"
     Migrate._db_version = origin_db_version
+
+
+@requires_dialect("postgres", "mysql")
+def test_create_multi_foreignkey_tables(tmp_work_dir):
+    prepare_py_files("order_fk")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
