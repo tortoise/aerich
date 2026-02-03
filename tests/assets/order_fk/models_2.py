@@ -13,7 +13,7 @@ class Continent(NameBase):
 
 
 class Country(NameBase):
-    country = fields.ForeignKeyField("models.Continent", on_delete=fields.CASCADE)
+    continent = fields.ForeignKeyField("models.Continent", on_delete=fields.CASCADE)
 
 
 class Region(NameBase):

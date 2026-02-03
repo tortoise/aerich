@@ -90,7 +90,8 @@ jobs:
         if: matrix.tortoise-orm == 'tortoise025'
         run: uv pip install --upgrade "tortoise-orm>=0.25,<0.26"
       - name: Install TortoiseORM develop branch
-        if: matrix.tortoise-orm == 'tortoisedev'
+        # Skip python3.9 as develop branch of tortoise-orm only support python>=3.10
+        if: matrix.tortoise-orm == 'tortoisedev' && matrix.python-version != '3.9'
         run: |
           uv pip uninstall tortoise-orm
           uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
