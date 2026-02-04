@@ -1042,7 +1042,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
             "DROP TABLE IF EXISTS `config_category`",
             "ALTER TABLE `config` MODIFY COLUMN `slug` VARCHAR(20) NOT NULL",
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
             )
@@ -1095,7 +1095,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
             "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
             "DROP TABLE IF EXISTS `config_category_map`",
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
             )
@@ -1160,7 +1160,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category"',
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
@@ -1215,7 +1215,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category_map"',
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
