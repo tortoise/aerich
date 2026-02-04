@@ -1,11 +1,11 @@
 import pytest
 from models import User
-from tortoise import connections
+from tortoise import Tortoise
 from tortoise.exceptions import OperationalError
 
 
 async def _run_sql(statement: str) -> list[dict]:
-    conn = connections.get("default")
+    conn = Tortoise.get_connection("default")
     return await conn.execute_query_dict(statement)
 
 
