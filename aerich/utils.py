@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import importlib.util
 import os
 import pkgutil
@@ -213,25 +214,27 @@ def import_py_file(file: str | Path) -> ModuleType:
     return module
 
 
-def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
+def _load_py_spec(module_info: pkgutil.ModuleInfo):
     module_finder: FileFinder
     name: str
     ispkg: bool
     module_finder, name, ispkg = module_info  # type:ignore[assignment]
-    module_finder.invalidate_caches()
+    with contextlib.suppress(AttributeError):
+        # 'nuitka_module_loader' object has no attribute 'invalidate_caches'
+        module_finder.invalidate_caches()
     spec = module_finder.find_spec(name)
-    module = importlib.util.module_from_spec(spec)  # type:ignore[arg-type]
-    spec.loader.exec_module(module)  # type:ignore[union-attr]
+    return spec, name, module_finder
+
+
+def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
+    spec, *_ = _load_py_spec(module_info)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     return module
 
 
 def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
-    module_finder: FileFinder
-    name: str
-    ispkg: bool
-    module_finder, name, ispkg = module_info  # type:ignore[assignment]
-    module_finder.invalidate_caches()
-    spec = module_finder.find_spec(name)
+    spec, name, module_finder = _load_py_spec(module_info)
     if not spec or not spec.origin or not Path(spec.origin).is_file():
         raise FileNotFoundError(f"Module {name} not found in {module_finder.path}.")
     return Path(spec.origin)
