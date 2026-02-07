@@ -603,21 +603,21 @@ class Migrate:
         if not upgrade:
             # we can't find origin model when downgrade, so skip
             return
-        simple_tables: list[str] = []
-        simple_table_models: set[str] = set()
-        sql_fks: list[tuple[str, str, set[str]]] = []
+        simple_tables: list[str] = []  # tables without fk fields or o2o fields
+        simple_table_models: set[str] = set()  # e.g.: {'models.User', 'models.Group', ...}
+        sql_fks: list[tuple[str, str, set[str]]] = []  # new tables that are not in simple_tables
         for new_model_str, new_model_describe, model in new_table_items:
             sql = cls.add_model(model)
             fk_model_names: set[str] = {
                 i.get("python_type", "")
                 for i in (new_model_describe["fk_fields"] + new_model_describe["o2o_fields"])
             }
-            if not fk_model_names:
-                simple_tables.append(sql)
-                simple_table_models.add(new_model_str)
-            else:
+            if fk_model_names:
                 item = (sql, new_model_str, fk_model_names)
                 sql_fks.append(item)
+            else:
+                simple_tables.append(sql)
+                simple_table_models.add(new_model_str)
             cls._handle_m2m_fields({}, new_model_describe, model, new_models, upgrade)
         for sql in simple_tables:
             cls._add_operator(sql, upgrade)
