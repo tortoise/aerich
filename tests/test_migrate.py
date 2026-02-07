@@ -10,6 +10,7 @@ import anyio
 import pytest
 import tortoise
 from pytest_mock import MockerFixture
+from tortoise import Tortoise
 from tortoise.indexes import Index
 
 from aerich._compat import tortoise_version_less_than
@@ -19,7 +20,7 @@ from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
-from aerich.utils import get_formatted_compressed_data, get_models_describe
+from aerich.utils import NotInitedError, get_formatted_compressed_data, get_models_describe
 from tests._utils import (
     Dialect,
     chdir,
@@ -943,7 +944,8 @@ old_models_describe = {
 }
 
 
-def test_migrate(mocker: MockerFixture, capsys):
+@pytest.mark.anyio
+async def test_migrate(mocker: MockerFixture, capsys):
     """
     models.py diff with old_models.py
     - change email pk: id -> email_id
@@ -972,8 +974,13 @@ def test_migrate(mocker: MockerFixture, capsys):
     - rename fk column: Category.user -> Category.owner
     """
     mocker.patch("asyncclick.prompt", side_effect=(True, True, True, True))
+    try:
+        models_describe = get_models_describe("models")
+    except NotInitedError:
+        from conftest import tortoise_orm
 
-    models_describe = get_models_describe("models")
+        await Tortoise.init(config=tortoise_orm)
+        models_describe = get_models_describe("models")
     Migrate.app = "models"
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
@@ -1035,7 +1042,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "DROP TABLE IF EXISTS `config_category`",
             "ALTER TABLE `config` MODIFY COLUMN `slug` VARCHAR(20) NOT NULL",
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
             )
@@ -1088,7 +1095,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
             "DROP TABLE IF EXISTS `config_category_map`",
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
             )
@@ -1153,7 +1160,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category"',
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
@@ -1208,7 +1215,7 @@ def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category_map"',
         }
-        if sys.version_info >= (3, 14):
+        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
@@ -1465,3 +1472,10 @@ async def test_get_db_version(monkeypatch):
     await Migrate._get_db_version(Migrate.ddl.client, offline=True)
     assert Migrate._db_version == "8.0"
     Migrate._db_version = origin_db_version
+
+
+@requires_dialect("postgres", "mysql")
+def test_create_multi_foreignkey_tables(tmp_work_dir):
+    prepare_py_files("order_fk")
+    with tmp_daily_db():
+        _test_migrate_upgrade()

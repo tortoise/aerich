@@ -177,7 +177,7 @@ def get_models_describe(app: str) -> dict[str, dict[str, Any]]:
     ret: dict[str, dict[str, Any]] = {}
     try:
         app_config = Tortoise.apps[app]
-    except KeyError as e:
+    except (KeyError, TypeError) as e:
         if not Tortoise._inited:
             raise NotInitedError("Tortoise not inited yet.") from e
         logger.debug(f"{Tortoise.apps.keys() = }")

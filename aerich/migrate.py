@@ -17,7 +17,7 @@ from typing import Any, Callable, Literal, cast, overload
 import asyncclick as click
 from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Model, Tortoise
-from tortoise.exceptions import OperationalError
+from tortoise.exceptions import ConfigurationError, OperationalError
 from tortoise.indexes import Index
 
 from aerich._compat import tortoise_version_less_than
@@ -594,29 +594,48 @@ class Migrate:
 
     @classmethod
     def _handle_add_models(
-        cls, upgrade: bool, new_models, new_table_items: list[tuple[str, dict, type[Model]]]
+        cls,
+        upgrade: bool,
+        new_models,
+        new_table_items: list[tuple[str, dict, type[Model]]],
+        other_table_items: list[tuple[str, dict, type[Model]]] | None = None,
     ) -> None:
-        sql_fks: list[tuple[str, set[str]]] = []
+        if not upgrade:
+            # we can't find origin model when downgrade, so skip
+            return
+        simple_tables: list[str] = []  # tables without fk fields or o2o fields
+        simple_table_models: set[str] = set()  # e.g.: {'models.User', 'models.Group', ...}
+        sql_fks: list[tuple[str, str, set[str]]] = []  # new tables that are not in simple_tables
         for new_model_str, new_model_describe, model in new_table_items:
-            if not upgrade:
-                # we can't find origin model when downgrade, so skip
-                continue
             sql = cls.add_model(model)
             fk_model_names: set[str] = {
                 i.get("python_type", "")
                 for i in (new_model_describe["fk_fields"] + new_model_describe["o2o_fields"])
             }
-            item = (sql, fk_model_names)
-            name = new_model_describe["name"]
-            for index, (_, fks) in enumerate(sql_fks):
-                if name in fks:
-                    sql_fks.insert(index, item)
-                    break
-            else:
+            if fk_model_names:
+                item = (sql, new_model_str, fk_model_names)
                 sql_fks.append(item)
+            else:
+                simple_tables.append(sql)
+                simple_table_models.add(new_model_str)
             cls._handle_m2m_fields({}, new_model_describe, model, new_models, upgrade)
-        for sql, _ in sql_fks:
+        for sql in simple_tables:
             cls._add_operator(sql, upgrade)
+        if sql_fks:
+            simple_or_exists = simple_table_models | {i[0] for i in (other_table_items or [])}
+            ordered_tables: list[str] = []  # e.g.: ['CREATE TABLE `city` ...']
+            ordered_table_models: set[str] = set()  # e.g.: ['models.City', ...]
+            for _ in range(len(sql_fks)):
+                for index, (sql, new_model_str, fk_model_names) in enumerate(sql_fks):
+                    if not (fk_model_names - simple_or_exists - ordered_table_models):
+                        ordered_tables.append(sql)
+                        ordered_table_models.add(new_model_str)
+                        sql_fks.pop(index)
+                        break
+                else:
+                    raise ConfigurationError("Can't create schema due to cyclic fk references")
+            for sql in ordered_tables:
+                cls._add_operator(sql, upgrade)
 
     @classmethod
     def diff_models(
@@ -651,7 +670,7 @@ class Migrate:
                 new_table_items.append(item)
             else:
                 other_items.append(item)
-        cls._handle_add_models(upgrade, new_models, new_table_items)
+        cls._handle_add_models(upgrade, new_models, new_table_items, other_items)
         for new_model_str, new_model_describe, model in other_items:
             old_model_describe = cast(dict, old_models.get(new_model_str))
             if not upgrade and old_model_describe.get("managed") is False:

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import asyncclick as click
-from tortoise import BaseDBAsyncClient, Tortoise, connections
+from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import generate_schema_for_client, get_schema_sql
@@ -69,7 +69,7 @@ class TortoiseContext(AbstractAsyncContextManager):
     async def aclose() -> None:
         """Close tortoise connections if it was inited"""
         if Tortoise._inited:
-            await connections.close_all()
+            await Tortoise.close_connections()
 
     async def __aexit__(self, *args, **kw) -> None:
         await self.aclose()
