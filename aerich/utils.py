@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import importlib
 import importlib.util
 import os
 import pkgutil
@@ -219,15 +220,31 @@ def _load_py_spec(module_info: pkgutil.ModuleInfo):
     name: str
     ispkg: bool
     module_finder, name, ispkg = module_info  # type:ignore[assignment]
+    spec = None
     with contextlib.suppress(AttributeError):
         # 'nuitka_module_loader' object has no attribute 'invalidate_caches'
         module_finder.invalidate_caches()
-    spec = module_finder.find_spec(name)
+        spec = module_finder.find_spec(name)
     return spec, name, module_finder
 
 
+def _nuitka_module_loader(name: str, finder: FileFinder) -> ModuleType:
+    original_sys_path = sys.path.copy()
+    should_rollback = False
+    if (finder_path := getattr(finder, "path", "")) and finder_path not in sys.path:
+        sys.path.insert(0, finder_path)
+        should_rollback = True
+    try:
+        return importlib.import_module(name)
+    finally:
+        if should_rollback:
+            sys.path = original_sys_path
+
+
 def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
-    spec, *_ = _load_py_spec(module_info)
+    spec, name, finder = _load_py_spec(module_info)
+    if spec is None or spec.loader is None:
+        return _nuitka_module_loader(name, finder)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -236,7 +253,11 @@ def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
 def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
     spec, name, module_finder = _load_py_spec(module_info)
     if not spec or not spec.origin or not Path(spec.origin).is_file():
-        raise FileNotFoundError(f"Module {name} not found in {module_finder.path}.")
+        dirpath = Path(module_finder.path)
+        for suffix in (".py", ".pyc"):
+            if (f := dirpath / (name + suffix)).exists():
+                return f
+        raise FileNotFoundError(f"Module {name} not found in {dirpath}.")
     return Path(spec.origin)
 
 
