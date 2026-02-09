@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import importlib
+import importlib.machinery
 import importlib.util
 import os
 import pkgutil
@@ -239,12 +240,20 @@ def _get_module_file(finder: FileFinder, name: str) -> tuple[Path, Path | None]:
 
 
 def _nuitka_module_loader(name: str, finder: FileFinder) -> ModuleType:
-    # For python3.12+: run `pip install imp2importlib` to install imp module
-    from imp import load_source  # type:ignore[import-not-found]
-
     dirpath, file = _get_module_file(finder, name)
     if file is not None:
-        return load_source(name, file.as_posix())
+        filename = file.as_posix()
+        try:
+            from imp import load_source  # type:ignore[import-not-found]
+        except ImportError:
+            loader = importlib.machinery.SourceFileLoader(name, filename)
+            spec = importlib.util.spec_from_file_location(name, filename, loader=loader)
+            if spec is not None:
+                module = importlib.util.module_from_spec(spec)
+                loader.exec_module(module)
+                return module
+        else:
+            return load_source(name, filename)
     raise ImportError(f"Failed to import {name} from {dirpath}")
 
 
