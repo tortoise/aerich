@@ -113,7 +113,7 @@ jobs:
     needs: lint
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: [3.13]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -128,6 +128,7 @@ jobs:
         run: |
           make deps options='--no-dev --no-group test'
           uv pip install nuitka
+          uv pip install imp2importlib
           sudo apt install -y patchelf
       - name: Run tests for nuitka
         run: |
