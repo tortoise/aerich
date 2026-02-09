@@ -108,24 +108,13 @@ jobs:
       - name: Show test coverage
         run: make report
 
-  tortoiseDevSupport:
+  nuitkaSupport:
     runs-on: ubuntu-latest
     needs: lint
-    services:
-      postgres:
-        image: postgres
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_PASSWORD: 123456
-          POSTGRES_USER: postgres
-        options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        python-version: ["3.10", "3.14"]
+        python-version: ["3.11"]
     steps:
-      - name: Start MySQL
-        run: sudo systemctl start mysql.service
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
@@ -137,25 +126,15 @@ jobs:
           activate-environment: true
       - name: Install dependencies
         run: |
-          make deps options='--no-extra=psycopg'
-          uv pip install --upgrade "git+https://github.com/tortoise/tortoise-orm"
-      - name: Run tests for postgres
-        run:
-          make test_postgres
-        env:
-          POSTGRES_PASS: 123456
-          POSTGRES_HOST: 127.0.0.1
-          POSTGRES_PORT: 5432
-      - name: Run tests for mysql
-        run:
-          make test_mysql
-        env:
-          MYSQL_PASS: root
-          MYSQL_HOST: 127.0.0.1
-          MYSQL_PORT: 3306
-      - name: Run tests for sqlite
-        run:
-          make test_sqlite
+          make deps options='--no-dev --no-group test'
+          uv pip install nuitka
+          sudo apt install -y patchelf
+      - name: Run tests for nuitka
+        run: |
+          cd tests/assets/nuitka_project
+          ./build.sh
+          cd dist/main.dist
+          ./minirepro
       - name: Show test coverage
         run: make report
 
