@@ -106,7 +106,6 @@ exclude_also = [
 [tool.mypy]
 pretty = true
 check_untyped_defs = true
-warn_unused_ignores = true
 disallow_incomplete_defs = false
 exclude = ["tests/assets", "migrations"]
 

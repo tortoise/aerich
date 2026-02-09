@@ -228,17 +228,24 @@ def _load_py_spec(module_info: pkgutil.ModuleInfo):
     return spec, name, module_finder
 
 
+def _get_module_file(finder: FileFinder, name: str) -> tuple[Path, Path | None]:
+    dirpath = Path(finder.path)
+    if dirpath.is_file() or dirpath.name == "__init__.py":
+        dirpath = dirpath.parent
+    for suffix in (".py", ".pyc"):
+        if (f := dirpath / (name + suffix)).exists():
+            return dirpath, f
+    return dirpath, None
+
+
 def _nuitka_module_loader(name: str, finder: FileFinder) -> ModuleType:
-    original_sys_path = sys.path.copy()
-    should_rollback = False
-    if (finder_path := getattr(finder, "path", "")) and finder_path not in sys.path:
-        sys.path.insert(0, finder_path)
-        should_rollback = True
-    try:
-        return importlib.import_module(name)
-    finally:
-        if should_rollback:
-            sys.path = original_sys_path
+    # For python3.12+: run `pip install imp2importlib` to install imp module
+    from imp import load_source  # type:ignore[import-not-found]
+
+    dirpath, file = _get_module_file(finder, name)
+    if file is not None:
+        return load_source(name, file.as_posix())
+    raise ImportError(f"Failed to import {name} from {dirpath}")
 
 
 def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
@@ -253,10 +260,9 @@ def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
 def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
     spec, name, module_finder = _load_py_spec(module_info)
     if not spec or not spec.origin or not Path(spec.origin).is_file():
-        dirpath = Path(module_finder.path)
-        for suffix in (".py", ".pyc"):
-            if (f := dirpath / (name + suffix)).exists():
-                return f
+        dirpath, file = _get_module_file(module_finder, name)
+        if file is not None:
+            return file
         raise FileNotFoundError(f"Module {name} not found in {dirpath}.")
     return Path(spec.origin)
 
