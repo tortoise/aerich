@@ -141,7 +141,7 @@ dmypy.json
 cython_debug/
 
 .idea
-migrations
+tests/assets/*/migrations
 aerich.ini
 src
 .vscode

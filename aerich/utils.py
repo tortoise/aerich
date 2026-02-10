@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import importlib
+import importlib.machinery
 import importlib.util
 import os
 import pkgutil
@@ -213,27 +216,63 @@ def import_py_file(file: str | Path) -> ModuleType:
     return module
 
 
-def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
+def _load_py_spec(module_info: pkgutil.ModuleInfo):
     module_finder: FileFinder
     name: str
     ispkg: bool
     module_finder, name, ispkg = module_info  # type:ignore[assignment]
-    module_finder.invalidate_caches()
-    spec = module_finder.find_spec(name)
-    module = importlib.util.module_from_spec(spec)  # type:ignore[arg-type]
-    spec.loader.exec_module(module)  # type:ignore[union-attr]
+    spec = None
+    with contextlib.suppress(AttributeError):
+        # 'nuitka_module_loader' object has no attribute 'invalidate_caches'
+        module_finder.invalidate_caches()
+        spec = module_finder.find_spec(name)
+    return spec, name, module_finder
+
+
+def _get_module_file(finder: FileFinder, name: str) -> tuple[Path, Path | None]:
+    dirpath = Path(finder.path)
+    if dirpath.is_file() or dirpath.name == "__init__.py":
+        dirpath = dirpath.parent
+    for suffix in (".py", ".pyc"):
+        if (f := dirpath / (name + suffix)).exists():
+            return dirpath, f
+    return dirpath, None
+
+
+def _nuitka_module_loader(name: str, finder: FileFinder) -> ModuleType:
+    dirpath, file = _get_module_file(finder, name)
+    if file is not None:
+        filename = file.as_posix()
+        try:
+            from imp import load_source  # type:ignore[import-not-found]
+        except ImportError:
+            loader = importlib.machinery.SourceFileLoader(name, filename)
+            spec = importlib.util.spec_from_file_location(name, filename, loader=loader)
+            if spec is not None:
+                module = importlib.util.module_from_spec(spec)
+                loader.exec_module(module)
+                return module
+        else:
+            return load_source(name, filename)
+    raise ImportError(f"Failed to import {name} from {dirpath}")
+
+
+def import_py_module(module_info: pkgutil.ModuleInfo) -> ModuleType:
+    spec, name, finder = _load_py_spec(module_info)
+    if spec is None or spec.loader is None:
+        return _nuitka_module_loader(name, finder)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     return module
 
 
 def py_module_path(module_info: pkgutil.ModuleInfo) -> Path:
-    module_finder: FileFinder
-    name: str
-    ispkg: bool
-    module_finder, name, ispkg = module_info  # type:ignore[assignment]
-    module_finder.invalidate_caches()
-    spec = module_finder.find_spec(name)
+    spec, name, module_finder = _load_py_spec(module_info)
     if not spec or not spec.origin or not Path(spec.origin).is_file():
-        raise FileNotFoundError(f"Module {name} not found in {module_finder.path}.")
+        dirpath, file = _get_module_file(module_finder, name)
+        if file is not None:
+            return file
+        raise FileNotFoundError(f"Module {name} not found in {dirpath}.")
     return Path(spec.origin)
 
 
