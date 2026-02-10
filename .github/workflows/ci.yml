@@ -128,14 +128,15 @@ jobs:
         run: |
           make deps options='--no-dev --no-group test'
           uv pip install nuitka
-          uv pip install imp2importlib
           sudo apt install -y patchelf
       - name: Run tests for nuitka
         run: |
           cd tests/assets/nuitka_project
           ./build.sh
-          cd dist/main.dist
-          ./minirepro
+          ./dist/main.dist/minirepro
+          uv pip install imp2importlib
+          ./build.sh
+          ./dist/main.dist/minirepro
 
   asyncmySupport:
     runs-on: ubuntu-latest
