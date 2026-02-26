@@ -71,6 +71,44 @@ def test_auto_add_aerich_models() -> None:
 
 @requires_dialect("sqlite")
 @pytest.mark.usefixtures("tmp_work_dir")
+def test_init_db_fresh_db_with_existing_migrations() -> None:
+    """Regression test for #267: init-db must check the aerich table in the DB to determine
+    whether the DB is initialized, not the presence of the migrations folder/files.
+    This covers the scenario where migration files are committed to a repo and a new
+    developer (or CI server) runs ``aerich init-db`` against a fresh, empty database.
+    """
+    prepare_py_files("migrate_no_input")
+    run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
+
+    # First init-db: creates migration folder, initial migration file, and initializes the DB.
+    output = run_shell("aerich init-db")
+    assert "Success" in output
+    migration_dir = Path("migrations/models")
+    assert migration_dir.is_dir()
+    assert len(list(migration_dir.glob("*.py"))) == 1
+
+    # Simulate a fresh database (e.g. a new developer who cloned the repo but has no local DB).
+    db_file = Path("db.sqlite3")
+    assert db_file.exists()
+    db_file.unlink()
+
+    # Second init-db on the fresh DB: should apply existing migration files instead of failing.
+    output = run_shell("aerich init-db")
+    assert "already initialized" not in output
+    assert "Applied existing migrations" in output
+    assert db_file.exists()
+
+    # All migrations are now applied; aerich upgrade should have nothing to do.
+    output = run_shell("aerich upgrade")
+    assert "No upgrade items found" in output
+
+    # A third init-db (DB now fully initialized) must report that it is already done.
+    output = run_shell("aerich init-db")
+    assert "already initialized" in output
+
+
+@requires_dialect("sqlite")
+@pytest.mark.usefixtures("tmp_work_dir")
 def test_missing_aerich_models() -> None:
     prepare_py_files("missing_aerich_models")
     output = run_shell("aerich init -t settings.TORTOISE_ORM_MULTI_APPS_WITHOUT_AERICH_MODELS")

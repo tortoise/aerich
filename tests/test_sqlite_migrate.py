@@ -301,15 +301,17 @@ def test_sqlite_migrate(tmp_work_dir: Path) -> None:
         r = run_shell("pytest _tests.py::test_without_age_field")
         assert r.returncode == 0
 
-        # Generate migration file in emptry directory
+        # Fresh DB with existing migration files: init-db applies them (fixes #267)
         db_file.unlink()
         run_aerich("aerich init-db")
-        assert not db_file.exists()
+        assert db_file.exists()  # DB is created by applying the existing migrations
+        # Generate a new initial migration file when migration directory is empty
         for p in migrations_dir.glob("*"):
             if p.is_dir():
                 shutil.rmtree(p)
             else:
                 p.unlink()
+        db_file.unlink()  # start fresh so a new initial migration is generated
         run_aerich("aerich init-db")
         assert db_file.exists()
 

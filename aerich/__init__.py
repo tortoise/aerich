@@ -234,10 +234,16 @@ class Command(TortoiseContext):
         except NotInitedError as e:
             raise NotInitedError("You have to call .init() first before migrate") from e
 
-    async def init_db(self, safe: bool, pre_sql: str | None = None) -> None:
-        await self._do_init(safe, pre_sql)
+    async def init_db(self, safe: bool, pre_sql: str | None = None) -> bool:
+        return await self._do_init(safe, pre_sql)
 
-    async def _do_init(self, safe: bool, pre_sql: str | None = None, offline: bool = False) -> None:
+    async def _do_init(self, safe: bool, pre_sql: str | None = None, offline: bool = False) -> bool:
+        """Initialize the database for an app.
+
+        Returns True if a new initial migration was generated, or False when existing migration
+        files were found and applied to a fresh database (e.g. a cloned repository).
+        Raises FileExistsError when the database is already initialized.
+        """
         location = self.location
         app = self.app
         config = self.tortoise_config
@@ -253,9 +259,41 @@ class Command(TortoiseContext):
         if not dirname.exists():
             dirname.mkdir(parents=True)
         else:
-            # If directory is empty, go ahead, otherwise raise FileExistsError
+            existing_version_files = [
+                f
+                for f in dirname.glob("*.py")
+                if "_" in f.stem and f.stem.split("_")[0].isdigit()
+            ]
+            if existing_version_files and not offline:
+                # Migration files already exist.  Check whether the database has been
+                # initialised by querying the aerich tracking table.
+                try:
+                    already_initialized = await Aerich.exists(app=app)
+                except OperationalError:
+                    already_initialized = False
+
+                if already_initialized:
+                    raise FileExistsError(str(existing_version_files[0]))
+
+                # Fresh database with existing migration files (e.g. a repo that was cloned).
+                # Apply all migrations in order so the database reaches the current state.
+                Migrate.app = app
+                Migrate.migrate_location = dirname
+                app_conn_name = get_app_connection_name(config, app)
+                for version_module in Migrate.get_all_version_modules():
+                    version_file = version_module.name + ".py"
+                    m = import_py_module(version_module)
+                    if getattr(m, "RUN_IN_TRANSACTION", True):
+                        async with in_transaction(app_conn_name) as conn:
+                            await self._upgrade(conn, version_file, version_module=version_module)
+                    else:
+                        await self._upgrade(connection, version_file, version_module=version_module)
+                return False
+
+            # Directory is empty (or offline mode with existing files): raise for any present file.
             for unexpected_file in dirname.glob("*"):
                 raise FileExistsError(str(unexpected_file))
+
         schema = get_schema_sql(connection, safe)
 
         version = await Migrate.generate_version(offline=offline)
@@ -267,6 +305,7 @@ class Command(TortoiseContext):
         if not offline:
             await generate_schema_for_client(connection, safe)
             await Aerich.create(version=version, app=app, content=aerich_content)
+        return True
 
     async def init_migrations(self, safe: bool) -> None:
         await self._do_init(safe, offline=True)
