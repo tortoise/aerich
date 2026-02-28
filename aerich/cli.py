@@ -373,9 +373,7 @@ async def _init_app(ctx: Context, safe: bool, pre: str = "", offline: bool = Fal
                 f'Success generating initial migration file for app "{app}"', fg=Color.green
             )
         else:
-            click.secho(
-                f'Applied existing migrations to database for app "{app}"', fg=Color.green
-            )
+            click.secho(f'Applied existing migrations to database for app "{app}"', fg=Color.green)
         if not offline:
             default_connection = (
                 command.tortoise_config["apps"].get(app, {}).get("default_connection", "default")

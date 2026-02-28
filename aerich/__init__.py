@@ -260,9 +260,7 @@ class Command(TortoiseContext):
             dirname.mkdir(parents=True)
         else:
             existing_version_files = [
-                f
-                for f in dirname.glob("*.py")
-                if "_" in f.stem and f.stem.split("_")[0].isdigit()
+                f for f in dirname.glob("*.py") if "_" in f.stem and f.stem.split("_")[0].isdigit()
             ]
             if existing_version_files and not offline:
                 # Migration files already exist.  Check whether the database has been
