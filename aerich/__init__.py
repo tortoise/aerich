@@ -296,9 +296,9 @@ class Command(TortoiseContext):
 
         version = await Migrate.generate_version(offline=offline)
         aerich_content = get_models_describe(app)
-        version_file = Path(dirname, version)
+        version_path = Path(dirname, version)
         content = Migrate.build_migration_file_text(upgrade_sql=schema, models_state=aerich_content)
-        version_file.write_text(content, encoding="utf-8")
+        version_path.write_text(content, encoding="utf-8")
         Migrate._last_version_content = aerich_content
         if not offline:
             await generate_schema_for_client(connection, safe)
