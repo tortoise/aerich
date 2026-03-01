@@ -8,10 +8,12 @@
 - feat: list applied migrations ([#512])
 
 #### Fixed
+- fix: `init-db` now checks the `aerich` table in the database (not the migrations folder) to detect prior initialization, so it works correctly on a fresh database that already has migration files (e.g. cloned from a repository) ([#267])
 - fix: postgres field comment error with single quote ([#503])
 
 [#512]: https://github.com/tortoise/aerich/pull/512
 [#503]: https://github.com/tortoise/aerich/pull/503
+[#267]: https://github.com/tortoise/aerich/issues/267
 
 ### [0.9.2](../../releases/tag/v0.9.2) - 2025-10-09
 

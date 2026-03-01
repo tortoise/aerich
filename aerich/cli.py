@@ -364,10 +364,16 @@ async def _init_app(ctx: Context, safe: bool, pre: str = "", offline: bool = Fal
     try:
         if offline:
             await command.init_migrations(safe)
+            new_init = True
         else:
-            await command.init_db(safe, pre)
-        click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
-        click.secho(f'Success generating initial migration file for app "{app}"', fg=Color.green)
+            new_init = await command.init_db(safe, pre)
+        if new_init:
+            click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
+            click.secho(
+                f'Success generating initial migration file for app "{app}"', fg=Color.green
+            )
+        else:
+            click.secho(f'Applied existing migrations to database for app "{app}"', fg=Color.green)
         if not offline:
             default_connection = (
                 command.tortoise_config["apps"].get(app, {}).get("default_connection", "default")
