@@ -7,7 +7,9 @@
 ![Python Versions](https://img.shields.io/pypi/pyversions/aerich)
 
 > ⚠️ Warning
+>
 > For tortoise-orm>=1.0.0, you can use the built-in cli for migrating, e.g.: `python -m tortoise makemigrations`
+>
 > See more at: https://github.com/tortoise/tortoise-orm?tab=readme-ov-file#migrations
 
 English | [Русский](./README_RU.md)
