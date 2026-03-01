@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from enum import Enum
+from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
@@ -104,13 +105,16 @@ class BaseDDL:
             ] or is_default_function(default):
                 default = ""
             else:
+                default_generator = self.schema_generator._column_default_generator
+                if tortoise_version_less_than("1.0"):
+                    default_generator = partial(  # type:ignore[call-arg]
+                        default_generator, auto_now_add=auto_now_add, auto_now=auto_now
+                    )
                 try:
-                    default = self.schema_generator._column_default_generator(
+                    default = default_generator(
                         db_table,
                         db_column,
                         self.schema_generator._escape_default_value(default),
-                        auto_now_add,
-                        auto_now,
                     )
                 except NotImplementedError:
                     default = ""
