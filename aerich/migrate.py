@@ -437,7 +437,11 @@ class Migrate:
                     pass  # TODO: log attr/change
                 continue
             with contextlib.suppress(TypeError, KeyError):
-                if change[0][0] == "db_constraint":
+                ignore_attrs = ("db_constraint",)
+                if option != "change":
+                    ignore_attrs += ("db_default",)
+                change = [i for i in change if i[0] not in ignore_attrs]
+                if not change:
                     continue
             new_value = change[0][1]
             if isinstance(new_value, str):

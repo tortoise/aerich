@@ -41,7 +41,7 @@ CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
-        default_ts = '' if tortoise.__version__ >= "1.0.0" else " DEFAULT CURRENT_TIMESTAMP"
+        default_ts = "" if tortoise.__version__ >= "1.0.0" else " DEFAULT CURRENT_TIMESTAMP"
         assert (
             ret
             == f"""CREATE TABLE IF NOT EXISTS "category" (
