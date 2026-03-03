@@ -21,9 +21,9 @@ _style:
 style: deps _style
 
 _codeqc:
-	mypy $(checkfiles)
-	bandit -c pyproject.toml -r $(checkfiles)
-	twine check dist/*
+	uv run --no-sync mypy $(checkfiles)
+	uv run --no-sync bandit -c pyproject.toml -r $(checkfiles)
+	uv run --no-sync twine check dist/*
 codeqc: build _codeqc
 
 _check: _build
@@ -36,28 +36,28 @@ _lint: _build _style _codeqc
 lint: deps _lint
 
 test: deps
-	$(py_warn) pytest $(pytest_opts)
+	$(py_warn) uv run --no-sync pytest $(pytest_opts)
 
 test_sqlite:
-	$(py_warn) TEST_DB=sqlite://:memory: pytest $(pytest_opts)
+	$(py_warn) TEST_DB=sqlite://:memory: uv run --no-sync pytest $(pytest_opts)
 
 test_mysql:
-	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
 
 test_postgres:
-	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
 
 test_postgres_vector:
-	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s tests/test_inspectdb.py::test_inspect_vector $(pytest_opts)
+	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s tests/test_inspectdb.py::test_inspect_vector $(pytest_opts)
 
 test_psycopg:
-	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" pytest -vv -s $(pytest_opts)
+	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
 
 _testall: test_sqlite test_postgres test_mysql
 testall: deps _testall
 
 report:
-	coverage report -m
+	uv run --no-sync coverage report -m
 
 _build:
 	uv build
