@@ -22,7 +22,7 @@ from dictdiffer import diff
 from tortoise import BaseDBAsyncClient, Tortoise
 from tortoise.log import logger
 
-from aerich._compat import tomllib
+from aerich._compat import is_tortoise_inited, tomllib
 from aerich.coder import decoder, encoder
 from aerich.exceptions import NotInitedError
 
@@ -181,7 +181,7 @@ def get_models_describe(app: str) -> dict[str, dict[str, Any]]:
     try:
         app_config = Tortoise.apps[app]
     except (KeyError, TypeError) as e:
-        if not Tortoise._inited:
+        if not is_tortoise_inited():
             raise NotInitedError("Tortoise not inited yet.") from e
         logger.debug(f"{Tortoise.apps.keys() = }")
         raise e

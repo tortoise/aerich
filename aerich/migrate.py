@@ -20,7 +20,7 @@ from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import ConfigurationError, OperationalError
 from tortoise.indexes import Index
 
-from aerich._compat import tortoise_version_less_than
+from aerich._compat import is_tortoise_inited, tortoise_version_less_than
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
 from aerich.enums import Color
@@ -177,7 +177,7 @@ class Migrate:
 
     @classmethod
     async def init(cls, config: dict, app: str, location: str, offline: bool = False) -> None:
-        if not Tortoise._inited:
+        if not is_tortoise_inited():
             # TODO: init tortoise without create db connection for offline mode
             await Tortoise.init(config=config)
         cls.app = app
@@ -1200,7 +1200,7 @@ class Migrate:
         if not unfixed_file_modules:
             return []
 
-        if not Tortoise._inited:
+        if not is_tortoise_inited():
             await Tortoise.init(config=config)
         connection = get_app_connection(config, cls.app)
 
