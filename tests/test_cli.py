@@ -49,7 +49,7 @@ async def project_with_unapplied_migrations(new_project: Path) -> None:
 def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations) -> None:
     # CliRunner change the entire interpreter state, so run it in subprocess
     output = run_shell("pytest _tests.py")
-    assert "1 passed" in output
+    assert "3 passed" in output
 
 
 @requires_dialect("sqlite")
