@@ -59,7 +59,7 @@ def anyio_backend() -> str:
 
 @pytest.fixture(scope="session", autouse=True)
 async def initialize_tests(anyio_backend):
-    await init_db(tortoise_orm)
+    await init_db(tortoise_orm, close_connection=False)
     client = Tortoise.get_connection("default")
     if client.schema_generator is MySQLSchemaGenerator:
         Migrate.ddl = MysqlDDL(client)
@@ -72,6 +72,7 @@ async def initialize_tests(anyio_backend):
         yield
     finally:
         await Tortoise._drop_databases()
+        await Tortoise.close_connections()
 
 
 @pytest.fixture
