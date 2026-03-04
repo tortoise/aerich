@@ -11,14 +11,15 @@ def test_create_table():
     ret = Migrate.ddl.create_table(Category)
     if isinstance(Migrate.ddl, MysqlDDL):
         if tortoise.__version__ >= "0.24":
+            default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP(6)"
             assert (
                 ret
-                == """CREATE TABLE IF NOT EXISTS `category` (
+                == f"""CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `slug` VARCHAR(100) NOT NULL,
     `name` VARCHAR(200),
     `title` VARCHAR(20) NOT NULL,
-    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `created_at` DATETIME(6) NOT NULL{default_ts},
     `owner_id` INT NOT NULL COMMENT 'User',
     CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
     FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
@@ -135,10 +136,10 @@ def test_alter_column_default():
             ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
         )
     elif isinstance(Migrate.ddl, MysqlDDL):
-        assert (
-            ret
-            == "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
-        )
+        expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        if tortoise.__version__ >= "1.0":
+            expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
+        assert ret == expected
 
     ret = Migrate.ddl.alter_column_default(
         Product, Product._meta.fields_map["view_num"].describe(False)
