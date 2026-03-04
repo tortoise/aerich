@@ -41,6 +41,7 @@ CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
+        default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP"
         assert (
             ret
             == f"""CREATE TABLE IF NOT EXISTS "category" (
@@ -48,7 +49,7 @@ CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
     "title" VARCHAR(20) NOT NULL,
-    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP NOT NULL{default_ts},
     "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE /* User */
 );
 CREATE INDEX {exists}"idx_category_slug_e9bcff" ON "category" ("slug")"""

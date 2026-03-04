@@ -25,6 +25,11 @@ async def test_migrate():
         "Aborted! You may need to run `aerich heads` to list avaliable unapplied migrations."
     )
     assert warning_msg in result.output
+
+
+@pytest.mark.anyio
+async def test_migrate_2():
+    runner = CliRunner()
     migrate_dir = Path(Migrate.migrate_location)
     extra_migration_file = migrate_dir.joinpath("1_datetime_update.py")
     extra_migration_file.touch()
@@ -40,6 +45,14 @@ async def test_migrate():
     assert len(new_migration_files) == 1
     updated_at = new_migration_files[0].stat().st_mtime
     assert updated_at > updated_at_0
+
+
+@pytest.mark.anyio
+async def test_migrate_3():
+    migrate_dir = Path(Migrate.migrate_location)
+    new_migration_files = list(migrate_dir.glob("1_*.py"))
+    updated_at = new_migration_files[0].stat().st_mtime
+    runner = CliRunner()
     # Delete migration files without ask for prompt when --no-input passed
     result = await runner.invoke(cli, ["migrate", "--no-input"])
     assert not result.exception

@@ -20,7 +20,7 @@ from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import ConfigurationError, OperationalError
 from tortoise.indexes import Index
 
-from aerich._compat import tortoise_version_less_than
+from aerich._compat import is_tortoise_inited, tortoise_version_less_than
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
 from aerich.enums import Color
@@ -177,7 +177,7 @@ class Migrate:
 
     @classmethod
     async def init(cls, config: dict, app: str, location: str, offline: bool = False) -> None:
-        if not Tortoise._inited:
+        if not is_tortoise_inited():
             # TODO: init tortoise without create db connection for offline mode
             await Tortoise.init(config=config)
         cls.app = app
@@ -437,7 +437,10 @@ class Migrate:
                     pass  # TODO: log attr/change
                 continue
             with contextlib.suppress(TypeError, KeyError):
-                if change[0][0] == "db_constraint":
+                ignore_attrs = ("db_constraint",)
+                if action != "change":
+                    ignore_attrs += ("db_default",)
+                if not (change := [i for i in change if i[0] not in ignore_attrs]):
                     continue
             new_value = change[0][1]
             if isinstance(new_value, str):
@@ -929,7 +932,7 @@ class Migrate:
         options = {c[1] for c in changes}
         modified = False
         for change in changes:
-            _, option, old_new = change
+            action, option, old_new = change
             if option == "indexed":
                 # change index
                 if old_new[0] is False and old_new[1] is True:
@@ -965,7 +968,7 @@ class Migrate:
                 # change comment
                 cls._add_operator(cls._set_comment(model, new_data_field), upgrade)
             else:
-                if modified:
+                if modified or (action != "change" and old_new == [("db_default", "__NOT_SET__")]):
                     continue
                 # modify column
                 cls._add_operator(cls._modify_field(model, new_data_field), upgrade)
@@ -1200,7 +1203,7 @@ class Migrate:
         if not unfixed_file_modules:
             return []
 
-        if not Tortoise._inited:
+        if not is_tortoise_inited():
             await Tortoise.init(config=config)
         connection = get_app_connection(config, cls.app)
 

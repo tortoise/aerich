@@ -48,12 +48,13 @@ async def drop_db(tortoise_orm) -> None:
     await Command.aclose()
 
 
-async def init_db(tortoise_orm, generate_schemas=True) -> None:
+async def init_db(tortoise_orm, generate_schemas=True, close_connection=True) -> None:
     await drop_db(tortoise_orm)
     await Tortoise.init(config=tortoise_orm, _create_db=True)
     if generate_schemas:
         await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
-    await Command.aclose()
+    if close_connection:
+        await Command.aclose()
 
 
 class Dialect:
