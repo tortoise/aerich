@@ -440,7 +440,8 @@ class Migrate:
                 ignore_attrs: tuple[str, ...] = ("db_constraint",)
                 if action != "change":
                     ignore_attrs += ("db_default",)
-                if not (change := [i for i in change if i[0] not in ignore_attrs]):
+                change = [i for i in change if i[0] not in ignore_attrs]
+                if not change:
                     continue
             new_value = change[0][1]
             if isinstance(new_value, str):

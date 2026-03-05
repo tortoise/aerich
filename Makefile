@@ -60,7 +60,9 @@ report:
 	uv run --no-sync coverage report -m
 
 _build:
+	uv build --offline
+
+build: deps
 	uv build
-build: deps _build
 
 ci: build _check _testall

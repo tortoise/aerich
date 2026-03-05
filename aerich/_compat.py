@@ -42,6 +42,12 @@ def tortoise_version_less_than(version: str) -> bool:
     return tortoise.__version__ < version
 
 
+def is_tortoise_inited() -> bool:
+    if is_inited := getattr(Tortoise, "is_inited", None):  # For tortoise>=1.0
+        return is_inited()
+    return Tortoise._inited
+
+
 def _init_asyncio_patch() -> None:
     """
     Select compatible event loop for psycopg3.
@@ -147,11 +153,3 @@ def _init_tortoise_0_24_1_patch() -> None:
         return m2m_tables_for_create
 
     setattr(BaseSchemaGenerator, target_func, _get_m2m_tables)
-
-
-def is_tortoise_inited() -> bool:
-    return (
-        is_inited()  # For toroise>=1.0
-        if (is_inited := getattr(Tortoise, "is_inited", None)) is not None
-        else Tortoise._inited
-    )
