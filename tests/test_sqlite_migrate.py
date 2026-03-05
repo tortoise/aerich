@@ -225,7 +225,7 @@ class Group(Model):
 class FooGroup(Model):
     foo = fields.ForeignKeyField("models.Foo")
     group = fields.ForeignKeyField("models.Group")
-    is_active = fields.BooleanField(default=False)
+    is_active = fields.BooleanField(default=False, db_default=False)
 
     class Meta:
         table = "foo_group"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import Generator
 from pathlib import Path
@@ -10,6 +11,7 @@ from tortoise.backends.base_postgres.schema_generator import BasePostgresSchemaG
 from tortoise.backends.mysql.schema_generator import MySQLSchemaGenerator
 from tortoise.backends.sqlite.schema_generator import SqliteSchemaGenerator
 from tortoise.contrib.test import MEMORY_SQLITE
+from tortoise.exceptions import ConfigurationError
 
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
@@ -71,8 +73,9 @@ async def initialize_tests(anyio_backend):
     try:
         yield
     finally:
-        await Tortoise._drop_databases()
-        await Tortoise.close_connections()
+        with contextlib.suppress(ConfigurationError):
+            await Tortoise._drop_databases()
+            await Tortoise.close_connections()
 
 
 @pytest.fixture

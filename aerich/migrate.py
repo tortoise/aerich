@@ -437,7 +437,7 @@ class Migrate:
                     pass  # TODO: log attr/change
                 continue
             with contextlib.suppress(TypeError, KeyError):
-                ignore_attrs = ("db_constraint",)
+                ignore_attrs: tuple[str, ...] = ("db_constraint",)
                 if option != "change":
                     ignore_attrs += ("db_default",)
                 change = [i for i in change if i[0] not in ignore_attrs]
@@ -933,7 +933,7 @@ class Migrate:
         options = {c[1] for c in changes}
         modified = False
         for change in changes:
-            _, option, old_new = change
+            action, option, old_new = change
             if option == "indexed":
                 # change index
                 if old_new[0] is False and old_new[1] is True:
@@ -969,7 +969,7 @@ class Migrate:
                 # change comment
                 cls._add_operator(cls._set_comment(model, new_data_field), upgrade)
             else:
-                if modified:
+                if modified or (action != "change" and old_new == [("db_default", "__NOT_SET__")]):
                     continue
                 # modify column
                 cls._add_operator(cls._modify_field(model, new_data_field), upgrade)

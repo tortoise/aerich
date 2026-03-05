@@ -35,8 +35,8 @@ class User(Model):
     username = fields.CharField(max_length=20, unique=True)
     password = fields.CharField(max_length=100)
     last_login = fields.DatetimeField(description="Last Login", default=datetime.datetime.now)
-    is_active = fields.BooleanField(default=True, description="Is Active")
-    is_superuser = fields.BooleanField(default=False, description="Is SuperUser")
+    is_active = fields.BooleanField(default=True, db_default=True, description="Is Active")
+    is_superuser = fields.BooleanField(default=False, db_default=False, description="Is SuperUser")
     intro = fields.TextField(default="")
     longitude = fields.DecimalField(max_digits=10, decimal_places=8)
 
@@ -51,7 +51,7 @@ class Email(Model):
     email_id = fields.IntField(primary_key=True)
     email = fields.CharField(max_length=200, db_index=True)
     company = fields.CharField(max_length=100, db_index=True, unique=True)
-    is_primary = fields.BooleanField(default=False)
+    is_primary = fields.BooleanField(default=False, db_default=False)
     address = fields.CharField(max_length=200)
     users: fields.ManyToManyRelation[User] = fields.ManyToManyField("models.User")
     config: fields.OneToOneRelation[Config] = fields.OneToOneField("models.Config")
@@ -88,7 +88,7 @@ class Product(Model):
         "models.User", related_name="products"
     )
     name = fields.CharField(max_length=50)
-    view_num = fields.IntField(description="View Num", default=0)
+    view_num = fields.IntField(description="View Num", default=0, db_default=0)
     sort = fields.IntField()
     is_reviewed = fields.BooleanField(description="Is Reviewed")
     type: int = fields.IntEnumField(
@@ -99,7 +99,7 @@ class Product(Model):
     price = fields.FloatField(null=True)
     no = fields.UUIDField(db_index=True)
     created_at = fields.DatetimeField(auto_now_add=True)
-    is_deleted = fields.BooleanField(default=False)
+    is_deleted = fields.BooleanField(default=False, db_default=False)
 
     class Meta:
         unique_together = (("name", "type"),)
