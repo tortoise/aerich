@@ -1042,6 +1042,23 @@ async def test_migrate(mocker: MockerFixture, capsys):
             "DROP TABLE IF EXISTS `config_category`",
             "ALTER TABLE `config` MODIFY COLUMN `slug` VARCHAR(20) NOT NULL",
         }
+        if tortoise.__version__ >= "1.0":
+            expected_upgrade_operators |= {
+                "ALTER TABLE `category` ADD `owner_id` INT NOT NULL COMMENT 'User'",
+                "ALTER TABLE `product` DROP COLUMN `is_review`",
+                "ALTER TABLE `product` DROP COLUMN `image`",
+                "ALTER TABLE `product` ADD `is_deleted` BOOL NOT NULL DEFAULT 0",
+                "ALTER TABLE `product` ADD `pic` VARCHAR(200) NOT NULL",
+                "ALTER TABLE `product` ADD `is_reviewed` BOOL NOT NULL COMMENT 'Is Reviewed'",
+                "ALTER TABLE `category` DROP COLUMN `user_id`",
+                "ALTER TABLE `product` DROP COLUMN `is_delete`",
+            }
+            expected_upgrade_operators -= {
+                "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
+                "ALTER TABLE `product` RENAME COLUMN `is_review` TO `is_reviewed`",
+                "ALTER TABLE `product` RENAME COLUMN `is_delete` TO `is_deleted`",
+                "ALTER TABLE `category` RENAME COLUMN `user_id` TO `owner_id`",
+            }
         if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
@@ -1095,6 +1112,23 @@ async def test_migrate(mocker: MockerFixture, capsys):
             "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
             "DROP TABLE IF EXISTS `config_category_map`",
         }
+        if tortoise.__version__ >= "1.0":
+            expected_downgrade_operators |= {
+                "ALTER TABLE `category` DROP COLUMN `owner_id`",
+                "ALTER TABLE `product` DROP COLUMN `is_reviewed`",
+                "ALTER TABLE `category` ADD `user_id` INT NOT NULL COMMENT 'User'",
+                "ALTER TABLE `product` ADD `is_delete` BOOL NOT NULL DEFAULT 0",
+                "ALTER TABLE `product` DROP COLUMN `is_deleted`",
+                "ALTER TABLE `product` DROP COLUMN `pic`",
+                "ALTER TABLE `product` ADD `is_review` BOOL NOT NULL COMMENT 'Is Reviewed'",
+                "ALTER TABLE `product` ADD `image` VARCHAR(200) NOT NULL",
+            }
+            expected_downgrade_operators -= {
+                "ALTER TABLE `product` RENAME COLUMN `is_deleted` TO `is_delete`",
+                "ALTER TABLE `product` RENAME COLUMN `is_reviewed` TO `is_review`",
+                "ALTER TABLE `category` RENAME COLUMN `owner_id` TO `user_id`",
+                "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
+            }
         if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"

@@ -75,7 +75,6 @@ async def initialize_tests(anyio_backend):
     finally:
         with contextlib.suppress(ConfigurationError):
             await Tortoise._drop_databases()
-            await Tortoise.close_connections()
 
 
 @pytest.fixture

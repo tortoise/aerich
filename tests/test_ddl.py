@@ -136,7 +136,9 @@ def test_alter_column_default():
             ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
         )
     elif isinstance(Migrate.ddl, MysqlDDL):
-        expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        expected = (
+            "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        )
         if tortoise.__version__ >= "1.0":
             expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
         assert ret == expected

@@ -437,7 +437,7 @@ class Migrate:
                     pass  # TODO: log attr/change
                 continue
             with contextlib.suppress(TypeError, KeyError):
-                ignore_attrs = ("db_constraint",)
+                ignore_attrs: tuple[str, ...] = ("db_constraint",)
                 if action != "change":
                     ignore_attrs += ("db_default",)
                 if not (change := [i for i in change if i[0] not in ignore_attrs]):
