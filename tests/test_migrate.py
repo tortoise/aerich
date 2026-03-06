@@ -998,6 +998,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
     ignore_on_delete = (
         "Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Product.categories"
     )
+    is_tortoise_v1 = tortoise.__version__ >= "1.0"
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
@@ -1194,6 +1195,25 @@ async def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category"',
         }
+        if is_tortoise_v1:
+            expected_upgrade_operators |= {
+                'ALTER TABLE "product" DROP COLUMN "image"',
+                'ALTER TABLE "category" DROP COLUMN "user_id"',
+                'ALTER TABLE "product" ADD "is_deleted" BOOL NOT NULL DEFAULT False',
+                'ALTER TABLE "product" DROP COLUMN "is_review"',
+                'ALTER TABLE "product" ADD "pic" VARCHAR(200) NOT NULL',
+                "COMMENT ON COLUMN category.\"owner_id\" IS 'User';\nCOMMENT ON COLUMN config.\"user_id\" IS 'User';\nCOMMENT ON COLUMN product.\"is_reviewed\" IS 'Is Reviewed'",
+                'ALTER TABLE "category" ADD "owner_id" INT NOT NULL',
+                'ALTER TABLE "product" DROP COLUMN "is_delete"',
+                'ALTER TABLE "product" ADD "is_reviewed" BOOL NOT NULL',
+            }
+            expected_upgrade_operators -= {
+                'ALTER TABLE "product" RENAME COLUMN "is_delete" TO "is_deleted"',
+                'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
+                'ALTER TABLE "category" RENAME COLUMN "user_id" TO "owner_id"',
+                'ALTER TABLE "product" RENAME COLUMN "is_review" TO "is_reviewed"',
+                'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
+            }
         if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
@@ -1253,6 +1273,24 @@ async def test_migrate(mocker: MockerFixture, capsys):
             expected_downgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
+        if is_tortoise_v1:
+            expected_downgrade_operators |= {
+                'ALTER TABLE "category" ADD "user_id" INT NOT NULL',
+                'ALTER TABLE "product" ADD "is_review" BOOL NOT NULL',
+                'ALTER TABLE "category" DROP COLUMN "owner_id"',
+                'ALTER TABLE "product" ADD "image" VARCHAR(200) NOT NULL',
+                "COMMENT ON COLUMN category.\"user_id\" IS 'User';\nCOMMENT ON COLUMN product.\"is_review\" IS 'Is Reviewed'",
+                'ALTER TABLE "product" ADD "is_delete" BOOL NOT NULL DEFAULT False',
+                'ALTER TABLE "product" DROP COLUMN "is_deleted"',
+                'ALTER TABLE "product" DROP COLUMN "pic"',
+                'ALTER TABLE "product" DROP COLUMN "is_reviewed"',
+            }
+            expected_downgrade_operators -= {
+                'ALTER TABLE "product" RENAME COLUMN "is_reviewed" TO "is_review"',
+                'ALTER TABLE "category" RENAME COLUMN "owner_id" TO "user_id"',
+                'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
+                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
+            }
         downgrade_operators = set(Migrate.downgrade_operators)
         downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
         assert not downgrade_more_than_expected

@@ -40,9 +40,9 @@ def test_create_table():
 CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
         )
 
-    elif isinstance(Migrate.ddl, SqliteDDL):
+    default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP"
+    if isinstance(Migrate.ddl, SqliteDDL):
         exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
-        default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP"
         assert (
             ret
             == f"""CREATE TABLE IF NOT EXISTS "category" (
@@ -59,12 +59,12 @@ CREATE INDEX {exists}"idx_category_slug_e9bcff" ON "category" ("slug")"""
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+            == f"""CREATE TABLE IF NOT EXISTS "category" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
     "title" VARCHAR(20) NOT NULL,
-    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL{default_ts},
     "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug");
@@ -131,15 +131,17 @@ def test_alter_column_default():
     ret = Migrate.ddl.alter_column_default(
         Category, Category._meta.fields_map["created_at"].describe(False)
     )
+    is_tortoise_v1 = tortoise.__version__ >= "1.0"
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert (
-            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
-        )
+        expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        if is_tortoise_v1:
+            expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT NULL'
+        assert ret == expected
     elif isinstance(Migrate.ddl, MysqlDDL):
         expected = (
             "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
         )
-        if tortoise.__version__ >= "1.0":
+        if is_tortoise_v1:
             expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
         assert ret == expected
 
