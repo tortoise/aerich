@@ -43,7 +43,7 @@ def tortoise_version_less_than(version: str) -> bool:
 
 
 def is_tortoise_inited() -> bool:
-    if is_inited := getattr(Tortoise, "is_inited", None):  # For tortoise>=1.0
+    if (is_inited := getattr(Tortoise, "is_inited", None)) is not None:  # For tortoise>=1.0
         return is_inited()
     return Tortoise._inited
 
