@@ -39,6 +39,9 @@ else:
             os.chdir(self._old_cwd.pop())
 
 
+IS_TORTOISE_V1 = not tortoise_version_less_than("1")
+
+
 async def drop_db(tortoise_orm) -> None:
     # Placing init outside the try-block(suppress) since it doesn't
     # establish connections to the DB eagerly.

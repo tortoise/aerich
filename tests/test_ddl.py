@@ -4,14 +4,17 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
+from tests._utils import IS_TORTOISE_V1
 from tests.models import Category, Product, User
 
 
 def test_create_table():
     ret = Migrate.ddl.create_table(Category)
+    default_ts = "" if IS_TORTOISE_V1 else " DEFAULT CURRENT_TIMESTAMP"
     if isinstance(Migrate.ddl, MysqlDDL):
         if tortoise.__version__ >= "0.24":
-            default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP(6)"
+            if not IS_TORTOISE_V1:
+                default_ts = " DEFAULT CURRENT_TIMESTAMP(6)"
             assert (
                 ret
                 == f"""CREATE TABLE IF NOT EXISTS `category` (
@@ -40,8 +43,7 @@ def test_create_table():
 CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
         )
 
-    default_ts = "" if tortoise.__version__ >= "1.0" else " DEFAULT CURRENT_TIMESTAMP"
-    if isinstance(Migrate.ddl, SqliteDDL):
+    elif isinstance(Migrate.ddl, SqliteDDL):
         exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
         assert (
             ret
@@ -131,17 +133,16 @@ def test_alter_column_default():
     ret = Migrate.ddl.alter_column_default(
         Category, Category._meta.fields_map["created_at"].describe(False)
     )
-    is_tortoise_v1 = tortoise.__version__ >= "1.0"
     if isinstance(Migrate.ddl, PostgresDDL):
         expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
-        if is_tortoise_v1:
+        if IS_TORTOISE_V1:
             expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT NULL'
         assert ret == expected
     elif isinstance(Migrate.ddl, MysqlDDL):
         expected = (
             "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
         )
-        if is_tortoise_v1:
+        if IS_TORTOISE_V1:
             expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
         assert ret == expected
 

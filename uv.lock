@@ -72,7 +72,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'psycopg'", specifier = ">=3.0.12,<4.0.0" },
     { name = "tomli-w", marker = "python_full_version >= '3.11' and extra == 'toml'", specifier = ">=1.1.0,<2.0.0" },
     { name = "tomlkit", marker = "python_full_version < '3.11' and extra == 'toml'", specifier = ">=0.11.4,<1.0.0" },
-    { name = "tortoise-orm", specifier = ">=0.21.0,<2.0.0" },
+    { name = "tortoise-orm", specifier = ">=0.21.0,!=1.0.0,<2.0.0" },
 ]
 provides-extras = ["toml", "asyncpg", "psycopg", "asyncmy", "mysql"]
 

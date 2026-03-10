@@ -20,8 +20,14 @@ from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
 from aerich.migrate import MIGRATE_TEMPLATE, Migrate
 from aerich.models import Aerich
-from aerich.utils import NotInitedError, get_formatted_compressed_data, get_models_describe
+from aerich.utils import (
+    NotInitedError,
+    decompress_dict,
+    get_formatted_compressed_data,
+    get_models_describe,
+)
 from tests._utils import (
+    IS_TORTOISE_V1,
     Dialect,
     chdir,
     describe_index,
@@ -31,6 +37,7 @@ from tests._utils import (
     tmp_daily_db,
 )
 from tests.indexes import CustomIndex
+from tests.tortoise_v1_models_state import MODELS_STATE
 
 # tortoise-orm>=0.21 changes IntField constraints
 # from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
@@ -981,6 +988,8 @@ async def test_migrate(mocker: MockerFixture, capsys):
 
         await Tortoise.init(config=tortoise_orm)
         models_describe = get_models_describe("models")
+    if IS_TORTOISE_V1:
+        old_models_describe = decompress_dict(MODELS_STATE)
     Migrate.app = "models"
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
@@ -998,7 +1007,6 @@ async def test_migrate(mocker: MockerFixture, capsys):
     ignore_on_delete = (
         "Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Product.categories"
     )
-    is_tortoise_v1 = tortoise.__version__ >= "1.0"
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
@@ -1045,22 +1053,14 @@ async def test_migrate(mocker: MockerFixture, capsys):
         }
         if tortoise.__version__ >= "1.0":
             expected_upgrade_operators |= {
-                "ALTER TABLE `category` ADD `owner_id` INT NOT NULL COMMENT 'User'",
-                "ALTER TABLE `product` DROP COLUMN `is_review`",
-                "ALTER TABLE `product` DROP COLUMN `image`",
-                "ALTER TABLE `product` ADD `is_deleted` BOOL NOT NULL DEFAULT 0",
-                "ALTER TABLE `product` ADD `pic` VARCHAR(200) NOT NULL",
-                "ALTER TABLE `product` ADD `is_reviewed` BOOL NOT NULL COMMENT 'Is Reviewed'",
-                "ALTER TABLE `category` DROP COLUMN `user_id`",
-                "ALTER TABLE `product` DROP COLUMN `is_delete`",
+                "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`",
+                "DROP TABLE IF EXISTS `configs_category`",
             }
             expected_upgrade_operators -= {
-                "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
-                "ALTER TABLE `product` RENAME COLUMN `is_review` TO `is_reviewed`",
-                "ALTER TABLE `product` RENAME COLUMN `is_delete` TO `is_deleted`",
-                "ALTER TABLE `category` RENAME COLUMN `user_id` TO `owner_id`",
+                "CREATE TABLE `config_category_map` (\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE,\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+                "DROP TABLE IF EXISTS `config_category`",
             }
-        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
             )
@@ -1115,22 +1115,14 @@ async def test_migrate(mocker: MockerFixture, capsys):
         }
         if tortoise.__version__ >= "1.0":
             expected_downgrade_operators |= {
-                "ALTER TABLE `category` DROP COLUMN `owner_id`",
-                "ALTER TABLE `product` DROP COLUMN `is_reviewed`",
-                "ALTER TABLE `category` ADD `user_id` INT NOT NULL COMMENT 'User'",
-                "ALTER TABLE `product` ADD `is_delete` BOOL NOT NULL DEFAULT 0",
-                "ALTER TABLE `product` DROP COLUMN `is_deleted`",
-                "ALTER TABLE `product` DROP COLUMN `pic`",
-                "ALTER TABLE `product` ADD `is_review` BOOL NOT NULL COMMENT 'Is Reviewed'",
-                "ALTER TABLE `product` ADD `image` VARCHAR(200) NOT NULL",
+                "CREATE TABLE `configs_category` (\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE,\n    `configs_id` VARCHAR(10) NOT NULL REFERENCES `configs` (`slug`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+                "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
             }
             expected_downgrade_operators -= {
-                "ALTER TABLE `product` RENAME COLUMN `is_deleted` TO `is_delete`",
-                "ALTER TABLE `product` RENAME COLUMN `is_reviewed` TO `is_review`",
-                "ALTER TABLE `category` RENAME COLUMN `owner_id` TO `user_id`",
-                "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
+                "DROP TABLE IF EXISTS `config_category_map`",
+                "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
             }
-        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
             )
@@ -1140,7 +1132,7 @@ async def test_migrate(mocker: MockerFixture, capsys):
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
         output = capsys.readouterr().out
-        if not tortoise_version_less_than("0.24.2"):
+        if not IS_TORTOISE_V1 and not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
@@ -1195,26 +1187,19 @@ async def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category"',
         }
-        if is_tortoise_v1:
+        if IS_TORTOISE_V1:
             expected_upgrade_operators |= {
-                'ALTER TABLE "product" DROP COLUMN "image"',
-                'ALTER TABLE "category" DROP COLUMN "user_id"',
-                'ALTER TABLE "product" ADD "is_deleted" BOOL NOT NULL DEFAULT False',
-                'ALTER TABLE "product" DROP COLUMN "is_review"',
-                'ALTER TABLE "product" ADD "pic" VARCHAR(200) NOT NULL',
-                "COMMENT ON COLUMN category.\"owner_id\" IS 'User';\nCOMMENT ON COLUMN config.\"user_id\" IS 'User';\nCOMMENT ON COLUMN product.\"is_reviewed\" IS 'Is Reviewed'",
-                'ALTER TABLE "category" ADD "owner_id" INT NOT NULL',
-                'ALTER TABLE "product" DROP COLUMN "is_delete"',
-                'ALTER TABLE "product" ADD "is_reviewed" BOOL NOT NULL',
+                'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_e2e3874c"',
+                'DROP TABLE IF EXISTS "configs_category"',
+                "COMMENT ON COLUMN config.\"user_id\" IS 'User'",
             }
             expected_upgrade_operators -= {
-                'ALTER TABLE "product" RENAME COLUMN "is_delete" TO "is_deleted"',
+                'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
                 'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
-                'ALTER TABLE "category" RENAME COLUMN "user_id" TO "owner_id"',
-                'ALTER TABLE "product" RENAME COLUMN "is_review" TO "is_reviewed"',
-                'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
+                'DROP TABLE IF EXISTS "config_category"',
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
             }
-        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_upgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
@@ -1269,35 +1254,30 @@ async def test_migrate(mocker: MockerFixture, capsys):
             'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
             'DROP TABLE IF EXISTS "config_category_map"',
         }
-        if sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+        if IS_TORTOISE_V1:
+            expected_downgrade_operators |= {
+                'ALTER TABLE "category" RENAME COLUMN "owner_id" TO "user_id"',
+                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
+                'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
+                'ALTER TABLE "product" RENAME COLUMN "is_reviewed" TO "is_review"',
+                'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+                'CREATE TABLE "configs_category" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "configs_id" VARCHAR(10) NOT NULL REFERENCES "configs" ("slug") ON DELETE CASCADE\n)',
+            }
+            expected_downgrade_operators -= {
+                'DROP TABLE IF EXISTS "config_category_map"',
+                'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
+            }
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
             expected_downgrade_operators.add(
                 'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
             )
-        if is_tortoise_v1:
-            expected_downgrade_operators |= {
-                'ALTER TABLE "category" ADD "user_id" INT NOT NULL',
-                'ALTER TABLE "product" ADD "is_review" BOOL NOT NULL',
-                'ALTER TABLE "category" DROP COLUMN "owner_id"',
-                'ALTER TABLE "product" ADD "image" VARCHAR(200) NOT NULL',
-                "COMMENT ON COLUMN category.\"user_id\" IS 'User';\nCOMMENT ON COLUMN product.\"is_review\" IS 'Is Reviewed'",
-                'ALTER TABLE "product" ADD "is_delete" BOOL NOT NULL DEFAULT False',
-                'ALTER TABLE "product" DROP COLUMN "is_deleted"',
-                'ALTER TABLE "product" DROP COLUMN "pic"',
-                'ALTER TABLE "product" DROP COLUMN "is_reviewed"',
-            }
-            expected_downgrade_operators -= {
-                'ALTER TABLE "product" RENAME COLUMN "is_reviewed" TO "is_review"',
-                'ALTER TABLE "category" RENAME COLUMN "owner_id" TO "user_id"',
-                'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
-                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
-            }
         downgrade_operators = set(Migrate.downgrade_operators)
         downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
         assert not downgrade_more_than_expected
         downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
         assert not downgrade_less_than_expected
         output = capsys.readouterr().out
-        if not tortoise_version_less_than("0.24.2"):
+        if not IS_TORTOISE_V1 and not tortoise_version_less_than("0.24.2"):
             # https://github.com/tortoise/tortoise-orm/pull/1903
             # TortoiseORM 0.24.2 changes:
             # Use 'unique' instead of 'create_unique_index' for m2m field
