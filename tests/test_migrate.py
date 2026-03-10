@@ -42,7 +42,7 @@ from tests.tortoise_v1_models_state import MODELS_STATE
 # tortoise-orm>=0.21 changes IntField constraints
 # from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
 MIN_INT = 1 if tortoise.__version__ < "0.21" else -2147483648
-old_models_describe = {
+OLD_MODELS_DESCRIBE = {
     "models.Category": {
         "name": "models.Category",
         "app": "models",
@@ -988,8 +988,8 @@ async def test_migrate(mocker: MockerFixture, capsys):
 
         await Tortoise.init(config=tortoise_orm)
         models_describe = get_models_describe("models")
-    if IS_TORTOISE_V1:
-        old_models_describe = decompress_dict(MODELS_STATE)
+
+    old_models_describe = decompress_dict(MODELS_STATE) if IS_TORTOISE_V1 else OLD_MODELS_DESCRIBE
     Migrate.app = "models"
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
