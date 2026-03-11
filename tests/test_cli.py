@@ -6,6 +6,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+import tortoise
 
 from aerich._compat import tomllib
 from aerich.cli import inspectdb, upgrade
@@ -198,3 +199,17 @@ def test_help(tmp_path):
         assert output == run_shell(f"aerich {inspectdb.name} -h")
         assert str(inspectdb.help) in output
         assert "--table" in output
+
+
+@requires_dialect("sqlite")
+@pytest.mark.skipif(tortoise.__version__ < "1", reason="Only for tortoise 1.0+")
+def test_init_warning_for_tortoise_v1():
+    output = run_shell("aerich init -t conftest.tortoise_orm")
+    assert "Warning" in output
+    url = "https://tortoise.github.io/migration.html"
+    assert url in output
+    output = run_shell(
+        "aerich init -t conftest.tortoise_orm", env={"AERICH_NO_TORTOISE_V1_WARNING": "1"}
+    )
+    assert "Warning" not in output
+    assert url not in output

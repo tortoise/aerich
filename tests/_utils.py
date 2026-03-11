@@ -100,7 +100,9 @@ def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, st
             command = f"{py} -m " + command
         elif command.startswith(s := "python "):
             command = f"{py} " + command[len(s) :]
-    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
+    if (env := kw.get("env")) is not None:
+        kw["env"] = {**os.environ, **env}
+    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8", **kw)
     ok = r.returncode == 0
     out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
     return ok, out
