@@ -215,9 +215,10 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          activate-environment: true
       - name: Install dependencies
         run: |
-          uv pip install --system --group test -e ".[toml,psycopg,mysql]"
+          uv pip install --group test -e ".[toml,psycopg,mysql]"
       - name: Test psycopg
         run: make test_psycopg
         env:
