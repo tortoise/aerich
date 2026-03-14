@@ -1416,7 +1416,11 @@ async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
 
 
 def _test_migrate_upgrade(max_model_num: int = 2, offline=False, messages="") -> None:
-    run_shell("aerich init -t settings.TORTOISE_ORM", capture_output=False)
+    run_shell(
+        "aerich init -t settings.TORTOISE_ORM",
+        capture_output=False,
+        env={"AERICH_NO_TORTOISE_V1_WARNING": "1"},
+    )
     run_shell("aerich init-db", capture_output=False)
     output = run_shell("pytest -s _tests.py::test_1")
     assert "error" not in output.lower()
@@ -1436,6 +1440,23 @@ def _test_migrate_upgrade(max_model_num: int = 2, offline=False, messages="") ->
 def test_migrate_with_rescursive_m2m(tmp_work_dir):
     prepare_py_files("m2m_rescursive")
     _test_migrate_upgrade()
+
+
+@requires_dialect("sqlite")
+def test_skip_model_name_changes(tmp_work_dir):
+    prepare_py_files("skip_model_name_changes")
+    _test_migrate_upgrade(3)
+    shutil.move("models_4.py", "models.py")
+    output = run_shell("aerich migrate")
+    assert "error" not in output.lower()
+    assert "warning" in output.lower()
+    assert "not support" in output
+    assert "models.UserAge -> models.Users" in output
+    assert "Please check the the migration file content before upgrade!" in output
+    output = run_shell("aerich upgrade")
+    assert "error" not in output.lower()
+    output = run_shell("pytest -s _tests.py::test_4")
+    assert "error" not in output.lower()
 
 
 @requires_dialect("sqlite")

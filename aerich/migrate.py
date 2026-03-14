@@ -75,6 +75,7 @@ class Migrate:
     _downgrade_m2m: list[str] = []
     _aerich = Aerich.__name__
     _rename_fields: dict[str, dict[str, str]] = {}  # {'model': {'old_field': 'new_field'}}
+    _rename_models: dict[str, str] = {}  # {'models.NewModel': 'models.OldModel'}
 
     ddl: BaseDDL
     ddl_class: type[BaseDDL]
@@ -314,6 +315,10 @@ class Migrate:
             return await cls._generate_diff_py(name, no_input=no_input, offline=offline)
         new_version_content = get_models_describe(cls.app)
         last_version = cast(dict, cls._last_version_content)
+
+        last_version, new_version_content = cls._exclude_model_name_changes(
+            last_version, new_version_content
+        )
         cls.diff_models(last_version, new_version_content, no_input=no_input)
         cls.diff_models(new_version_content, last_version, False, no_input=no_input)
 
@@ -323,6 +328,67 @@ class Migrate:
             return ""
 
         return await cls._generate_diff_py(name, no_input=no_input, offline=offline)
+
+    @classmethod
+    def _exclude_model_name_changes(cls, last_version, new_version_content) -> tuple[dict, dict]:
+        """Exclude items that only changes model class name without changing table name and fields
+
+        e.g.:
+        ```
+        class User(Model):
+            name = fields.CharField(20)
+            class Meta:
+                table = 'users'
+        ```
+        To:
+        ```
+        class Users(Model):
+            name = fields.CharField(20)
+            class Meta:
+                table = 'users'
+        ```
+        """
+        old_model_names = set(last_version)
+        new_model_names = set(new_version_content)
+        if (add_models := new_model_names - old_model_names) and (
+            drop_models := old_model_names - new_model_names
+        ):
+            for model_name in add_models:
+                model_describe = new_version_content[model_name]
+                table_name = model_describe["table"]
+                same_tables = [
+                    (old_model_name, old_model_describe)
+                    for old_model_name in drop_models
+                    if (old_model_describe := last_version[old_model_name]).get("table")
+                    == table_name
+                ]
+                if not same_tables:
+                    continue
+                old_model_name, old_model_describe = same_tables[0]
+                drop_models -= {old_model_name}
+                describe_items = sorted([(k, v) for k, v in model_describe.items() if k != "name"])
+                old_describe_items = sorted(
+                    [(k, v) for k, v in old_model_describe.items() if k != "name"]
+                )
+                if describe_items == old_describe_items:
+                    last_version = {k: v for k, v in last_version.items() if k != old_model_name}
+                    new_version_content = {
+                        k: v for k, v in new_version_content.items() if k != model_name
+                    }
+                elif [i for i in describe_items if not i[0].startswith("backward_")] == [
+                    i for i in old_describe_items if not i[0].startswith("backward_")
+                ]:
+                    cls._rename_models[model_name] = old_model_name
+                else:
+                    diff_attrs = [k for k, v in describe_items if v != old_model_describe[k]]
+                    cls.secho_warning(
+                        "Rename model class name with attribute changed is not supported"
+                        f"({old_model_name} -> {model_name}: {diff_attrs=})\n"
+                        "Please check the the migration file content before upgrade!"
+                    )
+                if not drop_models:
+                    break
+        return last_version, new_version_content
 
     @classmethod
     def _get_diff_file_content(cls) -> str:
@@ -620,7 +686,8 @@ class Migrate:
                 item = (sql, new_model_str, fk_model_names)
                 sql_fks.append(item)
             else:
-                simple_tables.append(sql)
+                if new_model_str not in cls._rename_models:
+                    simple_tables.append(sql)
                 simple_table_models.add(new_model_str)
             cls._handle_m2m_fields({}, new_model_describe, model, new_models, upgrade)
         for sql in simple_tables:
@@ -632,7 +699,8 @@ class Migrate:
             for _ in range(len(sql_fks)):
                 for index, (sql, new_model_str, fk_model_names) in enumerate(sql_fks):
                     if not (fk_model_names - simple_or_exists - ordered_table_models):
-                        ordered_tables.append(sql)
+                        if new_model_str not in cls._rename_models:
+                            ordered_tables.append(sql)
                         ordered_table_models.add(new_model_str)
                         sql_fks.pop(index)
                         break
@@ -867,7 +935,7 @@ class Migrate:
         if post_hook_sql := cls.ddl.schema_generator._post_table_hook().strip():
             cls._add_operator(post_hook_sql, upgrade)
         dropped_m2m_tables: set[str] = set()
-        for old_model in old_models.keys() - new_models.keys():
+        for old_model in old_models.keys() - cls._rename_models.values() - new_models.keys():
             if not upgrade and old_models[old_model].get("managed") is False:
                 continue
             model_describe = old_models[old_model]
