@@ -39,6 +39,9 @@ else:
             os.chdir(self._old_cwd.pop())
 
 
+IS_TORTOISE_V1 = not tortoise_version_less_than("1")
+
+
 async def drop_db(tortoise_orm) -> None:
     # Placing init outside the try-block(suppress) since it doesn't
     # establish connections to the DB eagerly.
@@ -48,12 +51,13 @@ async def drop_db(tortoise_orm) -> None:
     await Command.aclose()
 
 
-async def init_db(tortoise_orm, generate_schemas=True) -> None:
+async def init_db(tortoise_orm, generate_schemas=True, close_connection=True) -> None:
     await drop_db(tortoise_orm)
     await Tortoise.init(config=tortoise_orm, _create_db=True)
     if generate_schemas:
         await generate_schema_for_client(Tortoise.get_connection("default"), safe=True)
-    await Command.aclose()
+    if close_connection:
+        await Command.aclose()
 
 
 class Dialect:
@@ -96,7 +100,9 @@ def run_in_subprocess(command: str, capture_output=True, **kw) -> tuple[bool, st
             command = f"{py} -m " + command
         elif command.startswith(s := "python "):
             command = f"{py} " + command[len(s) :]
-    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8")
+    if (env := kw.get("env")) is not None:
+        kw["env"] = {**os.environ, **env}
+    r = subprocess.run(shlex.split(command), capture_output=capture_output, encoding="utf-8", **kw)
     ok = r.returncode == 0
     out = (r.stdout or "") if ok else (r.stderr or r.stdout or "")
     return ok, out

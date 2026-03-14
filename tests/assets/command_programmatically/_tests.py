@@ -63,5 +63,5 @@ async def test_migrate_upgrade(init_connections):
     async with Command(TORTOISE_ORM) as command:
         await command.migrate()
         await command.upgrade()
-    assert list(Path("migrations/models").glob("1_*.py"))
-    await Foo.create(a=1, b=2)
+        assert list(Path("migrations/models").glob("1_*.py"))
+        await Foo.create(a=1, b=2)

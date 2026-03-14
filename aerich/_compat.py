@@ -8,6 +8,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
 import tortoise
+from tortoise import Tortoise
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -39,6 +40,12 @@ def imports_tomlkit() -> ModuleType:
 def tortoise_version_less_than(version: str) -> bool:
     # The min version of tortoise is '0.11.0', so we can compare it by a `<`,
     return tortoise.__version__ < version
+
+
+def is_tortoise_inited() -> bool:
+    if (is_inited := getattr(Tortoise, "is_inited", None)) is not None:  # For tortoise>=1.0
+        return is_inited()
+    return Tortoise._inited
 
 
 def _init_asyncio_patch() -> None:

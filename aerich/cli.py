@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import cast
 
 import asyncclick as click
+import tortoise
 from asyncclick import Context, UsageError
 from tortoise.backends.base.config_generator import expand_db_url
 
@@ -56,41 +57,41 @@ async def cli(ctx: Context, config: str, app: str) -> None:
     ctx.obj["config_file"] = config
 
     invoked_subcommand = ctx.invoked_subcommand
-    if invoked_subcommand != "init":
-        config_path = Path(config)
-        if not config_path.exists():
-            raise UsageError(
-                "You need to run `aerich init` first to create the config file.", ctx=ctx
+    if invoked_subcommand == "init":
+        if tortoise.__version__ >= "1.0" and not os.getenv("AERICH_NO_TORTOISE_V1_WARNING"):
+            url = "https://tortoise.github.io/migration.html"
+            Migrate.secho_warning(
+                f"\nFor tortoise-orm>=1.0, it's recommended to use native migrations:\n{url}"
             )
-        tortoise_config, aerich_config = _load_tortoise_aerich_config(
-            ctx=ctx, config_file=config_path
-        )
+        return
+    config_path = Path(config)
+    if not config_path.exists():
+        raise UsageError("You need to run `aerich init` first to create the config file.", ctx=ctx)
+    tortoise_config, aerich_config = _load_tortoise_aerich_config(ctx=ctx, config_file=config_path)
+    try:
+        location = aerich_config["location"]
+    except KeyError as e:
+        raise UsageError("You need run `aerich init` again when upgrading to aerich 0.6.0+.") from e
+    if not app:
         try:
-            location = aerich_config["location"]
-        except KeyError as e:
+            apps_config = cast(dict, tortoise_config["apps"])
+        except KeyError:
+            raise UsageError('Config must define "apps" section') from None
+        app = list(apps_config.keys())[0]
+    command = Command(tortoise_config=tortoise_config, app=app, location=location)
+    if inspectdb_fields := aerich_config.get("inspectdb"):
+        command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
+    # The 'init-db' subcommand requires it to not init when aenter
+    command._init_when_aenter = False
+    # Call ``command.__aexit__()`` when the context is popped
+    ctx.obj["command"] = await ctx.with_async_resource(command)
+    _check_aerich_models_included(tortoise_config)
+    if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
+        if not Migrate.get_migration_dir(location, app).exists():
             raise UsageError(
-                "You need run `aerich init` again when upgrading to aerich 0.6.0+."
-            ) from e
-        if not app:
-            try:
-                apps_config = cast(dict, tortoise_config["apps"])
-            except KeyError:
-                raise UsageError('Config must define "apps" section') from None
-            app = list(apps_config.keys())[0]
-        command = Command(tortoise_config=tortoise_config, app=app, location=location)
-        if inspectdb_fields := aerich_config.get("inspectdb"):
-            command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
-        # The 'init-db' subcommand requires it to not init when aenter
-        command._init_when_aenter = False
-        # Call ``command.__aexit__()`` when the context is popped
-        ctx.obj["command"] = await ctx.with_async_resource(command)
-        _check_aerich_models_included(tortoise_config)
-        if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
-            if not Migrate.get_migration_dir(location, app).exists():
-                raise UsageError(
-                    "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
-                )
-            await command.init(offline="--offline" in sys.argv)
+                "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
+            )
+        await command.init(offline="--offline" in sys.argv)
 
 
 @cli.command(help="Generate a migration file for the current state of the models.")

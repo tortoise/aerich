@@ -7,9 +7,9 @@ from tests._utils import prepare_py_files, requires_dialect, run_shell
 
 async def test_command(mocker):
     mocker.patch("os.listdir", return_value=[])
-    async with Command(tortoise_orm) as command:
-        history = await command.history()
-        heads = await command.heads()
+    command = await Command(tortoise_orm)
+    history = await command.history()
+    heads = await command.heads()
     assert history == []
     assert heads == []
 

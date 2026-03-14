@@ -6,6 +6,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+import tortoise
 
 from aerich._compat import tomllib
 from aerich.cli import inspectdb, upgrade
@@ -49,7 +50,7 @@ async def project_with_unapplied_migrations(new_project: Path) -> None:
 def test_migrate_with_same_version_file_exists(project_with_unapplied_migrations) -> None:
     # CliRunner change the entire interpreter state, so run it in subprocess
     output = run_shell("pytest _tests.py")
-    assert "1 passed" in output
+    assert "3 passed" in output
 
 
 @requires_dialect("sqlite")
@@ -198,3 +199,17 @@ def test_help(tmp_path):
         assert output == run_shell(f"aerich {inspectdb.name} -h")
         assert str(inspectdb.help) in output
         assert "--table" in output
+
+
+@requires_dialect("sqlite")
+@pytest.mark.skipif(tortoise.__version__ < "1", reason="Only for tortoise 1.0+")
+def test_init_warning_for_tortoise_v1():
+    output = run_shell("aerich init -t conftest.tortoise_orm")
+    assert "Warning" in output
+    url = "https://tortoise.github.io/migration.html"
+    assert url in output
+    output = run_shell(
+        "aerich init -t conftest.tortoise_orm", env={"AERICH_NO_TORTOISE_V1_WARNING": "1"}
+    )
+    assert "Warning" not in output
+    assert url not in output

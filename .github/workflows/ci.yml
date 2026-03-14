@@ -51,6 +51,7 @@ jobs:
           - tortoise023
           - tortoise024
           - tortoise025
+          - tortoise11
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
@@ -88,6 +89,9 @@ jobs:
       - name: Install TortoiseORM v0.25
         if: matrix.tortoise-orm == 'tortoise025'
         run: uv pip install --upgrade "tortoise-orm>=0.25,<0.26"
+      - name: Install TortoiseORM v1.1
+        if: matrix.tortoise-orm == 'tortoise11'
+        run: uv pip install --upgrade "tortoise-orm<1.2"
       - name: Run tests for postgres
         run:
           make test_postgres
@@ -211,9 +215,10 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          activate-environment: true
       - name: Install dependencies
         run: |
-          uv pip install --system --group test -e ".[toml,psycopg,mysql]"
+          uv pip install --group test -e ".[toml,psycopg,mysql]"
       - name: Test psycopg
         run: make test_psycopg
         env:

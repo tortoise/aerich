@@ -4,21 +4,25 @@ from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
+from tests._utils import IS_TORTOISE_V1
 from tests.models import Category, Product, User
 
 
 def test_create_table():
     ret = Migrate.ddl.create_table(Category)
+    default_ts = "" if IS_TORTOISE_V1 else " DEFAULT CURRENT_TIMESTAMP"
     if isinstance(Migrate.ddl, MysqlDDL):
         if tortoise.__version__ >= "0.24":
+            if not IS_TORTOISE_V1:
+                default_ts = " DEFAULT CURRENT_TIMESTAMP(6)"
             assert (
                 ret
-                == """CREATE TABLE IF NOT EXISTS `category` (
+                == f"""CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `slug` VARCHAR(100) NOT NULL,
     `name` VARCHAR(200),
     `title` VARCHAR(20) NOT NULL,
-    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `created_at` DATETIME(6) NOT NULL{default_ts},
     `owner_id` INT NOT NULL COMMENT 'User',
     CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
     FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
@@ -48,7 +52,7 @@ CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
     "title" VARCHAR(20) NOT NULL,
-    "created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMP NOT NULL{default_ts},
     "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE /* User */
 );
 CREATE INDEX {exists}"idx_category_slug_e9bcff" ON "category" ("slug")"""
@@ -57,12 +61,12 @@ CREATE INDEX {exists}"idx_category_slug_e9bcff" ON "category" ("slug")"""
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+            == f"""CREATE TABLE IF NOT EXISTS "category" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
     "title" VARCHAR(20) NOT NULL,
-    "created_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" TIMESTAMPTZ NOT NULL{default_ts},
     "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug");
@@ -130,14 +134,17 @@ def test_alter_column_default():
         Category, Category._meta.fields_map["created_at"].describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert (
-            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
-        )
+        expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        if IS_TORTOISE_V1:
+            expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT NULL'
+        assert ret == expected
     elif isinstance(Migrate.ddl, MysqlDDL):
-        assert (
-            ret
-            == "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        expected = (
+            "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
         )
+        if IS_TORTOISE_V1:
+            expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
+        assert ret == expected
 
     ret = Migrate.ddl.alter_column_default(
         Product, Product._meta.fields_map["view_num"].describe(False)
