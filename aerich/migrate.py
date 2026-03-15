@@ -350,44 +350,44 @@ class Migrate:
         """
         old_model_names = set(last_version)
         new_model_names = set(new_version_content)
-        if (add_models := new_model_names - old_model_names) and (
-            drop_models := old_model_names - new_model_names
-        ):
-            for model_name in add_models:
-                model_describe = new_version_content[model_name]
-                table_name = model_describe["table"]
-                same_tables = [
-                    (old_model_name, old_model_describe)
-                    for old_model_name in drop_models
-                    if (old_model_describe := last_version[old_model_name]).get("table")
-                    == table_name
-                ]
-                if not same_tables:
-                    continue
-                old_model_name, old_model_describe = same_tables[0]
-                drop_models -= {old_model_name}
-                describe_items = sorted([(k, v) for k, v in model_describe.items() if k != "name"])
-                old_describe_items = sorted(
-                    [(k, v) for k, v in old_model_describe.items() if k != "name"]
+        add_models = new_model_names - old_model_names
+        drop_models = old_model_names - new_model_names
+        if not add_models or not drop_models:
+            return last_version, new_version_content
+        for model_name in add_models:
+            model_describe = new_version_content[model_name]
+            table_name = model_describe["table"]
+            same_tables = [
+                (old_model_name, old_model_describe)
+                for old_model_name in drop_models
+                if (old_model_describe := last_version[old_model_name]).get("table") == table_name
+            ]
+            if not same_tables:
+                continue
+            old_model_name, old_model_describe = same_tables[0]
+            drop_models -= {old_model_name}
+            describe_items = sorted([(k, v) for k, v in model_describe.items() if k != "name"])
+            old_describe_items = sorted(
+                [(k, v) for k, v in old_model_describe.items() if k != "name"]
+            )
+            if describe_items == old_describe_items:
+                last_version = {k: v for k, v in last_version.items() if k != old_model_name}
+                new_version_content = {
+                    k: v for k, v in new_version_content.items() if k != model_name
+                }
+            elif [i for i in describe_items if not i[0].startswith("backward_")] == [
+                i for i in old_describe_items if not i[0].startswith("backward_")
+            ]:
+                cls._rename_models[model_name] = old_model_name
+            else:
+                diff_attrs = [k for k, v in describe_items if v != old_model_describe[k]]
+                cls.secho_warning(
+                    "Rename model class name with attribute changed is not supported"
+                    f"({old_model_name} -> {model_name}: {diff_attrs=})\n"
+                    "Please check the the migration file content before upgrade!"
                 )
-                if describe_items == old_describe_items:
-                    last_version = {k: v for k, v in last_version.items() if k != old_model_name}
-                    new_version_content = {
-                        k: v for k, v in new_version_content.items() if k != model_name
-                    }
-                elif [i for i in describe_items if not i[0].startswith("backward_")] == [
-                    i for i in old_describe_items if not i[0].startswith("backward_")
-                ]:
-                    cls._rename_models[model_name] = old_model_name
-                else:
-                    diff_attrs = [k for k, v in describe_items if v != old_model_describe[k]]
-                    cls.secho_warning(
-                        "Rename model class name with attribute changed is not supported"
-                        f"({old_model_name} -> {model_name}: {diff_attrs=})\n"
-                        "Please check the the migration file content before upgrade!"
-                    )
-                if not drop_models:
-                    break
+            if not drop_models:
+                break
         return last_version, new_version_content
 
     @classmethod
