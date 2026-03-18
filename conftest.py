@@ -52,6 +52,8 @@ def reset_migrate() -> None:
     Migrate._downgrade_fk_m2m_index_operators = []
     Migrate._upgrade_m2m = []
     Migrate._downgrade_m2m = []
+    Migrate._rename_fields = {}
+    Migrate._rename_models = {}
 
 
 @pytest.fixture(scope="session")
