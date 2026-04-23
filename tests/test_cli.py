@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import time
 from collections.abc import Generator
 from pathlib import Path
@@ -143,6 +144,10 @@ def test_missing_aerich_models() -> None:
     assert "Success" in output
 
 
+def _get_orm_item(doc: dict) -> str:
+    return doc["tool"]["aerich"]["tortoise_orm"]
+
+
 @pytest.mark.usefixtures("tmp_work_dir")
 def test_aerich_init() -> None:
     prepare_py_files("missing_aerich_models")
@@ -152,7 +157,7 @@ def test_aerich_init() -> None:
     assert toml_file.exists()
     assert f"Success writing aerich config to {toml_file}" in output
     doc: dict = tomllib.loads(toml_file.read_text("utf-8"))
-    assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM"
+    assert _get_orm_item(doc) == "settings.TORTOISE_ORM"
     modified_at = toml_file.stat().st_mtime
     # init again does not changed the modify time of config file
     output = run_shell("aerich init -t settings.TORTOISE_ORM")
@@ -162,7 +167,7 @@ def test_aerich_init() -> None:
     output = run_shell("aerich init -t settings.TORTOISE_ORM_NO_AERICH_MODELS")
     assert f"Success writing aerich config to {toml_file}" in output
     doc = tomllib.loads(toml_file.read_text("utf-8"))
-    assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM_NO_AERICH_MODELS"
+    assert _get_orm_item(doc) == "settings.TORTOISE_ORM_NO_AERICH_MODELS"
     # init will not remove comment line in config file
     comment_line = "# This is a comment line."
     with toml_file.open("a", encoding="utf-8") as f:
@@ -172,7 +177,7 @@ def test_aerich_init() -> None:
     text = toml_file.read_text("utf-8")
     assert comment_line in text
     doc = tomllib.loads(text)
-    assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM"
+    assert _get_orm_item(doc) == "settings.TORTOISE_ORM"
     # In line comment will not remove either
     content = os.linesep.join([comment_line, "[tool.mypy]", "pretty=true # comment-2"])
     toml_file.write_text(content, encoding="utf-8")
@@ -182,7 +187,7 @@ def test_aerich_init() -> None:
     assert comment_line in text
     assert "comment-2" in text
     doc = tomllib.loads(text)
-    assert doc["tool"]["aerich"]["tortoise_orm"] == "settings.TORTOISE_ORM"
+    assert _get_orm_item(doc) == "settings.TORTOISE_ORM"
 
 
 def test_help(tmp_path):
@@ -213,3 +218,44 @@ def test_init_warning_for_tortoise_v1():
     )
     assert "Warning" not in output
     assert url not in output
+
+
+@requires_dialect("sqlite")
+@pytest.mark.skipif(tortoise.__version__ < "1", reason="Only for tortoise 1.0+")
+def test_tool_tortoise_section(tmp_work_dir):
+    old_new = "[tool.aerich]", "[tool.tortoise]"
+    prepare_py_files("tortoise_v1")
+    toml_file = Path("pyproject.toml")
+    run_shell("aerich init -t settings.TORTOISE_ORM")
+    text = toml_file.read_text("utf8")
+    assert old_new[0] in text
+    output = run_shell("tortoise heads")
+    s = "You must specify TORTOISE_ORM in option or env, or pyproject.toml [tool.tortoise]"
+    assert s in output
+    new_text = text.replace(*old_new)
+    toml_file.write_text(new_text, encoding="utf-8")
+    output = run_shell("aerich init-db")
+    assert "Success" in output
+    output = run_shell("aerich migrate")
+    assert "No changes detected" in output
+    output = run_shell("tortoise heads")
+    assert s not in output
+    models_py = "models.py"
+    shutil.copy("next_models.py", models_py)
+    output = run_shell("aerich migrate")
+    assert "Success" in output
+    output = run_shell("aerich upgrade")
+    assert "Success" in output
+    output = run_shell("tortoise heads")
+    assert s not in output
+    output = run_shell("tortoise init")
+    assert "ERROR" not in output.upper()
+    output = run_shell("tortoise makemigrations")
+    assert "Created" in output
+    output = run_shell("tortoise migrate --fake")
+    assert "APPLY" in output
+    shutil.copy("latest_models.py", models_py)
+    output = run_shell("tortoise makemigrations")
+    assert "Created" in output
+    output = run_shell("tortoise migrate")
+    assert "APPLY" in output

@@ -156,7 +156,8 @@ def _load_tortoise_aerich_config(
         text = config_file.read_text(encoding="utf-8")
         doc = tomllib.loads(text)
         try:
-            aerich_config = doc["tool"]["aerich"]
+            tool_section = doc["tool"]
+            aerich_config = tool_section.get("aerich", {}) or tool_section["tortoise"]
         except KeyError:
             ...
         else:

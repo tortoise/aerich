@@ -885,7 +885,7 @@ class Migrate:
                                     )
                                 else:
                                     cls._add_operator(
-                                        cls._rename_field(model, *changes[1][2]),
+                                        cls._rename_field(model, *changes[1][2]),  # type: ignore
                                         upgrade,
                                     )
                 if not is_rename:

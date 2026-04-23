@@ -272,7 +272,8 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     else:
         content = config_path.read_text("utf-8")
         doc: dict = tomllib.loads(content)
-        if (aerich_config := doc.get("tool", {}).get("aerich")) and all(
+        tool_section = doc.get("tool", {})
+        if (aerich_config := tool_section.get("aerich") or tool_section.get("tortoise")) and all(
             aerich_config.get(k) == v for k, v in table.items()
         ):
             click.echo(f"Aerich config {config_file} already inited.")
