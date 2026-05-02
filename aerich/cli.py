@@ -321,6 +321,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                             item_index = index
                             break
                     if auto_change_title:
+                        # Auto change section `[tool.aerich]` to `[tool.tortoise]`
                         old, new = reversed_titles
                         lines[item_index] = lines[item_index].replace(old, new)
                     for index in range(item_index + 1, len(lines) + 1):
