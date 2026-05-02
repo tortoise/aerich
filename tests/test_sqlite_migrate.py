@@ -11,6 +11,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+import tortoise
 from tortoise import Tortoise
 
 from aerich import Command, Migrate, TortoiseContext, decompress_dict, import_py_file
@@ -319,7 +320,8 @@ def test_sqlite_migrate(tmp_work_dir: Path) -> None:
         config_file = Path("pyproject.toml")
         config_file.write_text('[project]\nname = "project"')
         run_aerich("init -t settings.TORTOISE_ORM")
-        assert "[tool.aerich]" in config_file.read_text()
+        section = "[tool.tortoise]" if tortoise.__version__ >= "1.0" else "[tool.aerich]"
+        assert section in config_file.read_text()
 
         # add m2m with custom model for through
         models_py.write_text(MODELS + M2M_WITH_CUSTOM_THROUGH)
