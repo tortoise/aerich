@@ -231,6 +231,7 @@ def test_tool_tortoise_section(tmp_work_dir):
     text = toml_file.read_text("utf8")
     assert old_new[1] in text
     toml_file.write_text(text.replace(*old_new[::-1]), encoding="utf-8")
+    assert old_new[0] in text
     output = run_shell("tortoise heads")
     s = "You must specify TORTOISE_ORM in option or env, or pyproject.toml [tool.tortoise]"
     assert s in output
