@@ -219,13 +219,13 @@ async def history(ctx: Context) -> None:
         click.secho(version, fg=Color.green)
 
 
-def _write_config(config_path: Path, doc: dict, table: dict) -> None:
+def _write_config(config_path: Path, doc: dict, table: dict, is_tortoise_v1=False) -> None:
     tomlkit = imports_tomlkit()
-
+    section = "tortoise" if is_tortoise_v1 else "aerich"
     try:
-        doc["tool"]["aerich"] = table
+        doc["tool"][section] = table
     except KeyError:
-        doc["tool"] = {"aerich": table}
+        doc["tool"] = {section: table}
     config_path.write_text(tomlkit.dumps(doc))
 
 
@@ -307,7 +307,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
             else:
                 # Modify aerich config
                 if "#" not in content:
-                    _write_config(config_path, doc, table)
+                    _write_config(config_path, doc, table, is_tortoise_v1)
                 else:
                     reversed_titles = item_titles[::-1]
                     exists = [i for i in reversed_titles if i in content]

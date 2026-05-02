@@ -145,7 +145,8 @@ def test_missing_aerich_models() -> None:
 
 
 def _get_orm_item(doc: dict) -> str:
-    return doc["tool"]["aerich"]["tortoise_orm"]
+    section = "tortoise" if tortoise.__version__ >= "1.0" else "aerich"
+    return doc["tool"][section]["tortoise_orm"]
 
 
 @pytest.mark.usefixtures("tmp_work_dir")
@@ -228,7 +229,8 @@ def test_tool_tortoise_section(tmp_work_dir):
     toml_file = Path("pyproject.toml")
     run_shell("aerich init -t settings.TORTOISE_ORM")
     text = toml_file.read_text("utf8")
-    assert old_new[0] in text
+    assert old_new[1] in text
+    toml_file.write_text(text.replace(*old_new[::-1]), encoding="utf-8")
     output = run_shell("tortoise heads")
     s = "You must specify TORTOISE_ORM in option or env, or pyproject.toml [tool.tortoise]"
     assert s in output
