@@ -52,9 +52,9 @@ jobs:
           - tortoise024
           - tortoise025
           - tortoise11
-      exclude:
-        - python-version: "3.9"
-          tortoise-orm: "tortoise11"
+        exclude:
+          - python-version: "3.9"
+            tortoise-orm: "tortoise11"
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service
