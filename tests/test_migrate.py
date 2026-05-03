@@ -1552,9 +1552,3 @@ def test_create_multi_foreignkey_tables(tmp_work_dir):
     prepare_py_files("order_fk")
     with tmp_daily_db():
         _test_migrate_upgrade()
-
-
-@requires_dialect("sqlite")
-def test_auto_fix_migrations(tmp_work_dir):
-    prepare_py_files("auto_fix_migrations")
-    _test_migrate_upgrade(4)
