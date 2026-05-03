@@ -137,3 +137,6 @@ extra-standard-library = ["tomllib"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "conftest.py"]
+
+[tool.codespell]
+ignore-words-list = "Bu"

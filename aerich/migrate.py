@@ -487,7 +487,7 @@ class Migrate:
                     # Ignore changing of indexed, as it usually changed by unique
                     continue
                 elif attr == "nullable":
-                    # nullable of m2m relation is constrainted by orm framework, not by db
+                    # nullable of m2m relation is constrained by orm framework, not by db
                     continue
                 elif attr == "on_delete":
                     if upgrade:

@@ -215,7 +215,7 @@ def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
 
 
 def describe_index(idx: Index) -> Index | dict:
-    # tortoise-orm>=0.24 changes Index desribe to be dict
+    # tortoise-orm>=0.24 changes Index describe to be dict
     if tortoise_version_less_than("0.24"):
         return idx
     if hasattr(idx, "describe"):
