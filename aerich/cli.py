@@ -12,7 +12,7 @@ from asyncclick import Context, UsageError
 from tortoise.backends.base.config_generator import expand_db_url
 
 from aerich import Command
-from aerich._compat import imports_tomlkit, tomllib
+from aerich._compat import imports_tomlkit, tomllib, tortoise_version_less_than
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
 from aerich.migrate import Migrate
@@ -219,13 +219,13 @@ async def history(ctx: Context) -> None:
         click.secho(version, fg=Color.green)
 
 
-def _write_config(config_path: Path, doc: dict, table: dict) -> None:
+def _write_config(config_path: Path, doc: dict, table: dict, is_tortoise_v1=False) -> None:
     tomlkit = imports_tomlkit()
-
+    section = "tortoise" if is_tortoise_v1 else "aerich"
     try:
-        doc["tool"]["aerich"] = table
+        doc["tool"][section] = table
     except KeyError:
-        doc["tool"] = {"aerich": table}
+        doc["tool"] = {section: table}
     config_path.write_text(tomlkit.dumps(doc))
 
 
@@ -266,7 +266,8 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
     is_template_location = "{app}" in location
     table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
     if not config_path.exists():
-        text = "[tool.aerich]" + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())
+        section = "[tool.aerich]" if tortoise_version_less_than("1.0") else "[tool.tortoise]"
+        text = section + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())
         config_path.write_text(text, encoding="utf-8")
         click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
     else:
@@ -286,7 +287,10 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
             elif Path(location).exists():
                 return
         else:
-            item_title = "[tool.aerich]"
+            item_titles = ["[tool.aerich]"]
+            is_tortoise_v1 = not tortoise_version_less_than("1.0")
+            if is_tortoise_v1:
+                item_titles.insert(0, "[tool.tortoise]")
             lines = content.splitlines()
             if not (linesep := content[len(content.rstrip()) :].replace(" ", "")):
                 linesep = os.linesep
@@ -294,22 +298,32 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
                     if sep.join(lines).strip() == content.strip():
                         linesep = sep
                         break
-            if aerich_config is None or item_title not in content:
+            if aerich_config is None or all(i not in content for i in item_titles):
                 # Add aerich config item
-                newlines = [item_title, *[f'{k} = "{v}"' for k, v in table.items()]]
+                newlines = [item_titles[0], *[f'{k} = "{v}"' for k, v in table.items()]]
                 with config_path.open("a") as f:
                     f.write(linesep)
                     f.writelines([i + linesep for i in newlines])
             else:
                 # Modify aerich config
                 if "#" not in content:
-                    _write_config(config_path, doc, table)
+                    _write_config(config_path, doc, table, is_tortoise_v1)
                 else:
+                    reversed_titles = item_titles[::-1]
+                    exists = [i for i in reversed_titles if i in content]
+                    item_title = exists[0]
+                    auto_change_title = (
+                        is_tortoise_v1 and item_title == item_titles[-1] and len(exists) == 1
+                    )
                     item_index = 0
                     for index, line in enumerate(lines):
                         if line.strip().startswith(item_title):
                             item_index = index
                             break
+                    if auto_change_title:
+                        # Auto change section `[tool.aerich]` to `[tool.tortoise]`
+                        old, new = reversed_titles
+                        lines[item_index] = lines[item_index].replace(old, new)
                     for index in range(item_index + 1, len(lines) + 1):
                         slim = lines[index].strip()
                         if slim.startswith("#"):
