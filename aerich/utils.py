@@ -61,7 +61,7 @@ def get_app_connection_name(config: dict[str, dict[str, Any]], app_name: str) ->
     get connection name
     :param config:
     :param app_name:
-    :return: the default connection name (Usally it is 'default')
+    :return: the default connection name (Usually it is 'default')
     """
     if app := config["apps"].get(app_name):
         return cast(str, app.get("default_connection", "default"))

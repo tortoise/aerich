@@ -22,7 +22,7 @@ async def test_migrate_input_enter():
     assert not result.exception
     assert "it" in result.output
     warning_msg = (
-        "Aborted! You may need to run `aerich heads` to list avaliable unapplied migrations."
+        "Aborted! You may need to run `aerich heads` to list available unapplied migrations."
     )
     assert warning_msg in result.output
 

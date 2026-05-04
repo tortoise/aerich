@@ -107,7 +107,7 @@ async def migrate(ctx: Context, name: str, empty: bool, no_input: bool, offline:
     ret = await command.migrate(name, empty, no_input, offline)
     if ret is None:
         return click.secho(
-            "Aborted! You may need to run `aerich heads` to list avaliable unapplied migrations.",
+            "Aborted! You may need to run `aerich heads` to list available unapplied migrations.",
             fg=Color.yellow,
         )
     if not ret:

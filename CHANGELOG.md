@@ -167,7 +167,7 @@
 ### [0.8.0](../../releases/tag/v0.8.0) - 2024-12-04
 
 - Fix the issue of parameter concatenation when generating ORM with inspectdb (#331)
-- Fix KeyError when deleting a field with unqiue=True. (#364)
+- Fix KeyError when deleting a field with unique=True. (#364)
 - Correct the click import. (#360)
 - Improve CLI help text and output. (#355)
 - Fix mysql drop unique index raises OperationalError. (#346)
