@@ -81,6 +81,8 @@ async def cli(ctx: Context, config: str, app: str) -> None:
     command = Command(tortoise_config=tortoise_config, app=app, location=location)
     if inspectdb_fields := aerich_config.get("inspectdb"):
         command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
+    if aerich_config.get("no_old_format_warning"):
+        Migrate.silence_old_format_warning = True
     # The 'init-db' subcommand requires it to not init when aenter
     command._init_when_aenter = False
     # Call ``command.__aexit__()`` when the context is popped

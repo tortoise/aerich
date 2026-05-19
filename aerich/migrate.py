@@ -84,6 +84,9 @@ class Migrate:
     migrate_location: Path
     dialect: str
     _db_version: str | None = None
+    # When True, suppress the warning about old-format migration files
+    # (no MODELS_STATE section). Can be set via tool.aerich config or env var.
+    silence_old_format_warning: bool = False
 
     @staticmethod
     def get_field_by_name(name: str, fields: list[dict]) -> dict:
@@ -191,10 +194,28 @@ class Migrate:
                 pass
             else:
                 if not last_version_info.models_state:
-                    raise RuntimeError(
-                        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format"
-                    )
-                if offline:
+                    if offline:
+                        # In offline mode there is no database to fall back to,
+                        # so the user must update the migration files first.
+                        raise RuntimeError(
+                            "Old format of migration file detected, "
+                            "run `aerich fix-migrations` to upgrade format"
+                        )
+                    # In online mode the state is read from the aerich table below,
+                    # so we keep backward compatibility with migration files generated
+                    # by aerich<=0.9.1 (no MODELS_STATE section). Issue #516.
+                    if not (
+                        cls.silence_old_format_warning
+                        or os.getenv("AERICH_NO_OLD_FORMAT_WARNING")
+                    ):
+                        cls.secho_warning(
+                            "Old format of migration file detected, "
+                            "run `aerich fix-migrations` to upgrade format. "
+                            "(Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' or "
+                            "'no_old_format_warning = true' under [tool.aerich] "
+                            "in pyproject.toml to silence this warning.)"
+                        )
+                elif offline:
                     cls._last_version_content = last_version_info.models_state
             if not offline and (last_version := await cls.get_last_version()):
                 cls._last_version_content = cast(dict, last_version.content)
