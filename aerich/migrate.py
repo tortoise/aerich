@@ -205,8 +205,7 @@ class Migrate:
                     # so we keep backward compatibility with migration files generated
                     # by aerich<=0.9.1 (no MODELS_STATE section). Issue #516.
                     if not (
-                        cls.silence_old_format_warning
-                        or os.getenv("AERICH_NO_OLD_FORMAT_WARNING")
+                        cls.silence_old_format_warning or os.getenv("AERICH_NO_OLD_FORMAT_WARNING")
                     ):
                         cls.secho_warning(
                             "Old format of migration file detected, "
