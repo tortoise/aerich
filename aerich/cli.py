@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import os
 import re
 import sys
@@ -433,7 +434,11 @@ async def init_migrations(ctx: Context, safe: bool) -> None:
 async def inspectdb(ctx: Context, table: list[str]) -> None:
     command = ctx.obj["command"]
     ret = await command.inspectdb(table)
-    click.secho(ret)
+    # Write as UTF-8 bytes to stdout to avoid UnicodeEncodeError when the
+    # system encoding (e.g. GBK on Chinese Windows) cannot handle characters
+    # in database comments. Issue #539.
+    utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    click.secho(ret, file=utf8_stdout)
 
 
 @cli.command(help="Fix migration files to include models state for aerich 0.6.0+.")
