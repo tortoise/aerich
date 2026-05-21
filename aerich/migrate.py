@@ -84,9 +84,6 @@ class Migrate:
     migrate_location: Path
     dialect: str
     _db_version: str | None = None
-    # When True, suppress the warning about old-format migration files
-    # (no MODELS_STATE section). Can be set via tool.aerich config or env var.
-    silence_old_format_warning: bool = False
 
     @staticmethod
     def get_field_by_name(name: str, fields: list[dict]) -> dict:
@@ -204,15 +201,12 @@ class Migrate:
                     # In online mode the state is read from the aerich table below,
                     # so we keep backward compatibility with migration files generated
                     # by aerich<=0.9.1 (no MODELS_STATE section). Issue #516.
-                    if not (
-                        cls.silence_old_format_warning or os.getenv("AERICH_NO_OLD_FORMAT_WARNING")
-                    ):
+                    if not os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
                         cls.secho_warning(
                             "Old format of migration file detected, "
                             "run `aerich fix-migrations` to upgrade format. "
-                            "(Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' or "
-                            "'no_old_format_warning = true' under [tool.aerich] "
-                            "in pyproject.toml to silence this warning.)"
+                            "(Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to "
+                            "silence this warning.)"
                         )
                 elif offline:
                     cls._last_version_content = last_version_info.models_state

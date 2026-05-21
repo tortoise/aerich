@@ -154,18 +154,6 @@ def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
         assert r_env.returncode == 0
         assert warning_text not in (r_env.stdout + r_env.stderr)
 
-        # The warning can also be silenced via the [tool.aerich] config option.
-        config_path = tmp_work_dir / "pyproject.toml"
-        config_text = config_path.read_text(encoding="utf-8")
-        config_path.write_text(
-            config_text.rstrip() + "\nno_old_format_warning = true\n",
-            encoding="utf-8",
-        )
-        r_cfg = run_aerich("aerich heads", capture_output=True)
-        assert r_cfg.returncode == 0
-        assert warning_text not in (r_cfg.stdout + r_cfg.stderr)
-        config_path.write_text(config_text, encoding="utf-8")
-
         r = run_aerich("aerich fix-migrations")
         assert r.returncode == 0
 
