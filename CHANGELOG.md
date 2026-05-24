@@ -10,7 +10,9 @@
 #### Fixed
 - fix: `init-db` now checks the `aerich` table in the database (not the migrations folder) to detect prior initialization, so it works correctly on a fresh database that already has migration files (e.g. cloned from a repository) ([#267])
 - fix: postgres field comment error with single quote ([#503])
+- fix: `inspectdb` output `UnicodeEncodeError` on Windows when database comments contain characters outside the system encoding (e.g. GBK) ([#539])
 
+[#539]: https://github.com/tortoise/aerich/issues/539
 [#512]: https://github.com/tortoise/aerich/pull/512
 [#503]: https://github.com/tortoise/aerich/pull/503
 [#267]: https://github.com/tortoise/aerich/issues/267
