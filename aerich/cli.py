@@ -99,10 +99,8 @@ def _warns_old_format_migration():
     if os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
         return
     Migrate.secho_warning(
-        "Old format of migration file detected, "
-        "run `aerich fix-migrations` to upgrade format. "
-        "(Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to "
-        "silence this warning.)"
+        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format."
+        " (Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to silence this warning.)"
     )
 
 
