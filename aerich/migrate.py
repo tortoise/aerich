@@ -190,25 +190,14 @@ class Migrate:
                 # Skip invalid migration file
                 pass
             else:
-                if not last_version_info.models_state:
-                    if offline:
+                if offline:
+                    if not last_version_info.models_state:
                         # In offline mode there is no database to fall back to,
                         # so the user must update the migration files first.
                         raise RuntimeError(
                             "Old format of migration file detected, "
                             "run `aerich fix-migrations` to upgrade format"
                         )
-                    # In online mode the state is read from the aerich table below,
-                    # so we keep backward compatibility with migration files generated
-                    # by aerich<=0.9.1 (no MODELS_STATE section). Issue #516.
-                    if not os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
-                        cls.secho_warning(
-                            "Old format of migration file detected, "
-                            "run `aerich fix-migrations` to upgrade format. "
-                            "(Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to "
-                            "silence this warning.)"
-                        )
-                elif offline:
                     cls._last_version_content = last_version_info.models_state
             if not offline and (last_version := await cls.get_last_version()):
                 cls._last_version_content = cast(dict, last_version.content)

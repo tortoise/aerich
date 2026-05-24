@@ -20,17 +20,14 @@ from aerich.utils import get_app_connection, load_tortoise_config, run_async
 from tests._utils import ASSETS, WINDOWS, prepare_py_files, requires_dialect
 
 
-def run_aerich(
-    cmd: str, capture_output=False, env: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
+def run_aerich(cmd: str, capture_output=False) -> subprocess.CompletedProcess:
     if not cmd.startswith("uv") and not cmd.startswith("python") and "-m aerich " not in cmd:
         if not cmd.startswith("aerich"):
             cmd = "aerich " + cmd
         if WINDOWS:
             py = Path(sys.executable).as_posix()
             cmd = f"{py} -m " + cmd
-    sub_env = dict(os.environ, **env) if env else None
-    run_cmd = functools.partial(subprocess.run, shlex.split(cmd), timeout=2, env=sub_env)
+    run_cmd = functools.partial(subprocess.run, shlex.split(cmd), timeout=2)
     r = run_cmd(capture_output=True, encoding="utf-8") if capture_output else run_cmd()
     return r
 
@@ -135,6 +132,49 @@ def test_sqlite_migrate_alter_indexed_unique_offline(tmp_work_dir: Path) -> None
 
 
 @requires_dialect("sqlite")
+def test_sqlite_migrate_old_style_without_new_file_has_no_warning(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_old_style_project(tmp_work_dir) as (models_py, models_text):
+        models_py.write_text(models_text.replace("db_index=False", "db_index=True"))
+        migrations_dir = tmp_work_dir / "migrations" / "models"
+        migration_files_before = {p.name for p in migrations_dir.glob("*.py")}
+
+        r = run_aerich("aerich migrate", capture_output=True)
+        output = r.stdout + r.stderr
+
+        assert r.returncode == 0
+        assert "No changes detected" in output
+        assert "Old format of migration file detected" not in output
+        assert {p.name for p in migrations_dir.glob("*.py")} == migration_files_before
+
+
+@requires_dialect("sqlite")
+def test_sqlite_migrate_old_style_with_new_file_has_warning(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_old_style_project(tmp_work_dir) as (models_py, models_text):
+        models_py.write_text(models_text.replace("db_index=False", "unique=True"))
+        migrations_dir = tmp_work_dir / "migrations" / "models"
+        migration_files_before = {p.name for p in migrations_dir.glob("*.py")}
+
+        r = run_aerich("aerich migrate", capture_output=True)
+        output = r.stdout + r.stderr
+
+        assert r.returncode == 0
+        assert "Success creating migration file" in output
+        assert "Old format of migration file detected" in output
+        assert len(list(migrations_dir.glob("*.py"))) == len(migration_files_before) + 1
+
+
+@requires_dialect("sqlite")
+def test_sqlite_migrate_old_style_offline_requires_fix_migrations(tmp_work_dir: Path) -> None:
+    with prepare_sqlite_old_style_project(tmp_work_dir):
+        r = run_aerich("aerich migrate --offline", capture_output=True)
+        output = r.stdout + r.stderr
+
+        assert r.returncode != 0
+        assert "Old format of migration file detected" in output
+        assert "run `aerich fix-migrations` to upgrade format" in output
+
+
+@requires_dialect("sqlite")
 def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
     with prepare_sqlite_old_style_project(tmp_work_dir) as (models_py, models_text):
         # Issue #516: aerich commands must remain compatible with migration files
@@ -143,16 +183,11 @@ def test_sqlite_fix_migrations(tmp_work_dir: Path) -> None:
         r = run_aerich("aerich upgrade", capture_output=True)
         assert r.returncode == 0
         warning_text = "Old format of migration file detected"
-        assert warning_text in (r.stdout + r.stderr)
+        assert warning_text not in (r.stdout + r.stderr)
 
-        # The warning can be silenced via the AERICH_NO_OLD_FORMAT_WARNING env var.
-        r_env = run_aerich(
-            "aerich heads",
-            capture_output=True,
-            env={"AERICH_NO_OLD_FORMAT_WARNING": "1"},
-        )
-        assert r_env.returncode == 0
-        assert warning_text not in (r_env.stdout + r_env.stderr)
+        r_heads = run_aerich("aerich heads", capture_output=True)
+        assert r_heads.returncode == 0
+        assert warning_text not in (r_heads.stdout + r_heads.stderr)
 
         r = run_aerich("aerich fix-migrations")
         assert r.returncode == 0
