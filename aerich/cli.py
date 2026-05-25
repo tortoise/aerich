@@ -95,7 +95,7 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         await command.init(offline="--offline" in sys.argv)
 
 
-def _warns_old_format_migration():
+def _warns_old_format_migration() -> None:
     if os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
         return
     Migrate.secho_warning(
