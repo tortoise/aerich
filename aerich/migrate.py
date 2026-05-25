@@ -190,11 +190,14 @@ class Migrate:
                 # Skip invalid migration file
                 pass
             else:
-                if not last_version_info.models_state:
-                    raise RuntimeError(
-                        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format"
-                    )
                 if offline:
+                    if not last_version_info.models_state:
+                        # In offline mode there is no database to fall back to,
+                        # so the user must update the migration files first.
+                        raise RuntimeError(
+                            "Old format of migration file detected, "
+                            "run `aerich fix-migrations` to upgrade format"
+                        )
                     cls._last_version_content = last_version_info.models_state
             if not offline and (last_version := await cls.get_last_version()):
                 cls._last_version_content = cast(dict, last_version.content)

@@ -95,6 +95,15 @@ async def cli(ctx: Context, config: str, app: str) -> None:
         await command.init(offline="--offline" in sys.argv)
 
 
+def _warns_old_format_migration() -> None:
+    if os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
+        return
+    Migrate.secho_warning(
+        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format."
+        " (Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to silence this warning.)"
+    )
+
+
 @cli.command(help="Generate a migration file for the current state of the models.")
 @click.option("--name", default="update", show_default=True, help="Migration name.")
 @click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
@@ -105,29 +114,38 @@ async def cli(ctx: Context, config: str, app: str) -> None:
 @click.pass_context
 async def migrate(ctx: Context, name: str, empty: bool, no_input: bool, offline: bool) -> None:
     command = ctx.obj["command"]
+    last_migration = None if offline else Migrate.get_last_version_module()
+    module = import_py_module(last_migration) if last_migration else None
+    old_format_migration = module is not None and not getattr(module, "MODELS_STATE", None)
     ret = await command.migrate(name, empty, no_input, offline)
     if ret is None:
+        if old_format_migration:
+            _warns_old_format_migration()
         return click.secho(
             "Aborted! You may need to run `aerich heads` to list available unapplied migrations.",
             fg=Color.yellow,
         )
     if not ret:
-        if not offline:
+        if old_format_migration and last_migration and module is not None:
             # Auto fill MODELS_STATE to old style migration file
-            all_migrations = Migrate.get_all_version_modules()
-            last_one = all_migrations[-1]
-            module = import_py_module(last_one)
-            if not getattr(module, "MODELS_STATE", None):
-                upgrade = await module.upgrade(None)
-                downgrade = await module.downgrade(None)
-                models_state = get_models_describe(command.app)
-                content = Migrate.build_migration_file_text(
-                    upgrade, models_state=models_state, downgrade_sql=downgrade
-                )
-                file = Path(Migrate.migrate_location, last_one.name + ".py")
-                file.write_text(content, encoding="utf-8")
-                click.echo(f"Filled `MODELS_STATE` to migration file {file.name}")
+            upgrade = await module.upgrade(None)
+            downgrade = await module.downgrade(None)
+            models_state = get_models_describe(command.app)
+            content = Migrate.build_migration_file_text(
+                upgrade, models_state=models_state, downgrade_sql=downgrade
+            )
+            file = Path(Migrate.migrate_location, last_migration.name + ".py")
+            file.write_text(content, encoding="utf-8")
+            click.echo(f"Filled `MODELS_STATE` to migration file {file.name}")
         return click.secho("No changes detected", fg=Color.yellow)
+    if old_format_migration and last_migration:
+        new_last_migration = Migrate.get_last_version_module()
+        override = new_last_migration and (
+            last_migration.name.split("_")[0] == new_last_migration.name.split("_")[0]
+        )
+        # When the migration file is overridden, `MODELS_STATE` is no longer missing.
+        if not override:
+            _warns_old_format_migration()
     click.secho(f"Success creating migration file {ret}", fg=Color.green)
 
 
