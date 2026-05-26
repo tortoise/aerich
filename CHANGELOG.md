@@ -6,7 +6,7 @@
 
 ## 0.9
 
-### [0.9.3](../../releases/tag/v0.9.2) - 2026-05-26
+### [0.9.3](../../releases/tag/v0.9.3) - 2026-05-26
 
 #### Added
 - feat: support per app migrations ([#500])
