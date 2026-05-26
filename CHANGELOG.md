@@ -17,6 +17,10 @@
 - feat: prefer to add `[tool.tortoise]` section when running aerich init with tortoise 1.0+ ([#536])
 - feat: add pre commit config and fix issues ([#537])
 
+#### Changed
+- Explicitly echo message for ignoring `on_delete` ([#511])
+- refactor: get mysql version from os env for offline mode ([#513])
+
 #### Fixed
 - fix: postgres field comment error with single quote ([#503])
 - fix: Migration generates CREATE TABLE statements in wrong dependency order bug Something isn't working ([#520])
@@ -35,7 +39,9 @@
 [#526]: https://github.com/tortoise/aerich/pull/526
 [#522]: https://github.com/tortoise/aerich/pull/522
 [#520]: https://github.com/tortoise/aerich/pull/520
+[#513]: https://github.com/tortoise/aerich/pull/513
 [#512]: https://github.com/tortoise/aerich/pull/512
+[#511]: https://github.com/tortoise/aerich/pull/511
 [#503]: https://github.com/tortoise/aerich/pull/503
 [#500]: https://github.com/tortoise/aerich/pull/500
 
