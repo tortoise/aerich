@@ -1,68 +1,80 @@
-src_dir = aerich
-checkfiles = $(src_dir) tests/ conftest.py
-py_warn = PYTHONDEVMODE=1
-pytest_opts = --cov=$(src_dir) --cov-append --tb=native -q
-MYSQL_HOST ?= "127.0.0.1"
+JUST_INSTALL_HINT = The 'just' command is required. Install it with: uv tool install rust-just
+.DEFAULT_GOAL := up
+
+MYSQL_HOST ?= 127.0.0.1
 MYSQL_PORT ?= 3306
-MYSQL_PASS ?= "123456"
-POSTGRES_HOST ?= "127.0.0.1"
+MYSQL_PASS ?= 123456
+POSTGRES_HOST ?= 127.0.0.1
 POSTGRES_PORT ?= 5432
 POSTGRES_PASS ?= 123456
 
-up:
-	@uv lock --upgrade
+.PHONY: ensure-just up deps _style style _codeqc codeqc _check check _lint lint test test_sqlite test_mysql test_postgres test_postgres_vector test_psycopg _testall testall report _build build ci
 
-deps:
-	@uv sync --all-extras --all-groups --no-extra asyncmy --no-group=vector $(options)
+ensure-just:
+	@command -v just >/dev/null 2>&1 || (echo "$(JUST_INSTALL_HINT)" >&2; exit 1)
 
-_style:
-	@ruff format $(checkfiles)
-	@ruff check --fix $(checkfiles)
-style: deps _style
+up: ensure-just
+	@just up
 
-_codeqc:
-	uv run --no-sync mypy $(checkfiles)
-	uv run --no-sync bandit -c pyproject.toml -r $(checkfiles)
-	uv run --no-sync twine check dist/*
-codeqc: build _codeqc
+deps: ensure-just
+	@just deps "$(options)"
 
-_check: _build
-	@ruff format --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-	@ruff check $(checkfiles)
-	$(MAKE) _codeqc
-check: deps _check
+_style: ensure-just
+	@just _style
 
-_lint: _build _style _codeqc
-lint: deps _lint
+style: ensure-just
+	@just style
 
-test: deps
-	$(py_warn) uv run --no-sync pytest $(pytest_opts)
+_codeqc: ensure-just
+	@just _codeqc
 
-test_sqlite:
-	$(py_warn) TEST_DB=sqlite://:memory: uv run --no-sync pytest $(pytest_opts)
+codeqc: ensure-just
+	@just codeqc
 
-test_mysql:
-	$(py_warn) TEST_DB="mysql://root:$(MYSQL_PASS)@$(MYSQL_HOST):$(MYSQL_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
+_check: ensure-just
+	@just _check
 
-test_postgres:
-	$(py_warn) TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
+check: ensure-just
+	@just check
 
-test_postgres_vector:
-	$(py_warn) AERICH_TEST_VECTOR=1 TEST_DB="postgres://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s tests/test_inspectdb.py::test_inspect_vector $(pytest_opts)
+_lint: ensure-just
+	@just _lint
 
-test_psycopg:
-	$(py_warn) TEST_DB="psycopg://postgres:$(POSTGRES_PASS)@$(POSTGRES_HOST):$(POSTGRES_PORT)/test_\{\}" uv run --no-sync pytest -vv -s $(pytest_opts)
+lint: ensure-just
+	@just lint
 
-_testall: test_sqlite test_postgres test_mysql
-testall: deps _testall
+test: ensure-just
+	@just test
 
-report:
-	uv run --no-sync coverage report -m
+test_sqlite: ensure-just
+	@just test_sqlite
 
-_build:
-	uv build --offline
+test_mysql: ensure-just
+	@MYSQL_HOST="$(MYSQL_HOST)" MYSQL_PORT="$(MYSQL_PORT)" MYSQL_PASS="$(MYSQL_PASS)" just test_mysql
 
-build: deps
-	uv build
+test_postgres: ensure-just
+	@POSTGRES_HOST="$(POSTGRES_HOST)" POSTGRES_PORT="$(POSTGRES_PORT)" POSTGRES_PASS="$(POSTGRES_PASS)" just test_postgres
 
-ci: build _check _testall
+test_postgres_vector: ensure-just
+	@POSTGRES_HOST="$(POSTGRES_HOST)" POSTGRES_PORT="$(POSTGRES_PORT)" POSTGRES_PASS="$(POSTGRES_PASS)" just test_postgres_vector
+
+test_psycopg: ensure-just
+	@POSTGRES_HOST="$(POSTGRES_HOST)" POSTGRES_PORT="$(POSTGRES_PORT)" POSTGRES_PASS="$(POSTGRES_PASS)" just test_psycopg
+
+_testall: ensure-just
+	@just _testall
+
+testall: ensure-just
+	@just testall
+
+report: ensure-just
+	@just report
+
+_build: ensure-just
+	@just _build
+
+build: ensure-just
+	@just build
+
+ci: ensure-just
+	@just ci
