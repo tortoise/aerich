@@ -3,9 +3,9 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 src_dir := "aerich"
 checkfiles := "aerich tests/ conftest.py"
 pytest_opts := "--cov=aerich --cov-append --tb=native -q"
-mysql_url := "mysql://root:" + env_var_or_default("MYSQL_PASS", "123456") + "@" + env_var_or_default("MYSQL_HOST", "127.0.0.1") + ":" + env_var_or_default("MYSQL_PORT", "3306") + "/test_{}"
-postgres_url := "postgres://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_{}"
-psycopg_url := "psycopg://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_{}"
+mysql_url := "mysql://root:" + env_var_or_default("MYSQL_PASS", "123456") + "@" + env_var_or_default("MYSQL_HOST", "127.0.0.1") + ":" + env_var_or_default("MYSQL_PORT", "3306") + "/test_\\{\\}"
+postgres_url := "postgres://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_\\{\\}"
+psycopg_url := "psycopg://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_\\{\\}"
 
 default:
     @just --list
