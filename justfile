@@ -1,11 +1,18 @@
+#!/usr/bin/env -S just --justfile
+# ^ A shebang isn't required, but allows a justfile to be executed
+#   like a script, with `./justfile lint`, for example.
+# Use powershell for Windows so that 'Git Bash' and 'PyCharm Terminal' get the same result
+
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 src_dir := "aerich"
-checkfiles := "aerich tests/ conftest.py"
+checkfiles := src_dir + " tests/ conftest.py"
 pytest_opts := "--cov=aerich --cov-append --tb=native -q"
-mysql_url := "mysql://root:" + env_var_or_default("MYSQL_PASS", "123456") + "@" + env_var_or_default("MYSQL_HOST", "127.0.0.1") + ":" + env_var_or_default("MYSQL_PORT", "3306") + "/test_\\{\\}"
-postgres_url := "postgres://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_\\{\\}"
-psycopg_url := "psycopg://postgres:" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + "/test_\\{\\}"
+test_db := "/test_\\{\\}"
+mysql_url := "mysql://root:" + env_var_or_default("MYSQL_PASS", "123456") + "@" + env_var_or_default("MYSQL_HOST", "127.0.0.1") + ":" + env_var_or_default("MYSQL_PORT", "3306") + test_db
+postgres_test_uri := env_var_or_default("POSTGRES_USER", "postgres") + ":" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + test_db
+postgres_url := "postgres://" + postgres_test_uri
+psycopg_url := "psycopg://" + postgres_test_uri
 
 default:
     @just --list
