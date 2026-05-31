@@ -16,17 +16,17 @@ up:
 deps options="":
     uv sync --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ options }}
 
-_style files=(checkfiles) *args:
-    just _ruff format {{ files }} {{ args }}
-    just _ruff check {{ files }} --fix {{ args }}
+_style *args:
+    just _ruff format {{ checkfiles }} {{ args }}
+    just _ruff check {{ checkfiles }} --fix {{ args }}
 
 [unix]
-_ruff command files=(checkfiles) *args:
-    uv run --no-sync ruff {{ command }} {{ files }} {{ args }}
+_ruff command *args:
+    uv run --no-sync ruff {{ command }} {{ args }}
 
 [windows]
-_ruff command files=(checkfiles) *args:
-    uv run --no-sync ruff {{ command }} --force-exclude --exclude tests/assets {{ files }} {{ args }}
+_ruff command *args:
+    uv run --no-sync ruff {{ command }} --force-exclude --exclude tests/assets {{ args }}
 
 style: deps _style
 
