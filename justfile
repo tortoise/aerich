@@ -17,8 +17,8 @@ psycopg_url := "psycopg://" + postgres_test_uri
 default:
     @just --list
 
-up:
-    uv lock --upgrade
+up *args:
+    uv lock --upgrade {{ args }}
 
 deps options="":
     uv sync --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ options }}
@@ -58,8 +58,8 @@ _lint: _build _style _codeqc
 
 lint: deps _lint
 
-test: deps
-    just _pytest
+test *args: deps
+    just _pytest {{ args }}
 
 test_sqlite:
     just _pytest_env TEST_DB "sqlite://:memory:"
@@ -102,7 +102,7 @@ testall: deps _testall
 report:
     uv run --no-sync coverage report -m
 
-build: deps
-    uv build
+build *args: deps
+    uv build {{ args }}
 
 ci: build _check _testall
