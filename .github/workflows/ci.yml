@@ -27,8 +27,12 @@ jobs:
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           activate-environment: true
+      - name: Install just via uv
+        run: |
+          uv tool install rust-just
+          echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
       - name: Check code style and Type Hints
-        run: make check
+        run: just check
 
   ci:
     runs-on: ubuntu-latest
@@ -67,8 +71,15 @@ jobs:
         with:
           enable-cache: true
           activate-environment: true
+      - name: Install just via pipx
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pipx
+          pipx install rust-just
+          pipx ensurepath
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
-        run: make deps options='--no-extra=psycopg'
+        run: just deps '--no-extra=psycopg'
       - name: Install TortoiseORM v0.21
         if: matrix.tortoise-orm == 'tortoise021'
         run: |
@@ -97,23 +108,23 @@ jobs:
         run: uv pip install --upgrade "tortoise-orm<1.2"
       - name: Run tests for postgres
         run:
-          make test_postgres
+          just test_postgres
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
       - name: Run tests for mysql
         run:
-          make test_mysql
+          just test_mysql
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
       - name: Run tests for sqlite
         run:
-          make test_sqlite
+          just test_sqlite
       - name: Show test coverage
-        run: make report
+        run: just report
 
   nuitkaSupport:
     runs-on: ubuntu-latest
@@ -131,9 +142,11 @@ jobs:
         with:
           enable-cache: true
           activate-environment: true
+      - name: Install just via taiki-e/install-action
+        uses: taiki-e/install-action@just
       - name: Install dependencies
         run: |
-          make deps options='--no-dev --no-group test'
+          just deps '--no-dev --no-group test'
           uv pip install nuitka
           sudo apt install -y patchelf
       - name: Run tests for nuitka
@@ -157,10 +170,12 @@ jobs:
           enable-cache: true
           python-version: '3.13'
           activate-environment: true
+      - name: Install just via setup-just
+        uses: extractions/setup-just@v3
       - name: Install dependencies
         run: uv sync --group test --extra toml --extra asyncmy
       - name: Test MySQL with asyncmy
-        run: make test_mysql
+        run: just test_mysql
         env:
           MYSQL_PASS: root
           MYSQL_HOST: 127.0.0.1
@@ -168,7 +183,7 @@ jobs:
           # Verify `poetry add aerich` work
           AERICH_TEST_POETRY_ADD: 1
       - name: Show test coverage
-        run: make report
+        run: just report
 
   postgresVector:
     runs-on: ubuntu-latest
@@ -189,16 +204,20 @@ jobs:
           enable-cache: true
           python-version: '3.13'
           activate-environment: true
+      - name: Install just via apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
       - name: Install dependencies
         run: uv pip install --group vector --group test -e ".[toml,mysql]"
       - name: Test tortoise vector
-        run: make test_postgres_vector
+        run: just test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
       - name: Show test coverage
-        run: make report
+        run: just report
 
   psycopgSupport:
     runs-on: ${{ matrix.os }}
@@ -219,14 +238,26 @@ jobs:
         with:
           enable-cache: true
           activate-environment: true
+      - name: Install just via apt
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+      # Windows alternatives:
+      #   winget install --id Casey.Just --exact
+      #   uv tool install rust-just
+      #   pipx install rust-just
+      - name: Install just via Chocolatey
+        if: runner.os == 'Windows'
+        run: choco install just -y
       - name: Install dependencies
         run: |
           uv pip install --group test -e ".[toml,psycopg,mysql]"
       - name: Test psycopg
-        run: make test_psycopg
+        run: just test_psycopg
         env:
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PASS: 123456
           POSTGRES_PORT: 5432
       - name: Show test coverage
-        run: make report
+        run: just report
