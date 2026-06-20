@@ -6,6 +6,7 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 src_dir := "aerich"
+project_name := "aerich"
 checkfiles := src_dir + " tests/ conftest.py"
 pytest_opts := "--cov=aerich --cov-append --tb=native -q"
 test_db := "/test_\\{\\}"
@@ -20,27 +21,30 @@ default:
 up *args:
     uv lock --upgrade {{ args }}
 
-deps options="":
-    uv sync --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ options }}
+deps options="" *args:
+    uv sync --reinstall-package {{ project_name }} --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ options }} {{ args }}
 
 _style *args:
     just _ruff format {{ checkfiles }} {{ args }}
     just _ruff check {{ checkfiles }} --fix {{ args }}
 
+_run *args:
+    uv run --frozen {{ args }}
+
 [unix]
 _ruff command *args:
-    uv run --no-sync ruff {{ command }} {{ args }}
+    @just _run ruff {{ command }} {{ args }}
 
 [windows]
 _ruff command *args:
-    uv run --no-sync ruff {{ command }} --force-exclude --exclude tests/assets {{ args }}
+    @just _run ruff {{ command }} --force-exclude --exclude tests/assets {{ args }}
 
 style: deps _style
 
 _codeqc:
-    uv run --no-sync mypy {{ checkfiles }}
-    uv run --no-sync bandit -c pyproject.toml -r {{ checkfiles }}
-    uv run --no-sync twine check dist/*
+    @just _run mypy {{ checkfiles }}
+    @just _run bandit -c pyproject.toml -r {{ checkfiles }}
+    @just _run twine check dist/*
 
 codeqc: build _codeqc
 
@@ -77,30 +81,30 @@ test_psycopg:
     just _pytest_env TEST_DB "{{ psycopg_url }}" -vv -s
 
 _pytest *args:
-    uv run --no-sync pytest {{ args }} {{ pytest_opts }}
+    @just _run pytest {{ args }} {{ pytest_opts }}
 
 [unix]
 _pytest_env env_name env_value *args:
-    {{ env_name }}='{{ env_value }}' uv run --no-sync pytest {{ args }} {{ pytest_opts }}
+    {{ env_name }}='{{ env_value }}' just _run pytest {{ args }} {{ pytest_opts }}
 
 [windows]
 _pytest_env env_name env_value *args:
-    $env:{{ env_name }} = '{{ env_value }}'; uv run --no-sync pytest {{ args }} {{ pytest_opts }}
+    $env:{{ env_name }} = '{{ env_value }}'; just _run pytest {{ args }} {{ pytest_opts }}
 
 [unix]
 _pytest_vector db_url *args:
-    AERICH_TEST_VECTOR=1 TEST_DB='{{ db_url }}' uv run --no-sync pytest {{ args }} {{ pytest_opts }}
+    AERICH_TEST_VECTOR=1 TEST_DB='{{ db_url }}' just _run pytest {{ args }} {{ pytest_opts }}
 
 [windows]
 _pytest_vector db_url *args:
-    $env:AERICH_TEST_VECTOR = '1'; $env:TEST_DB = '{{ db_url }}'; uv run --no-sync pytest {{ args }} {{ pytest_opts }}
+    $env:AERICH_TEST_VECTOR = '1'; $env:TEST_DB = '{{ db_url }}'; just _run pytest {{ args }} {{ pytest_opts }}
 
 _testall: test_sqlite test_postgres test_mysql
 
 testall: deps _testall
 
 report:
-    uv run --no-sync coverage report -m
+    @just _run coverage report -m
 
 build *args: deps
     uv build {{ args }}
