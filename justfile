@@ -21,8 +21,8 @@ default:
 up *args:
     uv lock --upgrade {{ args }}
 
-deps options="" *args:
-    uv sync --reinstall-package {{ project_name }} --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ options }} {{ args }}
+deps *args:
+    uv sync --reinstall-package {{ project_name }} --all-extras --all-groups --no-extra asyncmy --no-group=vector {{ args }}
 
 _style *args:
     just _ruff format {{ checkfiles }} {{ args }}
