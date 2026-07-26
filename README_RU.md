@@ -217,14 +217,14 @@ from tortoise import Model, fields
 
 
 class Test(Model):
-    date = fields.DateField(null=True, )
-    datetime = fields.DatetimeField(auto_now=True, )
-    decimal = fields.DecimalField(max_digits=10, decimal_places=2, )
-    float = fields.FloatField(null=True, )
-    id = fields.IntField(pk=True, )
-    string = fields.CharField(max_length=200, null=True, )
-    time = fields.TimeField(null=True, )
-    tinyint = fields.BooleanField(null=True, )
+    date = fields.DateField(null=True)
+    datetime = fields.DatetimeField(auto_now=True)
+    decimal = fields.DecimalField(max_digits=10, decimal_places=2)
+    float = fields.FloatField(null=True)
+    id = fields.IntField(pk=True)
+    string = fields.CharField(max_length=200, null=True)
+    time = fields.TimeField(null=True)
+    tinyint = fields.BooleanField(null=True)
 ```
 
 Обратите внимание, что эта команда имеет ограничения и не может автоматически определить некоторые поля, такие как `IntEnumField`, `ForeignKeyField` и другие.
@@ -239,7 +239,7 @@ tortoise_orm = {
     },
     "apps": {
         "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
-        "models_second": {"models": ["tests.models_second"], "default_connection": "second", },
+        "models_second": {"models": ["tests.models_second"], "default_connection": "second"},
     },
 }
 ```
@@ -263,9 +263,9 @@ tortoise_orm = {
 ```python
 from aerich import Command
 
-command = Command(tortoise_config=config, app='models')
+command = Command(tortoise_config=config, app="models")
 await command.init()
-await command.migrate('test')
+await command.migrate("test")
 ```
 
 ## Лицензия

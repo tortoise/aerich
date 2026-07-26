@@ -44,7 +44,7 @@ class User(Model):
 
     class Meta:
         # reverse indexes elements
-        indexes = [CustomIndex(fields=("is_superuser",)), Index(fields=("username", "is_active"))]
+        indexes = (CustomIndex(fields=("is_superuser",)), Index(fields=("username", "is_active")))
 
 
 class Email(Model):

@@ -30,12 +30,13 @@ def test_poetry_add(tmp_work_dir: Path):
         for name in ("pyproject.toml", "README.md"):
             shutil.copy(package / name, tmp_package)
         package = tmp_package
-    r = subprocess.run([*poetry.split(), "add", package])  # nosec
+    r = subprocess.run([*poetry.split(), "add", package], check=False)  # nosec
     assert r.returncode == 0
     out = subprocess.run(
         [*poetry.split(), "run", "pip", "list"],
         text=True,
         capture_output=True,
         encoding="utf-8",
+        check=False,
     ).stdout
     assert re.search(rf"{package.name}\s*{__version__}", out)

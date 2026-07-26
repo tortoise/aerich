@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, TypedDict
+from typing import Any, TypedDict
 
 from tortoise import BaseDBAsyncClient
 

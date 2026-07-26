@@ -456,7 +456,6 @@ def test_model_state_compress_decompress():
     index = describe_index(Index(fields=(field_name,)))
     s = get_formatted_compressed_data(describe)
     if isinstance(index, Index):  # tortoise-orm<0.24
-        pass
         assert (
             s
             == """

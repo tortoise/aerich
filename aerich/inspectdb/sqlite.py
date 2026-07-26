@@ -58,4 +58,4 @@ class InspectSQLite(Inspect):
     async def get_all_tables(self) -> list[str]:
         sql = "select tbl_name from sqlite_master where type='table' and name!='sqlite_sequence'"
         ret = await self.conn.execute_query_dict(sql)
-        return list(map(lambda x: x["tbl_name"], ret))
+        return [x["tbl_name"] for x in ret]

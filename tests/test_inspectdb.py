@@ -111,6 +111,7 @@ if __name__ == "__main__":
         capture_output=True,
         env={**dict(os.environ), "PYTHONIOENCODING": "gbk:strict"},
         timeout=10,
+        check=False,
     )
     assert r.returncode == 0, f"Script failed: {r.stderr.decode('utf-8', errors='replace')}"
     output = r.stdout.decode("utf-8")

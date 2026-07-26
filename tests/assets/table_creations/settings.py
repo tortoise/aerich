@@ -1,11 +1,11 @@
 import os
-from datetime import date
+from datetime import datetime
 
 from tortoise.contrib.test import MEMORY_SQLITE
 
 DB_URL = MEMORY_SQLITE
 if _u := os.getenv("TEST_DB"):
-    _db_name = f"aerich_test_table_creations_{date.today():%Y%m%d}"
+    _db_name = f"aerich_test_table_creations_{datetime.now():%Y%m%d}"
     _u = _u.replace("\\{\\}", _db_name)  # For Linux
     DB_URL = _u.replace("/{/}", _db_name)  # For Windows
 

@@ -9,4 +9,4 @@ class Foo(Model):
     name = fields.CharField(20)
 
     class Meta:
-        indexes = [CustomIndex(fields=["name"])]
+        indexes = (CustomIndex(fields=["name"]),)

@@ -28,7 +28,7 @@ class InspectMySQL(Inspect):
     async def get_all_tables(self) -> list[str]:
         sql = "select TABLE_NAME from information_schema.TABLES where TABLE_SCHEMA=%s"
         ret = await self.conn.execute_query_dict(sql, [self.database])
-        return list(map(lambda x: x["TABLE_NAME"], ret))
+        return [x["TABLE_NAME"] for x in ret]
 
     async def get_columns(self, table: str) -> list[Column]:
         columns = []

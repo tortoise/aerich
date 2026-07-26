@@ -40,7 +40,7 @@ def _check_aerich_models_included(tortoise_config: dict) -> None:
         return
     if len(apps) == 1:
         # Auto add 'aerich.models' if there is only one app
-        apps[list(apps)[0]]["models"].append(aerich_item)
+        apps[next(iter(apps))]["models"].append(aerich_item)
         return
     raise UsageError(f"You have to add {aerich_item!r} in the models of your tortoise config")
 
@@ -78,7 +78,7 @@ async def cli(ctx: Context, config: str, app: str) -> None:
             apps_config = cast(dict, tortoise_config["apps"])
         except KeyError:
             raise UsageError('Config must define "apps" section') from None
-        app = list(apps_config.keys())[0]
+        app = next(iter(apps_config.keys()))
     command = Command(tortoise_config=tortoise_config, app=app, location=location)
     if inspectdb_fields := aerich_config.get("inspectdb"):
         command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
@@ -320,7 +320,7 @@ async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) 
             if aerich_config is None or all(i not in content for i in item_titles):
                 # Add aerich config item
                 newlines = [item_titles[0], *[f'{k} = "{v}"' for k, v in table.items()]]
-                with config_path.open("a") as f:
+                with config_path.open("a") as f:  # NOQA:ASYNC230
                     f.write(linesep)
                     f.writelines([i + linesep for i in newlines])
             else:

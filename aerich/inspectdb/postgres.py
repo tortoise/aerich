@@ -41,7 +41,7 @@ class InspectPostgres(Inspect):
     async def get_all_tables(self) -> list[str]:
         sql = "select TABLE_NAME from information_schema.TABLES where table_catalog=$1 and table_schema=$2"
         ret = await self.conn.execute_query_dict(sql, [self.database, self.schema])
-        return list(map(lambda x: x["table_name"], ret))
+        return [x["table_name"] for x in ret]
 
     async def get_columns(self, table: str) -> list[Column]:
         columns = []

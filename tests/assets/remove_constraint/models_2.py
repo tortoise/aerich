@@ -14,4 +14,4 @@ class Sth(Model):
     d = fields.IntField()
 
     class Meta:
-        unique_together = [("a", "b")]
+        unique_together = (("a", "b"),)
