@@ -13,12 +13,12 @@ from pathlib import Path
 from typing import Literal
 
 import pytest
+import tortoise
 from tortoise import Tortoise, generate_schema_for_client
 from tortoise.exceptions import DBConnectionError, OperationalError
 from tortoise.indexes import Index
 
 from aerich import Command
-from aerich._compat import tortoise_version_less_than
 
 if sys.version_info >= (3, 11):
     from contextlib import chdir
@@ -39,7 +39,7 @@ else:
             os.chdir(self._old_cwd.pop())
 
 
-IS_TORTOISE_V1 = not tortoise_version_less_than("1")
+IS_TORTOISE_V1 = tortoise.__version__ >= "1"
 
 
 async def drop_db(tortoise_orm) -> None:
@@ -216,10 +216,5 @@ def tmp_daily_db(env_name="AERICH_DONT_DROP_TMP_DB") -> Generator[None]:
                 raise OperationalError(out)
 
 
-def describe_index(idx: Index) -> Index | dict:
-    # tortoise-orm>=0.24 changes Index describe to be dict
-    if tortoise_version_less_than("0.24"):
-        return idx
-    if hasattr(idx, "describe"):
-        return idx.describe()
-    return idx
+def describe_index(idx: Index) -> dict:
+    return idx.describe()

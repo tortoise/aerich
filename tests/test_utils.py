@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 from tortoise.indexes import Index
 
-from aerich._compat import tomllib, tortoise_version_less_than
+from aerich._compat import tomllib
 from aerich.utils import (
     BadOptionUsage,
     ClickException,
@@ -37,7 +37,7 @@ def test_add_src_path(tmp_work_dir: Path):
     abspath = os.path.abspath(d)
     assert add_src_path(str(d)) == abspath
     assert sys.path[0] == abspath
-    from submodule_1 import foo
+    from submodule_1 import foo  # ty:ignore
 
     assert foo == 1
 
@@ -455,10 +455,9 @@ def test_model_state_compress_decompress():
     field_name = cast(str, field["name"])
     index = describe_index(Index(fields=(field_name,)))
     s = get_formatted_compressed_data(describe)
-    if isinstance(index, Index):  # tortoise-orm<0.24
-        assert (
-            s
-            == """
+    assert (
+        s
+        == """
     "eJyNkMFOwzAQRH+lyhmQKBGt+IBKXHrihlC0sTepFWdt7LWgqvLv2E6bhFZI3Oy3Y+/MnI"
     "reSNT+YWdM8bI6FQQ9xsMS360KsHaGCTDUOuuas6D27EBwRA1ojxFJ9MIpy8pQpBS0TtCI"
     "KFTUziiQ+gxYsWmRD+ji4P0jYkUSv9FfrrarGoVa/jKpZNqdecVHm9kr8S4L07a6EkaHnm"
@@ -466,57 +465,15 @@ def test_model_state_compress_decompress():
     "14/lptw+PZfbKMlOJrIZxnhz9vFhbmD/Vgx5DgyjYqqx6a5ADaL7Aierm4lZm7+0t6N+3V"
     "8TIGhzOSnjMPwADdrEgA=="
     """.strip()
-        )
-    else:
-        assert (
-            s
-            == """
-    "eJyNkMFOwzAQRH+lyhmQKBGt+IBKXHrihlC0sTepFWdt7LWgqvLv2E6bhFZI3Oy3Y+/MnI"
-    "reSNT+YWdM8bI6FQQ9xsMS360KsHaGCTDUOuuas6D27EBwRA1ojxFJ9MIpy8pQpBS0TtCI"
-    "KFTUziiQ+gxYsWmRD+ji4P0jYkUSv9FfrrarGoVa/jKpZNqdecVHm9kr8S4L07a6EkaHnm"
-    "axPfLB0KRWxIm2SOiAMX3PLiT7yd055CXR6HSWjBYXbyQ2EDQv4v6zA2Eo9Rfd+BywTVvu"
-    "14/lptw+PZfbKMlOJrIZxnhz9vFhbmD/Vgx5DgyjYqqx6a5ADaL7Aierm4lZm7+0t6N+3V"
-    "8TIGhzOSnjMPwADdrEgA=="
-    """.strip()
-        )
+    )
     assert decompress_dict(s) == describe
     model_desc = cast(dict[str, list], describe["models.Foo"])
     model_desc["data_fields"].append(field)
     model_desc["indexes"].append(index)
     s = get_formatted_compressed_data(describe)
-    if isinstance(index, Index):  # tortoise-orm<0.24
-        assert isinstance(s, str)
-        assert all(len(i.strip().strip('"')) <= 70 for i in s.splitlines())
-        expected = """
-    "eJytkl1vmzAUhv9KxdUmdVNGk7XaHUUNST8lGkiWakLGmI/l2GZgQpuI/z7bhJEma7WLcY"
-    "Ufv8bnPIetQXlEoPw85tz4drI1GKJEvuzj0xMD5XkPFRAoBJ2Ld4GwFAXCQqIYQUkkikiJ"
-    "iywXGWeSsgpAQY5lMGNJjyqW/apIIHhCREoKufH0Q+KMReSZlGq5NcRLrm/TUN23RqDWif"
-    "Xoz2tr99h3VxN3jZm7Rot7uKVQLR1/uFw8eD8t/zqkLpDrxxnY9BImpnczrZ0lBQgddwNj"
-    "U2bcTTjxGTjO3aUzSsP53Jvx+na5SGtM/Q02YR2yB+/mez2WbICpI8/YXjSfVkajSs5XQZ"
-    "wRiF6JzCJVr+ZB18aUibEOKiNhgDlUlPXh/EWknAV900LRhDBSIEHU50VRKcXK4G4QnfXW"
-    "Zh9pNe6diUiMKhB7I/nHOWHO1IxlNaVuMFG3fDK/DM+HF2dfhxcyoiv5Q86btr2+9/agNn"
-    "A/Mxq9jwRqE7tRd95KqJJjc3aKir+r6/IH8mTJh/I6Ve/Z60Cvr/+t/5M/ip4DICwRqVyO"
-    "Bu/I8i3Xnljuh9Hgo5Sm/rR4tedMgRDhVY2KKDja4SZ/K3u8RU16SBBDiRag2mia3ySpWd"
-    "s="
-        """.strip()
-        if sys.version_info >= (3, 14):
-            expected = """
-    "eJytkl1vmzAUhv9KxdUmbVPGkrXaHUULST8lGiDNNCFjzMdybDMwoU3Ef59tQsmSrdrFuM"
-    "KPX+NznsPOoDwmUH2Ycm58OdsZDFEiXw7xuzMDFcUAFRAoAp1L9oGoEiXCQqIEQUUkikmF"
-    "y7wQOWeSshpAQY5lMGfpgGqW/6xJKHhKREZKufHtu8Q5i8kTqdRyZ4jnQt+mobpvg0CtUy"
-    "vwg8baP/bt15m7wczdoOUd3FCoV44/Xi3vvR+WfxVRF8jVwwJsegkz07ueN86KAkSOu4Wp"
-    "KTPuNpr5DBzn9tKZZFEQeAve3KyWWYOpv8UmbCJ2710/NlPJRpg68oztxcG8NlpVcrEOk5"
-    "xA/JvIPFb1ah72bcyZmOqgMhKFmENN2RAunkXGWTg0LRRNCSMlEkR9XpS1UqwM7gfRW+9s"
-    "DpFO48GZmCSoBnEwkn+cE+ZMzVhWU+kGU3XLe/Pj+Hx88enz+EJGdCUv5Lzt2ht67w5qA3"
-    "cLo9X7SKAusR91762COj01Z2eo/LO6Pn8kT5Z8LK9X9Zq9Hgz6ht/6P/mj6CkEwlKRyeVk"
-    "9Ios33LtmeW+mYzeSmnqT0vWB84UiBBeN6iMw5MdbvK/ZU+3qEmPCWIo1QJUG237CzJpWd"
-    "8="
-    """.strip()
-        assert s == expected
-    else:
-        assert (
-            s
-            == """
+    assert (
+        s
+        == """
     "eJytkjFPwzAQhf9K5QkkQKW0tGKrKlWwMFSIBaHISS6JVccOtiNaVfnv3DlNHVqoGNjsd+"
     "8u7z5nx0qdgrQ3S63Zw2DHFC8BD335asB4VQWRBMdj6X3Z3hBbZ3jiUMq4tIBSCjYxonJC"
     "K1RVLSWJOkGjUHmQaiU+aoiczsEVYLDw9o6yUClswNJ1xzIBMvVnZmWdMzLApjJgLY63Xc"
@@ -525,18 +482,7 @@ def test_model_state_compress_decompress():
     "p8koMybdr1wu5toyfw/MIaX+eOR+EhAjf/IifkFgU3P6Pr/EfwMPIxvA7VOXqdEPCFH/Cf"
     "+JV8E0lQuSvwOhmegfU6Xy0e56uLyfASodGflq17zEiIebL+5CaNTip6pH/znpbKUXmscM"
     "VzD4DWaJovHjE6og=="
-        """.strip()
-        )
+    """.strip()
+    )
     loaded_desc = decompress_dict(s)
-    if tortoise_version_less_than("0.23.0"):
-        # <tortoise.indexes.Index object at 0x7d1560b139d0>
-        loaded_index = loaded_desc["models.Foo"]["indexes"].pop()
-        # <tortoise.indexes.Index object at 0x7d1560c3cb00>
-        origin_index = describe["models.Foo"]["indexes"].pop()  # type:ignore[attr-defined]
-        assert isinstance(loaded_index, Index)
-        assert origin_index.name == loaded_index.name
-        assert origin_index.fields == loaded_index.fields
-        assert origin_index.expressions == loaded_index.expressions
-        assert origin_index.INDEX_TYPE == loaded_index.INDEX_TYPE
-        assert origin_index.extra == loaded_index.extra
     assert loaded_desc == describe
