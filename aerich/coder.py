@@ -9,17 +9,11 @@ from tortoise.indexes import Index
 
 
 class JsonEncoder(json.JSONEncoder):
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, Index):
-            if hasattr(obj, "describe"):
-                # For tortoise>=0.24
-                return obj.describe()
-            return {
-                "type": "index",
-                "val": base64.b64encode(pickle.dumps(obj)).decode(),  # nosec: B301
-            }
+    def default(self, o: Any) -> Any:
+        if isinstance(o, Index):
+            return o.describe()
         else:
-            return super().default(obj)
+            return super().default(o)
 
 
 def object_hook(obj: dict[str, Any]) -> Any:

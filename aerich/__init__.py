@@ -13,7 +13,7 @@ from tortoise.exceptions import OperationalError
 from tortoise.transactions import in_transaction
 from tortoise.utils import generate_schema_for_client, get_schema_sql
 
-from aerich._compat import _init_asyncio_patch, _init_tortoise_0_24_1_patch, is_tortoise_inited
+from aerich._compat import _init_asyncio_patch, is_tortoise_inited
 from aerich.exceptions import DowngradeError, NotInitedError
 from aerich.inspectdb.mysql import InspectMySQL
 from aerich.inspectdb.postgres import InspectPostgres
@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 
 
 _init_asyncio_patch()  # Change event_loop_policy for Windows
-_init_tortoise_0_24_1_patch()  # Patch m2m table generator for tortoise-orm==0.24.1
 __all__ = ("Command", "TortoiseContext", "__version__")
 
 
