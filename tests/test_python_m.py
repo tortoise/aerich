@@ -4,6 +4,7 @@ import subprocess  # nosec
 import sys
 from pathlib import Path
 
+from aerich._compat import tomllib
 from aerich.version import __version__
 from tests._utils import WINDOWS, requires_env, run_shell
 
@@ -17,7 +18,10 @@ def test_poetry_add(tmp_work_dir: Path):
     poetry = "poetry"
     if shutil.which(poetry) is None:
         poetry = "uvx " + poetry
-    run_shell(f'{poetry} init --no-interaction --python=">=3.9"')
+    toml_file = Path(__file__).parent.parent / "pyproject.toml"
+    pyproject = tomllib.loads(toml_file.read_text(encoding="utf-8"))
+    requires_python = pyproject["project"]["requires-python"]  # e.g.: ">=3.10"
+    run_shell(f"{poetry} init --no-interaction --python={requires_python!r}")
     py = "{}.{}".format(*sys.version_info)
     run_shell(f"{poetry} config --local virtualenvs.in-project true")
     run_shell(f"{poetry} env use {py}")
