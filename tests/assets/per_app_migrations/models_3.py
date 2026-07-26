@@ -2,15 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import tortoise
 from tortoise import Model
 from tortoise import fields as models
 
 if TYPE_CHECKING:
     from tortoise.fields import ForeignKeyRelation, ReverseRelation
 
-models.DateTimeField = models.DatetimeField
-models.IntegerField = models.IntField
-models.ForeignKey = models.ForeignKeyField
+if tortoise.__version__ < "1.1.8":
+    models.DateTimeField = models.DatetimeField
+    models.IntegerField = models.IntField
+    models.ForeignKey = models.ForeignKeyField
 
 
 class Question(Model):

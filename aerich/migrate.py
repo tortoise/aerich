@@ -118,9 +118,7 @@ class Migrate:
         except OperationalError:
             return None
         else:
-            if isinstance(res, dict):
-                res = Aerich(**res)
-            return res
+            return Aerich(**res) if isinstance(res, dict) else res
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
@@ -1190,11 +1188,13 @@ class Migrate:
                     for index, sql in enumerate(cls.upgrade_operators[:-1]):
                         if pattern.search(sql):
                             sqls = sql.split(";")
+                            idx = len(sqls) - 1
                             for i, s in enumerate(sqls):
                                 if pattern.search(s):
+                                    idx = i
                                     break
                             comment_sql = s.strip()
-                            sqls.pop(i)
+                            sqls.pop(idx)
                             cls.upgrade_operators[index] = ";".join(sqls)
                             # Put comment of this table behind the create sql
                             cls.upgrade_operators.append(comment_sql)
