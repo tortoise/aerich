@@ -4,20 +4,34 @@
 [![image](https://img.shields.io/github/license/tortoise/aerich)](https://github.com/tortoise/aerich)
 [![image](https://github.com/tortoise/aerich/workflows/pypi/badge.svg)](https://github.com/tortoise/aerich/actions?query=workflow:pypi)
 [![image](https://github.com/tortoise/aerich/workflows/ci/badge.svg)](https://github.com/tortoise/aerich/actions?query=workflow:ci)
+![Python Versions](https://img.shields.io/pypi/pyversions/aerich)
+
+> ⚠️ Warning
+>
+> For tortoise-orm>=1.0.0, you can use the built-in cli for migrating, e.g.: `python -m tortoise makemigrations`
+>
+> See more at: https://github.com/tortoise/tortoise-orm?tab=readme-ov-file#migrations
 
 English | [Русский](./README_RU.md)
 
 ## Introduction
 
-Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy, or like Django ORM with
-it\'s own migration solution.
+Aerich is a database migrations tool for TortoiseORM, which is like alembic for SQLAlchemy,
+or like Django ORM with it\'s own migration solution.
 
 ## Install
 
 Just install from pypi:
 
 ```shell
-pip install aerich
+pip install "aerich[toml]"
+```
+
+Or install the latest version directly from *github* with the
+following command:
+
+```shell
+pip install "aerich[toml] @git+https://github.com/tortoise/aerich"
 ```
 
 ## Quick Start
@@ -35,10 +49,12 @@ Options:
 
 Commands:
   downgrade  Downgrade to specified version.
+  fix-migrations   Fix migration files to include models state for aerich...
   heads      Show current available heads in migrate location.
   history    List all migrate items.
   init       Init config file and generate root migrate location.
   init-db    Generate schema and generate app migrate location.
+  init-migrations  Generate app migration folder and your first migration.
   inspectdb  Introspects the database tables to standard output as...
   migrate    Generate migrate changes file.
   upgrade    Upgrade to specified version.
@@ -46,7 +62,7 @@ Commands:
 
 ## Usage
 
-You need add `aerich.models` to your `Tortoise-ORM` config first. Example:
+You need to add `aerich.models` to your `Tortoise-ORM` config first. Example:
 
 ```python
 TORTOISE_ORM = {
@@ -86,6 +102,10 @@ Success create migrate location ./migrations
 Success write config to pyproject.toml
 ```
 
+*Note*: aerich will import the config file when running init-db/migrate/upgrade/heads/history commands, so it is better to keep this file simple and clean.
+
+To apply per app migrations style(like Django), set the location option with a '{app}', such as: `--location "./{app}/migrations"`
+
 ### Init db
 
 ```shell
@@ -112,6 +132,14 @@ Format of migrate filename is
 If `aerich` guesses you are renaming a column, it will ask `Rename {old_column} to {new_column} [True]`. You can choose
 `True` to rename column without column drop, or choose `False` to drop the column then create. Note that the latter may
 lose data.
+
+If you need to manually write migration, you could generate empty file:
+
+```shell
+> aerich migrate --name add_index --empty
+
+Success migrate 1_202326122220101229_add_index.py
+```
 
 ### Upgrade to latest version
 
@@ -218,14 +246,14 @@ from tortoise import Model, fields
 
 
 class Test(Model):
-    date = fields.DateField(null=True, )
-    datetime = fields.DatetimeField(auto_now=True, )
-    decimal = fields.DecimalField(max_digits=10, decimal_places=2, )
-    float = fields.FloatField(null=True, )
-    id = fields.IntField(pk=True, )
-    string = fields.CharField(max_length=200, null=True, )
-    time = fields.TimeField(null=True, )
-    tinyint = fields.BooleanField(null=True, )
+    date = fields.DateField(null=True)
+    datetime = fields.DatetimeField(auto_now=True)
+    decimal = fields.DecimalField(max_digits=10, decimal_places=2)
+    float = fields.FloatField(null=True)
+    id = fields.IntField(primary_key=True)
+    string = fields.CharField(max_length=200, null=True)
+    time = fields.TimeField(null=True)
+    tinyint = fields.BooleanField(null=True)
 ```
 
 Note that this command is limited and can't infer some fields, such as `IntEnumField`, `ForeignKeyField`, and others.
@@ -235,8 +263,8 @@ Note that this command is limited and can't infer some fields, such as `IntEnumF
 ```python
 tortoise_orm = {
     "connections": {
-        "default": expand_db_url(db_url, True),
-        "second": expand_db_url(db_url_second, True),
+        "default": "postgres://postgres_user:postgres_pass@127.0.0.1:5432/db1",
+        "second": "postgres://postgres_user:postgres_pass@127.0.0.1:5432/db2",
     },
     "apps": {
         "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
@@ -245,7 +273,7 @@ tortoise_orm = {
 }
 ```
 
-You only need to specify `aerich.models` in one app, and must specify `--app` when running `aerich migrate` and so on.
+You only need to specify `aerich.models` in one app, and must specify `--app` when running `aerich migrate` and so on, e.g. `aerich --app models_second migrate`.
 
 ## Restore `aerich` workflow
 
@@ -264,11 +292,40 @@ You can use `aerich` out of cli by use `Command` class.
 
 ```python
 from aerich import Command
+from aerich.utils import load_tortoise_config
 
-command = Command(tortoise_config=config, app='models')
-await command.init()
-await command.migrate('test')
+async with Command(tortoise_config=load_tortoise_config(), app='models') as command:
+    await command.migrate('test')
+    await command.upgrade()
+    print(await command.history())
 ```
+
+## Upgrade/Downgrade with `--fake` option
+
+Marks the migrations up to the latest one(or back to the target one) as applied, but without actually running the SQL to change your database schema.
+
+- Upgrade
+
+```bash
+aerich upgrade --fake
+aerich --app models upgrade --fake
+```
+- Downgrade
+
+```bash
+aerich downgrade --fake -v 2
+aerich --app models downgrade --fake -v 2
+```
+
+### Ignore tables
+
+You can tell aerich to ignore table by setting `managed=False` in the `Meta` class, e.g.:
+```py
+class MyModel(Model):
+    class Meta:
+        managed = False
+```
+**Note** `managed=False` does not recognized by `tortoise-orm` and `aerich init-db`, it is only for `aerich migrate`.
 
 ## License
 

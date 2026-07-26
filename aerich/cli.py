@@ -1,112 +1,179 @@
-import asyncio
-import os
-from functools import wraps
-from pathlib import Path
-from typing import List
+from __future__ import annotations
 
-import click
-import tomlkit
-from click import Context, UsageError
-from tomlkit.exceptions import NonExistentKey
-from tortoise import Tortoise
+import io
+import os
+import re
+import sys
+from pathlib import Path
+from typing import cast
+
+import asyncclick as click
+import tortoise
+from asyncclick import Context, UsageError
+from tortoise.backends.base.config_generator import expand_db_url
 
 from aerich import Command
+from aerich._compat import imports_tomlkit, tomllib, tortoise_version_less_than
 from aerich.enums import Color
 from aerich.exceptions import DowngradeError
-from aerich.utils import add_src_path, get_tortoise_config
+from aerich.migrate import Migrate
+from aerich.utils import (
+    CONFIG_DEFAULT_VALUES,
+    _load_tortoise_aerich_config,
+    add_src_path,
+    get_models_describe,
+    get_tortoise_config,
+    import_py_module,
+)
 from aerich.version import __version__
 
-CONFIG_DEFAULT_VALUES = {
-    "src_folder": ".",
-}
 
-
-def coro(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-
-        # Close db connections at the end of all but the cli group function
-        try:
-            loop.run_until_complete(f(*args, **kwargs))
-        finally:
-            if f.__name__ not in ["cli", "init"]:
-                loop.run_until_complete(Tortoise.close_connections())
-
-    return wrapper
+def _check_aerich_models_included(tortoise_config: dict) -> None:
+    # e.g.: tortoise_config = {'apps': {'app_1': {'models': ['models']}}}
+    apps: dict[str, dict[str, list]] = tortoise_config.get("apps", {})
+    app_values: list[dict[str, list[str]]] = list(apps.values())
+    all_models: set[str] = {m for model in app_values for m in model.get("models", [])}
+    if not all_models:
+        return
+    aerich_item = "aerich.models"
+    if aerich_item in all_models:
+        return
+    if len(apps) == 1:
+        # Auto add 'aerich.models' if there is only one app
+        apps[list(apps)[0]]["models"].append(aerich_item)
+        return
+    raise UsageError(f"You have to add {aerich_item!r} in the models of your tortoise config")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version")
-@click.option(
-    "-c",
-    "--config",
-    default="pyproject.toml",
-    show_default=True,
-    help="Config file.",
-)
+@click.option("-c", "--config", default="pyproject.toml", show_default=True, help="Config file.")
 @click.option("--app", required=False, help="Tortoise-ORM app name.")
 @click.pass_context
-@coro
-async def cli(ctx: Context, config, app):
+async def cli(ctx: Context, config: str, app: str) -> None:
+    if any(opt in sys.argv for opt in ctx.help_option_names):
+        # Skip init to print help message
+        return
     ctx.ensure_object(dict)
     ctx.obj["config_file"] = config
 
     invoked_subcommand = ctx.invoked_subcommand
-    if invoked_subcommand != "init":
-        config_path = Path(config)
-        if not config_path.exists():
-            raise UsageError("You must exec init first", ctx=ctx)
-        content = config_path.read_text()
-        doc = tomlkit.parse(content)
+    if invoked_subcommand == "init":
+        if tortoise.__version__ >= "1.0" and not os.getenv("AERICH_NO_TORTOISE_V1_WARNING"):
+            url = "https://tortoise.github.io/migration.html"
+            Migrate.secho_warning(
+                f"\nFor tortoise-orm>=1.0, it's recommended to use native migrations:\n{url}"
+            )
+        return
+    config_path = Path(config)
+    if not config_path.exists():
+        raise UsageError("You need to run `aerich init` first to create the config file.", ctx=ctx)
+    tortoise_config, aerich_config = _load_tortoise_aerich_config(ctx=ctx, config_file=config_path)
+    try:
+        location = aerich_config["location"]
+    except KeyError as e:
+        raise UsageError("You need run `aerich init` again when upgrading to aerich 0.6.0+.") from e
+    if not app:
         try:
-            tool = doc["tool"]["aerich"]
-            location = tool["location"]
-            tortoise_orm = tool["tortoise_orm"]
-            src_folder = tool.get("src_folder", CONFIG_DEFAULT_VALUES["src_folder"])
-        except NonExistentKey:
-            raise UsageError("You need run aerich init again when upgrade to 0.6.0+")
-        add_src_path(src_folder)
-        tortoise_config = get_tortoise_config(ctx, tortoise_orm)
-        app = app or list(tortoise_config.get("apps").keys())[0]
-        command = Command(tortoise_config=tortoise_config, app=app, location=location)
-        ctx.obj["command"] = command
-        if invoked_subcommand != "init-db":
-            if not Path(location, app).exists():
-                raise UsageError("You must exec init-db first", ctx=ctx)
-            await command.init()
+            apps_config = cast(dict, tortoise_config["apps"])
+        except KeyError:
+            raise UsageError('Config must define "apps" section') from None
+        app = list(apps_config.keys())[0]
+    command = Command(tortoise_config=tortoise_config, app=app, location=location)
+    if inspectdb_fields := aerich_config.get("inspectdb"):
+        command._inspectdb_fields = cast(dict[str, str], inspectdb_fields)
+    # The 'init-db' subcommand requires it to not init when aenter
+    command._init_when_aenter = False
+    # Call ``command.__aexit__()`` when the context is popped
+    ctx.obj["command"] = await ctx.with_async_resource(command)
+    _check_aerich_models_included(tortoise_config)
+    if invoked_subcommand not in ("init-db", "init-migrations", "fix-migrations"):
+        if not Migrate.get_migration_dir(location, app).exists():
+            raise UsageError(
+                "You need to run `aerich init-db` first to initialize the database.", ctx=ctx
+            )
+        await command.init(offline="--offline" in sys.argv)
 
 
-@cli.command(help="Generate migrate changes file.")
-@click.option("--name", default="update", show_default=True, help="Migrate name.")
+def _warns_old_format_migration() -> None:
+    if os.getenv("AERICH_NO_OLD_FORMAT_WARNING"):
+        return
+    Migrate.secho_warning(
+        "Old format of migration file detected, run `aerich fix-migrations` to upgrade format."
+        " (Set env 'AERICH_NO_OLD_FORMAT_WARNING=1' to silence this warning.)"
+    )
+
+
+@cli.command(help="Generate a migration file for the current state of the models.")
+@click.option("--name", default="update", show_default=True, help="Migration name.")
+@click.option("--empty", default=False, is_flag=True, help="Generate an empty migration file.")
+@click.option("--no-input", default=False, is_flag=True, help="Do not ask for prompt.")
+@click.option(
+    "--offline", default=False, is_flag=True, help="Generate migration without connecting to db."
+)
 @click.pass_context
-@coro
-async def migrate(ctx: Context, name):
+async def migrate(ctx: Context, name: str, empty: bool, no_input: bool, offline: bool) -> None:
     command = ctx.obj["command"]
-    ret = await command.migrate(name)
+    last_migration = None if offline else Migrate.get_last_version_module()
+    module = import_py_module(last_migration) if last_migration else None
+    old_format_migration = module is not None and not getattr(module, "MODELS_STATE", None)
+    ret = await command.migrate(name, empty, no_input, offline)
+    if ret is None:
+        if old_format_migration:
+            _warns_old_format_migration()
+        return click.secho(
+            "Aborted! You may need to run `aerich heads` to list available unapplied migrations.",
+            fg=Color.yellow,
+        )
     if not ret:
+        if old_format_migration and last_migration and module is not None:
+            # Auto fill MODELS_STATE to old style migration file
+            upgrade = await module.upgrade(None)
+            downgrade = await module.downgrade(None)
+            models_state = get_models_describe(command.app)
+            content = Migrate.build_migration_file_text(
+                upgrade, models_state=models_state, downgrade_sql=downgrade
+            )
+            file = Path(Migrate.migrate_location, last_migration.name + ".py")
+            file.write_text(content, encoding="utf-8")
+            click.echo(f"Filled `MODELS_STATE` to migration file {file.name}")
         return click.secho("No changes detected", fg=Color.yellow)
-    click.secho(f"Success migrate {ret}", fg=Color.green)
+    if old_format_migration and last_migration:
+        new_last_migration = Migrate.get_last_version_module()
+        override = new_last_migration and (
+            last_migration.name.split("_")[0] == new_last_migration.name.split("_")[0]
+        )
+        # When the migration file is overridden, `MODELS_STATE` is no longer missing.
+        if not override:
+            _warns_old_format_migration()
+    click.secho(f"Success creating migration file {ret}", fg=Color.green)
 
 
-@cli.command(help="Upgrade to specified version.")
+@cli.command(help="Upgrade to specified migration version.")
 @click.option(
     "--in-transaction",
     "-i",
     default=True,
     type=bool,
-    help="Make migrations in transaction or not. Can be helpful for large migrations or creating concurrent indexes.",
+    help="Make migrations in a single transaction or not. Can be helpful for large migrations or creating concurrent indexes. Overwrites the value in a migration file",
+)
+@click.option(
+    "--fake",
+    default=False,
+    is_flag=True,
+    help="Mark migrations as run without actually running them.",
 )
 @click.pass_context
-@coro
-async def upgrade(ctx: Context, in_transaction: bool):
+async def upgrade(ctx: Context, in_transaction: bool, fake: bool) -> None:
     command = ctx.obj["command"]
-    migrated = await command.upgrade(run_in_transaction=in_transaction)
+    migrated = await command.upgrade(run_in_transaction=in_transaction, fake=fake)
     if not migrated:
-        click.secho("No upgrade items found", fg=Color.yellow)
-    else:
-        for version_file in migrated:
-            click.secho(f"Success upgrade {version_file}", fg=Color.green)
+        return click.secho("No upgrade items found", fg=Color.yellow)
+    for version_file in migrated:
+        if fake:
+            click.echo(f"Upgrading to {version_file}... " + click.style("FAKED", fg=Color.green))
+        else:
+            click.secho(f"Success upgrading to {version_file}", fg=Color.green)
 
 
 @cli.command(help="Downgrade to specified version.")
@@ -115,8 +182,8 @@ async def upgrade(ctx: Context, in_transaction: bool):
     "--version",
     default=-1,
     type=int,
-    show_default=True,
-    help="Specified version, default to last.",
+    show_default=False,
+    help="Specified version, default to last migration.",
 )
 @click.option(
     "-d",
@@ -124,59 +191,75 @@ async def upgrade(ctx: Context, in_transaction: bool):
     is_flag=True,
     default=False,
     show_default=True,
-    help="Delete version files at the same time.",
+    help="Also delete the migration files.",
+)
+@click.option(
+    "--fake",
+    default=False,
+    is_flag=True,
+    help="Mark migrations as run without actually running them.",
 )
 @click.pass_context
 @click.confirmation_option(
-    prompt="Downgrade is dangerous, which maybe lose your data, are you sure?",
+    prompt="Downgrade is dangerous: you might lose your data! Are you sure?",
 )
-@coro
-async def downgrade(ctx: Context, version: int, delete: bool):
+async def downgrade(ctx: Context, version: int, delete: bool, fake: bool) -> None:
     command = ctx.obj["command"]
     try:
-        files = await command.downgrade(version, delete)
+        files = await command.downgrade(version, delete, fake=fake)
     except DowngradeError as e:
         return click.secho(str(e), fg=Color.yellow)
     for file in files:
-        click.secho(f"Success downgrade {file}", fg=Color.green)
+        if fake:
+            click.echo(f"Downgrading to {file}... " + click.style("FAKED", fg=Color.green))
+        else:
+            click.secho(f"Success downgrading to {file}", fg=Color.green)
 
 
-@cli.command(help="Show current available heads in migrate location.")
+@cli.command(help="Show currently available heads (unapplied migrations).")
 @click.pass_context
-@coro
-async def heads(ctx: Context):
+async def heads(ctx: Context) -> None:
     command = ctx.obj["command"]
     head_list = await command.heads()
     if not head_list:
-        return click.secho("No available heads, try migrate first", fg=Color.green)
+        return click.secho("No available heads.", fg=Color.green)
     for version in head_list:
         click.secho(version, fg=Color.green)
 
 
-@cli.command(help="List all migrate items.")
+@cli.command(help="List all migrations.")
 @click.pass_context
-@coro
-async def history(ctx: Context):
+async def history(ctx: Context) -> None:
     command = ctx.obj["command"]
     versions = await command.history()
     if not versions:
-        return click.secho("No history, try migrate", fg=Color.green)
+        return click.secho("No migrations created yet.", fg=Color.green)
     for version in versions:
         click.secho(version, fg=Color.green)
 
 
-@cli.command(help="Init config file and generate root migrate location.")
+def _write_config(config_path: Path, doc: dict, table: dict, is_tortoise_v1=False) -> None:
+    tomlkit = imports_tomlkit()
+    section = "tortoise" if is_tortoise_v1 else "aerich"
+    try:
+        doc["tool"][section] = table
+    except KeyError:
+        doc["tool"] = {section: table}
+    config_path.write_text(tomlkit.dumps(doc))
+
+
+@cli.command(help="Initialize aerich config and create migrations folder.")
 @click.option(
     "-t",
     "--tortoise-orm",
     required=True,
-    help="Tortoise-ORM config module dict variable, like settings.TORTOISE_ORM.",
+    help="Tortoise-ORM config dict location, like `settings.TORTOISE_ORM`.",
 )
 @click.option(
     "--location",
     default="./migrations",
     show_default=True,
-    help="Migrate store location.",
+    help="Migrations folder.",
 )
 @click.option(
     "-s",
@@ -186,8 +269,7 @@ async def history(ctx: Context):
     help="Folder of the source, relative to the project root.",
 )
 @click.pass_context
-@coro
-async def init(ctx: Context, tortoise_orm, location, src_folder):
+async def init(ctx: Context, tortoise_orm: str, location: str, src_folder: str) -> None:
     config_file = ctx.obj["config_file"]
 
     if os.path.isabs(src_folder):
@@ -198,54 +280,167 @@ async def init(ctx: Context, tortoise_orm, location, src_folder):
 
     # check that we can find the configuration, if not we can fail before the config file gets created
     add_src_path(src_folder)
-    get_tortoise_config(ctx, tortoise_orm)
+    tortoise_conf = get_tortoise_config(ctx=ctx, tortoise_orm=tortoise_orm)
     config_path = Path(config_file)
-    if config_path.exists():
-        content = config_path.read_text()
-        doc = tomlkit.parse(content)
+    is_template_location = "{app}" in location
+    table = {"tortoise_orm": tortoise_orm, "location": location, "src_folder": src_folder}
+    if not config_path.exists():
+        section = "[tool.aerich]" if tortoise_version_less_than("1.0") else "[tool.tortoise]"
+        text = section + "".join(f'{os.linesep}{k} = "{v}"' for k, v in table.items())
+        config_path.write_text(text, encoding="utf-8")
+        click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
     else:
-        doc = tomlkit.parse("[tool.aerich]")
-    table = tomlkit.table()
-    table["tortoise_orm"] = tortoise_orm
-    table["location"] = location
-    table["src_folder"] = src_folder
-    doc["tool"]["aerich"] = table
+        content = config_path.read_text("utf-8")
+        doc: dict = tomllib.loads(content)
+        tool_section = doc.get("tool", {})
+        if (aerich_config := tool_section.get("aerich") or tool_section.get("tortoise")) and all(
+            aerich_config.get(k) == v for k, v in table.items()
+        ):
+            click.echo(f"Aerich config {config_file} already inited.")
+            if is_template_location:
+                if all(
+                    Migrate.get_migration_dir(location, app).exists()
+                    for app in tortoise_conf.get("apps", [])
+                ):
+                    return
+            elif Path(location).exists():
+                return
+        else:
+            item_titles = ["[tool.aerich]"]
+            is_tortoise_v1 = not tortoise_version_less_than("1.0")
+            if is_tortoise_v1:
+                item_titles.insert(0, "[tool.tortoise]")
+            lines = content.splitlines()
+            if not (linesep := content[len(content.rstrip()) :].replace(" ", "")):
+                linesep = os.linesep
+                for sep in ("\n", "\r\n", "\r"):
+                    if sep.join(lines).strip() == content.strip():
+                        linesep = sep
+                        break
+            if aerich_config is None or all(i not in content for i in item_titles):
+                # Add aerich config item
+                newlines = [item_titles[0], *[f'{k} = "{v}"' for k, v in table.items()]]
+                with config_path.open("a") as f:
+                    f.write(linesep)
+                    f.writelines([i + linesep for i in newlines])
+            else:
+                # Modify aerich config
+                if "#" not in content:
+                    _write_config(config_path, doc, table, is_tortoise_v1)
+                else:
+                    reversed_titles = item_titles[::-1]
+                    exists = [i for i in reversed_titles if i in content]
+                    item_title = exists[0]
+                    auto_change_title = (
+                        is_tortoise_v1 and item_title == item_titles[-1] and len(exists) == 1
+                    )
+                    item_index = 0
+                    for index, line in enumerate(lines):
+                        if line.strip().startswith(item_title):
+                            item_index = index
+                            break
+                    if auto_change_title:
+                        # Auto change section `[tool.aerich]` to `[tool.tortoise]`
+                        old, new = reversed_titles
+                        lines[item_index] = lines[item_index].replace(old, new)
+                    for index in range(item_index + 1, len(lines) + 1):
+                        slim = lines[index].strip()
+                        if slim.startswith("#"):
+                            continue
+                        if slim.startswith("["):
+                            break
+                        for key in table:
+                            if re.match(rf"{key}\s*=", slim):
+                                lines[index] = f'{key} = "{table.pop(key)}"'
+                                break
+                        else:
+                            continue
+                        if not table:
+                            break
+                    for key, value in table.items():
+                        lines.insert(item_index, f'{key} = "{value}"')
+                    text = linesep.join(lines)
+                    if end := content[len(linesep.join(content.splitlines())) :]:
+                        text += end[len(end.rstrip()) :].replace(" ", "")
+                    config_path.write_text(text, encoding="utf-8")
 
-    config_path.write_text(tomlkit.dumps(doc))
+            click.secho(f"Success writing aerich config to {config_file}", fg=Color.green)
+    if is_template_location:
+        for app in tortoise_conf.get("apps", []):
+            d = Migrate.get_migration_dir(location, app)
+            if not d.exists():
+                d.mkdir(parents=True, exist_ok=True)
+                click.secho(f"Success creating migrations folder {d}", fg=Color.green)
+    elif not Path(location).exists():
+        Path(location).mkdir(parents=True, exist_ok=True)
+        click.secho(f"Success creating migrations folder {location}", fg=Color.green)
 
-    Path(location).mkdir(parents=True, exist_ok=True)
 
-    click.secho(f"Success create migrate location {location}", fg=Color.green)
-    click.secho(f"Success write config to {config_file}", fg=Color.green)
-
-
-@cli.command(help="Generate schema and generate app migrate location.")
+@cli.command(help="Generate schema and generate app migration folder.")
 @click.option(
     "-s",
     "--safe",
     type=bool,
     is_flag=True,
     default=True,
-    help="When set to true, creates the table only when it does not already exist.",
+    help="Create tables only when they do not already exist.",
     show_default=True,
 )
+@click.option("--pre", required=False, help="SQL to execute before generating schemas.")
 @click.pass_context
-@coro
-async def init_db(ctx: Context, safe: bool):
+async def init_db(ctx: Context, safe: bool, pre: str) -> None:
+    await _init_app(ctx, safe, pre)
+
+
+async def _init_app(ctx: Context, safe: bool, pre: str = "", offline: bool = False) -> None:
     command = ctx.obj["command"]
     app = command.app
-    dirname = Path(command.location, app)
+    dirname = Migrate.get_migration_dir(command.location, app)
     try:
-        await command.init_db(safe)
-        click.secho(f"Success create app migrate location {dirname}", fg=Color.green)
-        click.secho(f'Success generate schema for app "{app}"', fg=Color.green)
+        if offline:
+            await command.init_migrations(safe)
+            new_init = True
+        else:
+            new_init = await command.init_db(safe, pre)
+        if new_init:
+            click.secho(f"Success creating app migration folder {dirname}", fg=Color.green)
+            click.secho(
+                f'Success generating initial migration file for app "{app}"', fg=Color.green
+            )
+        else:
+            click.secho(f'Applied existing migrations to database for app "{app}"', fg=Color.green)
+        if not offline:
+            default_connection = (
+                command.tortoise_config["apps"].get(app, {}).get("default_connection", "default")
+            )
+            db = command.tortoise_config["connections"].get(default_connection, "")
+            if isinstance(db, str):
+                db = expand_db_url(db)
+            if credentials := db.get("credentials"):
+                db = credentials.get("database", "") or credentials.get("file_path", "")
+            click.secho(f'Success writing schemas to database "{db}"', fg=Color.green)
     except FileExistsError:
-        return click.secho(
-            f"Inited {app} already, or delete {dirname} and try again.", fg=Color.yellow
+        click.secho(
+            f"App {app!r} is already initialized. Delete {dirname} and try again.", fg=Color.yellow
         )
 
 
-@cli.command(help="Introspects the database tables to standard output as TortoiseORM model.")
+@cli.command(help="Generate app migration folder and your first migration.")
+@click.option(
+    "-s",
+    "--safe",
+    type=bool,
+    is_flag=True,
+    default=True,
+    help="Create tables only when they do not already exist.",
+    show_default=True,
+)
+@click.pass_context
+async def init_migrations(ctx: Context, safe: bool) -> None:
+    await _init_app(ctx, safe, offline=True)
+
+
+@cli.command(help="Prints the current database tables to stdout as Tortoise-ORM models.")
 @click.option(
     "-t",
     "--table",
@@ -254,14 +449,34 @@ async def init_db(ctx: Context, safe: bool):
     required=False,
 )
 @click.pass_context
-@coro
-async def inspectdb(ctx: Context, table: List[str]):
+async def inspectdb(ctx: Context, table: list[str]) -> None:
     command = ctx.obj["command"]
     ret = await command.inspectdb(table)
-    click.secho(ret)
+    # Write as UTF-8 bytes to stdout to avoid UnicodeEncodeError when the
+    # system encoding (e.g. GBK on Chinese Windows) cannot handle characters
+    # in database comments. Issue #539.
+    utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    click.secho(ret, file=utf8_stdout)
 
 
-def main():
+@cli.command(help="Fix migration files to include models state for aerich 0.6.0+.")
+@click.pass_context
+async def fix_migrations(ctx: Context) -> None:
+    command = ctx.obj["command"]
+    updated_files = await command.fix_migrations()
+    if updated_files:
+        count = len(updated_files)
+        click.secho(f"Updated {count} migration file{'s' * (count > 1)}:", fg=Color.green)
+        for file in updated_files:
+            click.echo(f"  - {file}")
+    elif updated_files is not None:
+        click.secho(
+            "No migration files to update. All files are already in the correct format.",
+            fg=Color.green,
+        )
+
+
+def main() -> None:
     cli()
 
 

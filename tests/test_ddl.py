@@ -1,48 +1,76 @@
+import tortoise
+
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.migrate import Migrate
+from tests._utils import IS_TORTOISE_V1
 from tests.models import Category, Product, User
 
 
 def test_create_table():
     ret = Migrate.ddl.create_table(Category)
+    default_ts = "" if IS_TORTOISE_V1 else " DEFAULT CURRENT_TIMESTAMP"
     if isinstance(Migrate.ddl, MysqlDDL):
+        if tortoise.__version__ >= "0.24":
+            if not IS_TORTOISE_V1:
+                default_ts = " DEFAULT CURRENT_TIMESTAMP(6)"
+            assert (
+                ret
+                == f"""CREATE TABLE IF NOT EXISTS `category` (
+    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `slug` VARCHAR(100) NOT NULL,
+    `name` VARCHAR(200),
+    `title` VARCHAR(20) NOT NULL,
+    `created_at` DATETIME(6) NOT NULL{default_ts},
+    `owner_id` INT NOT NULL COMMENT 'User',
+    CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+    FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
+) CHARACTER SET utf8mb4"""
+            )
+            return
         assert (
             ret
             == """CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `slug` VARCHAR(100) NOT NULL,
     `name` VARCHAR(200),
-    `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6),
-    `user_id` INT NOT NULL COMMENT 'User',
-    CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
-) CHARACTER SET utf8mb4"""
+    `title` VARCHAR(20) NOT NULL,
+    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `owner_id` INT NOT NULL COMMENT 'User',
+    CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
+) CHARACTER SET utf8mb4;
+CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
         )
 
     elif isinstance(Migrate.ddl, SqliteDDL):
+        exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
         assert (
             ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+            == f"""CREATE TABLE IF NOT EXISTS "category" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
-    "created_at" TIMESTAMP NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE /* User */
-)"""
+    "title" VARCHAR(20) NOT NULL,
+    "created_at" TIMESTAMP NOT NULL{default_ts},
+    "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE /* User */
+);
+CREATE INDEX {exists}"idx_category_slug_e9bcff" ON "category" ("slug")"""
         )
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
             ret
-            == """CREATE TABLE IF NOT EXISTS "category" (
+            == f"""CREATE TABLE IF NOT EXISTS "category" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "slug" VARCHAR(100) NOT NULL,
     "name" VARCHAR(200),
-    "created_at" TIMESTAMPTZ NOT NULL  DEFAULT CURRENT_TIMESTAMP,
-    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
+    "title" VARCHAR(20) NOT NULL,
+    "created_at" TIMESTAMPTZ NOT NULL{default_ts},
+    "owner_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE
 );
-COMMENT ON COLUMN "category"."user_id" IS 'User'"""
+CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug");
+COMMENT ON COLUMN "category"."owner_id" IS 'User'"""
         )
 
 
@@ -55,26 +83,32 @@ def test_drop_table():
 
 
 def test_add_column():
-    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map.get("name").describe(False))
+    ret = Migrate.ddl.add_column(Category, Category._meta.fields_map["name"].describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` ADD `name` VARCHAR(200)"
     else:
         assert ret == 'ALTER TABLE "category" ADD "name" VARCHAR(200)'
+    # add unique column
+    ret = Migrate.ddl.add_column(User, User._meta.fields_map["username"].describe(False))
+    if isinstance(Migrate.ddl, MysqlDDL):
+        assert ret == "ALTER TABLE `user` ADD `username` VARCHAR(20) NOT NULL UNIQUE"
+    elif isinstance(Migrate.ddl, PostgresDDL):
+        assert ret == 'ALTER TABLE "user" ADD "username" VARCHAR(20) NOT NULL UNIQUE'
+    else:
+        assert ret == 'ALTER TABLE "user" ADD "username" VARCHAR(20) NOT NULL'
 
 
 def test_modify_column():
     if isinstance(Migrate.ddl, SqliteDDL):
         return
 
-    ret0 = Migrate.ddl.modify_column(
-        Category, Category._meta.fields_map.get("name").describe(False)
-    )
-    ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map.get("is_active").describe(False))
+    ret0 = Migrate.ddl.modify_column(Category, Category._meta.fields_map["name"].describe(False))
+    ret1 = Migrate.ddl.modify_column(User, User._meta.fields_map["is_active"].describe(False))
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret0 == "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)"
         assert (
             ret1
-            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1"
+            == "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL COMMENT 'Is Active' DEFAULT 1"
         )
     elif isinstance(Migrate.ddl, PostgresDDL):
         assert (
@@ -90,27 +124,30 @@ def test_modify_column():
 def test_alter_column_default():
     if isinstance(Migrate.ddl, SqliteDDL):
         return
-    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map.get("intro").describe(False))
+    ret = Migrate.ddl.alter_column_default(User, User._meta.fields_map["intro"].describe(False))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "user" ALTER COLUMN "intro" SET DEFAULT \'\''
     elif isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `user` ALTER COLUMN `intro` SET DEFAULT ''"
 
     ret = Migrate.ddl.alter_column_default(
-        Category, Category._meta.fields_map.get("created_at").describe(False)
+        Category, Category._meta.fields_map["created_at"].describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
-        assert (
-            ret == 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
-        )
+        expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT CURRENT_TIMESTAMP'
+        if IS_TORTOISE_V1:
+            expected = 'ALTER TABLE "category" ALTER COLUMN "created_at" SET DEFAULT NULL'
+        assert ret == expected
     elif isinstance(Migrate.ddl, MysqlDDL):
-        assert (
-            ret
-            == "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
+        expected = (
+            "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT CURRENT_TIMESTAMP(6)"
         )
+        if IS_TORTOISE_V1:
+            expected = "ALTER TABLE `category` ALTER COLUMN `created_at` SET DEFAULT NULL"
+        assert ret == expected
 
     ret = Migrate.ddl.alter_column_default(
-        Product, Product._meta.fields_map.get("view_num").describe(False)
+        Product, Product._meta.fields_map["view_num"].describe(False)
     )
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0'
@@ -121,9 +158,7 @@ def test_alter_column_default():
 def test_alter_column_null():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.alter_column_null(
-        Category, Category._meta.fields_map.get("name").describe(False)
-    )
+    ret = Migrate.ddl.alter_column_null(Category, Category._meta.fields_map["name"].describe(False))
     if isinstance(Migrate.ddl, PostgresDDL):
         assert ret == 'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL'
 
@@ -131,11 +166,11 @@ def test_alter_column_null():
 def test_set_comment():
     if isinstance(Migrate.ddl, (SqliteDDL, MysqlDDL)):
         return
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("name").describe(False))
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map["name"].describe(False))
     assert ret == 'COMMENT ON COLUMN "category"."name" IS NULL'
 
-    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map.get("user").describe(False))
-    assert ret == 'COMMENT ON COLUMN "category"."user_id" IS \'User\''
+    ret = Migrate.ddl.set_comment(Category, Category._meta.fields_map["owner"].describe(False))
+    assert ret == 'COMMENT ON COLUMN "category"."owner_id" IS \'User\''
 
 
 def test_drop_column():
@@ -151,17 +186,18 @@ def test_add_index():
     index_u = Migrate.ddl.add_index(Category, ["name"], True)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert index == "ALTER TABLE `category` ADD INDEX `idx_category_name_8b0cb9` (`name`)"
-        assert (
-            index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `uid_category_name_8b0cb9` (`name`)"
-        )
+        assert index_u == "ALTER TABLE `category` ADD UNIQUE INDEX `name` (`name`)"
     elif isinstance(Migrate.ddl, PostgresDDL):
+        assert (
+            index == 'CREATE INDEX IF NOT EXISTS "idx_category_name_8b0cb9" ON "category" ("name")'
+        )
+        assert (
+            index_u
+            == 'CREATE UNIQUE INDEX IF NOT EXISTS "uid_category_name_8b0cb9" ON "category" ("name")'
+        )
+    else:
         assert index == 'CREATE INDEX "idx_category_name_8b0cb9" ON "category" ("name")'
         assert index_u == 'CREATE UNIQUE INDEX "uid_category_name_8b0cb9" ON "category" ("name")'
-    else:
-        assert index == 'ALTER TABLE "category" ADD INDEX "idx_category_name_8b0cb9" ("name")'
-        assert (
-            index_u == 'ALTER TABLE "category" ADD UNIQUE INDEX "uid_category_name_8b0cb9" ("name")'
-        )
 
 
 def test_drop_index():
@@ -169,38 +205,35 @@ def test_drop_index():
     ret_u = Migrate.ddl.drop_index(Category, ["name"], True)
     if isinstance(Migrate.ddl, MysqlDDL):
         assert ret == "ALTER TABLE `category` DROP INDEX `idx_category_name_8b0cb9`"
-        assert ret_u == "ALTER TABLE `category` DROP INDEX `uid_category_name_8b0cb9`"
-    elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'DROP INDEX "idx_category_name_8b0cb9"'
-        assert ret_u == 'DROP INDEX "uid_category_name_8b0cb9"'
+        assert ret_u == "ALTER TABLE `category` DROP INDEX `name`"
     else:
-        assert ret == 'ALTER TABLE "category" DROP INDEX "idx_category_name_8b0cb9"'
-        assert ret_u == 'ALTER TABLE "category" DROP INDEX "uid_category_name_8b0cb9"'
+        assert ret == 'DROP INDEX IF EXISTS "idx_category_name_8b0cb9"'
+        assert ret_u == 'DROP INDEX IF EXISTS "uid_category_name_8b0cb9"'
 
 
 def test_add_fk():
     ret = Migrate.ddl.add_fk(
-        Category, Category._meta.fields_map.get("user").describe(False), User.describe(False)
+        Category, Category._meta.fields_map["owner"].describe(False), User.describe(False)
     )
     if isinstance(Migrate.ddl, MysqlDDL):
         assert (
             ret
-            == "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
+            == "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE"
         )
     else:
         assert (
             ret
-            == 'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE'
+            == 'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_110d4c63" FOREIGN KEY ("owner_id") REFERENCES "user" ("id") ON DELETE CASCADE'
         )
 
 
 def test_drop_fk():
     ret = Migrate.ddl.drop_fk(
-        Category, Category._meta.fields_map.get("user").describe(False), User.describe(False)
+        Category, Category._meta.fields_map["owner"].describe(False), User.describe(False)
     )
     if isinstance(Migrate.ddl, MysqlDDL):
-        assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`"
+        assert ret == "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_110d4c63`"
     elif isinstance(Migrate.ddl, PostgresDDL):
-        assert ret == 'ALTER TABLE "category" DROP CONSTRAINT "fk_category_user_e2e3874c"'
+        assert ret == 'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_110d4c63"'
     else:
-        assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_e2e3874c"'
+        assert ret == 'ALTER TABLE "category" DROP FOREIGN KEY "fk_category_user_110d4c63"'

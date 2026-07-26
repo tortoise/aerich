@@ -1,14 +1,48 @@
-import pytest
-from pytest_mock import MockerFixture
+from __future__ import annotations
 
+import logging
+import re
+import shutil
+import sys
+from pathlib import Path
+
+import anyio
+import pytest
+import tortoise
+from pytest_mock import MockerFixture
+from tortoise import Tortoise
+from tortoise.indexes import Index
+
+from aerich._compat import tortoise_version_less_than
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
 from aerich.exceptions import NotSupportError
-from aerich.migrate import Migrate
-from aerich.utils import get_models_describe
+from aerich.migrate import MIGRATE_TEMPLATE, Migrate
+from aerich.models import Aerich
+from aerich.utils import (
+    NotInitedError,
+    decompress_dict,
+    get_formatted_compressed_data,
+    get_models_describe,
+)
+from tests._utils import (
+    IS_TORTOISE_V1,
+    Dialect,
+    chdir,
+    describe_index,
+    prepare_py_files,
+    requires_dialect,
+    run_shell,
+    tmp_daily_db,
+)
+from tests.indexes import CustomIndex
+from tests.tortoise_v1_models_state import MODELS_STATE
 
-old_models_describe = {
+# tortoise-orm>=0.21 changes IntField constraints
+# from {"ge": 1, "le": 2147483647} to {"ge": -2147483648, "le": 2147483647}
+MIN_INT = 1 if tortoise.__version__ < "0.21" else -2147483648
+OLD_MODELS_DESCRIBE = {
     "models.Category": {
         "name": "models.Category",
         "app": "models",
@@ -17,7 +51,7 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
-        "indexes": [],
+        "indexes": [describe_index(Index(fields=("slug",)))],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -30,7 +64,7 @@ old_models_describe = {
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
+            "constraints": {"ge": MIN_INT, "le": 2147483647},
             "db_field_types": {"": "INT"},
         },
         "data_fields": [
@@ -97,8 +131,23 @@ old_models_describe = {
                 "default": None,
                 "description": "User",
                 "docstring": None,
-                "constraints": {"ge": 1, "le": 2147483647},
+                "constraints": {"ge": MIN_INT, "le": 2147483647},
                 "db_field_types": {"": "INT"},
+            },
+            {
+                "name": "title",
+                "field_type": "CharField",
+                "db_column": "title",
+                "python_type": "str",
+                "generated": False,
+                "nullable": False,
+                "unique": True,
+                "indexed": True,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {"max_length": 20},
+                "db_field_types": {"": "VARCHAR(20)"},
             },
         ],
         "fk_fields": [
@@ -154,21 +203,36 @@ old_models_describe = {
         "unique_together": [],
         "indexes": [],
         "pk_field": {
-            "name": "id",
-            "field_type": "IntField",
-            "db_column": "id",
-            "python_type": "int",
-            "generated": True,
+            "name": "slug",
+            "field_type": "CharField",
+            "db_column": "slug",
+            "python_type": "str",
+            "generated": False,
             "nullable": False,
             "unique": True,
             "indexed": True,
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
-            "db_field_types": {"": "INT"},
+            "constraints": {"max_length": 10},
+            "db_field_types": {"": "VARCHAR(10)"},
         },
         "data_fields": [
+            {
+                "name": "name",
+                "field_type": "CharField",
+                "db_column": "name",
+                "python_type": "str",
+                "generated": False,
+                "nullable": False,
+                "unique": True,
+                "indexed": True,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {"max_length": 100},
+                "db_field_types": {"": "VARCHAR(100)"},
+            },
             {
                 "name": "label",
                 "field_type": "CharField",
@@ -234,7 +298,48 @@ old_models_describe = {
         "backward_fk_fields": [],
         "o2o_fields": [],
         "backward_o2o_fields": [],
-        "m2m_fields": [],
+        "m2m_fields": [
+            {
+                "name": "category",
+                "field_type": "ManyToManyFieldInstance",
+                "python_type": "models.Category",
+                "generated": False,
+                "nullable": False,
+                "unique": False,
+                "indexed": False,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {},
+                "model_name": "models.Category",
+                "related_name": "configs",
+                "forward_key": "category_id",
+                "backward_key": "config_id",
+                "through": "config_category",
+                "on_delete": "CASCADE",
+                "_generated": False,
+            },
+            {
+                "name": "categories",
+                "field_type": "ManyToManyFieldInstance",
+                "python_type": "models.Category",
+                "generated": False,
+                "nullable": False,
+                "unique": False,
+                "indexed": False,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {},
+                "model_name": "models.Category",
+                "related_name": "config_set",
+                "forward_key": "category_id",
+                "backward_key": "config_id",
+                "through": "config_category_map",
+                "on_delete": "CASCADE",
+                "_generated": False,
+            },
+        ],
     },
     "models.Email": {
         "name": "models.Email",
@@ -257,7 +362,7 @@ old_models_describe = {
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
+            "constraints": {"ge": MIN_INT, "le": 2147483647},
             "db_field_types": {"": "INT"},
         },
         "data_fields": [
@@ -277,6 +382,21 @@ old_models_describe = {
                 "db_field_types": {"": "VARCHAR(200)"},
             },
             {
+                "name": "company",
+                "field_type": "CharField",
+                "db_column": "company",
+                "python_type": "str",
+                "generated": False,
+                "nullable": False,
+                "unique": False,
+                "indexed": True,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {"max_length": 100},
+                "db_field_types": {"": "VARCHAR(100)"},
+            },
+            {
                 "name": "is_primary",
                 "field_type": "BooleanField",
                 "db_column": "is_primary",
@@ -289,7 +409,12 @@ old_models_describe = {
                 "description": None,
                 "docstring": None,
                 "constraints": {},
-                "db_field_types": {"": "BOOL", "sqlite": "INT"},
+                "db_field_types": {
+                    "": "BOOL",
+                    "mssql": "BIT",
+                    "oracle": "NUMBER(1)",
+                    "sqlite": "INT",
+                },
             },
             {
                 "name": "user_id",
@@ -303,7 +428,7 @@ old_models_describe = {
                 "default": None,
                 "description": None,
                 "docstring": None,
-                "constraints": {"ge": 1, "le": 2147483647},
+                "constraints": {"ge": MIN_INT, "le": 2147483647},
                 "db_field_types": {"": "INT"},
             },
         ],
@@ -350,7 +475,7 @@ old_models_describe = {
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
+            "constraints": {"ge": MIN_INT, "le": 2147483647},
             "db_field_types": {"": "INT"},
         },
         "data_fields": [
@@ -368,6 +493,21 @@ old_models_describe = {
                 "docstring": None,
                 "constraints": {"max_length": 50},
                 "db_field_types": {"": "VARCHAR(50)"},
+            },
+            {
+                "name": "uid",
+                "field_type": "IntField",
+                "db_column": "uuid",
+                "python_type": "int",
+                "generated": False,
+                "nullable": False,
+                "unique": True,
+                "indexed": True,
+                "default": None,
+                "description": None,
+                "docstring": None,
+                "constraints": {"ge": -2147483648, "le": 2147483647},
+                "db_field_types": {"": "INT"},
             },
             {
                 "name": "view_num",
@@ -400,9 +540,9 @@ old_models_describe = {
                 "db_field_types": {"": "INT"},
             },
             {
-                "name": "is_reviewed",
+                "name": "is_review",
                 "field_type": "BooleanField",
-                "db_column": "is_reviewed",
+                "db_column": "is_review",
                 "python_type": "bool",
                 "generated": False,
                 "nullable": False,
@@ -412,7 +552,12 @@ old_models_describe = {
                 "description": "Is Reviewed",
                 "docstring": None,
                 "constraints": {},
-                "db_field_types": {"": "BOOL", "sqlite": "INT"},
+                "db_field_types": {
+                    "": "BOOL",
+                    "mssql": "BIT",
+                    "oracle": "NUMBER(1)",
+                    "sqlite": "INT",
+                },
             },
             {
                 "name": "type",
@@ -480,6 +625,26 @@ old_models_describe = {
                 "auto_now_add": True,
                 "auto_now": False,
             },
+            {
+                "name": "is_delete",
+                "field_type": "BooleanField",
+                "db_column": "is_delete",
+                "python_type": "bool",
+                "generated": False,
+                "nullable": False,
+                "unique": False,
+                "indexed": False,
+                "default": False,
+                "description": None,
+                "docstring": None,
+                "constraints": {},
+                "db_field_types": {
+                    "": "BOOL",
+                    "mssql": "BIT",
+                    "oracle": "NUMBER(1)",
+                    "sqlite": "INT",
+                },
+            },
         ],
         "fk_fields": [],
         "backward_fk_fields": [],
@@ -516,7 +681,10 @@ old_models_describe = {
         "description": None,
         "docstring": None,
         "unique_together": [],
-        "indexes": [],
+        "indexes": [
+            describe_index(Index(fields=("username", "is_active"))),
+            describe_index(CustomIndex(fields=("is_superuser",))),
+        ],
         "pk_field": {
             "name": "id",
             "field_type": "IntField",
@@ -529,7 +697,7 @@ old_models_describe = {
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
+            "constraints": {"ge": MIN_INT, "le": 2147483647},
             "db_field_types": {"": "INT"},
         },
         "data_fields": [
@@ -597,7 +765,12 @@ old_models_describe = {
                 "description": "Is Active",
                 "docstring": None,
                 "constraints": {},
-                "db_field_types": {"": "BOOL", "sqlite": "INT"},
+                "db_field_types": {
+                    "": "BOOL",
+                    "mssql": "BIT",
+                    "oracle": "NUMBER(1)",
+                    "sqlite": "INT",
+                },
             },
             {
                 "name": "is_superuser",
@@ -612,7 +785,12 @@ old_models_describe = {
                 "description": "Is SuperUser",
                 "docstring": None,
                 "constraints": {},
-                "db_field_types": {"": "BOOL", "sqlite": "INT"},
+                "db_field_types": {
+                    "": "BOOL",
+                    "mssql": "BIT",
+                    "oracle": "NUMBER(1)",
+                    "sqlite": "INT",
+                },
             },
             {
                 "name": "avatar",
@@ -714,7 +892,7 @@ old_models_describe = {
             "default": None,
             "description": None,
             "docstring": None,
-            "constraints": {"ge": 1, "le": 2147483647},
+            "constraints": {"ge": MIN_INT, "le": 2147483647},
             "db_field_types": {"": "INT"},
         },
         "data_fields": [
@@ -773,174 +951,338 @@ old_models_describe = {
 }
 
 
-def test_migrate(mocker: MockerFixture):
+@pytest.mark.anyio
+async def test_migrate(mocker: MockerFixture, capsys):
     """
     models.py diff with old_models.py
     - change email pk: id -> email_id
+    - change product pk field type: IntField -> BigIntField
+    - change config pk field attribute: max_length=10 -> max_length=20
     - add field: Email.address
-    - add fk: Config.user
-    - drop fk: Email.user
+    - add fk field: Config.user
+    - drop fk field: Email.user
     - drop field: User.avatar
     - add index: Email.email
+    - add unique to indexed field: Email.company
+    - change index type for indexed field: Email.slug
     - add many to many: Email.users
-    - remove unique: User.username
+    - add one to one: Email.config
+    - remove unique: Category.title
+    - add unique: User.username
     - change column: length User.password
+    - drop unique field: Product.uid
     - add unique_together: (name,type) of Product
+    - add one more many to many field: Product.users
+    - change unique to normal index: Config.name
     - alter default: Config.status
     - rename column: Product.image -> Product.pic
+    - rename column: Product.is_review -> Product.is_reviewed
+    - rename column: Product.is_delete -> Product.is_deleted
+    - rename fk column: Category.user -> Category.owner
     """
-    mocker.patch("click.prompt", side_effect=(True,))
+    mocker.patch("asyncclick.prompt", side_effect=(True, True, True, True))
+    try:
+        models_describe = get_models_describe("models")
+    except NotInitedError:
+        from conftest import tortoise_orm
 
-    models_describe = get_models_describe("models")
+        await Tortoise.init(config=tortoise_orm)
+        models_describe = get_models_describe("models")
+
+    old_models_describe = decompress_dict(MODELS_STATE) if IS_TORTOISE_V1 else OLD_MODELS_DESCRIBE
     Migrate.app = "models"
     if isinstance(Migrate.ddl, SqliteDDL):
         with pytest.raises(NotSupportError):
             Migrate.diff_models(old_models_describe, models_describe)
+        Migrate.upgrade_operators.clear()
+        with pytest.raises(NotSupportError):
             Migrate.diff_models(models_describe, old_models_describe, False)
+        Migrate.downgrade_operators.clear()
     else:
         Migrate.diff_models(old_models_describe, models_describe)
         Migrate.diff_models(models_describe, old_models_describe, False)
-    Migrate._merge_operators()
+        Migrate._merge_operators()
+    warning_msg = "Aerich does not handle 'unique' attribution for m2m field(models.Category.products). You may need to change the constraints in db manually."
+    ignore_on_delete = "Aerich does not handle 'unique' attribution for m2m field(models.Category.categories). You may need to change the constraints in db manually."
+    ignore_on_delete = (
+        "Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Product.categories"
+    )
     if isinstance(Migrate.ddl, MysqlDDL):
         expected_upgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200)",
             "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(100) NOT NULL",
-            "ALTER TABLE `config` ADD `user_id` INT NOT NULL  COMMENT 'User'",
+            "ALTER TABLE `category` DROP INDEX `title`",
+            "ALTER TABLE `category` RENAME COLUMN `user_id` TO `owner_id`",
+            "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
+            "ALTER TABLE `category` ADD FULLTEXT INDEX `idx_category_slug_e9bcff` (`slug`)",
+            "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
+            "ALTER TABLE `email` DROP COLUMN `user_id`",
+            "ALTER TABLE `config` DROP INDEX `name`, ADD INDEX `idx_config_name_2c83c8` (`name`)",
+            "ALTER TABLE `config` ADD `user_id` INT NOT NULL COMMENT 'User'",
             "ALTER TABLE `config` ADD CONSTRAINT `fk_config_user_17daa970` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
             "ALTER TABLE `config` ALTER COLUMN `status` DROP DEFAULT",
-            "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL",
             "ALTER TABLE `email` ADD `address` VARCHAR(200) NOT NULL",
-            "ALTER TABLE `email` DROP COLUMN `user_id`",
+            "ALTER TABLE `email` ADD CONSTRAINT `fk_email_config_88e28c1b` FOREIGN KEY (`config_id`) REFERENCES `config` (`slug`) ON DELETE CASCADE",
+            "ALTER TABLE `email` ADD `config_id` VARCHAR(20) NOT NULL UNIQUE",
+            "ALTER TABLE `email` DROP INDEX `idx_email_company_1c9234`, ADD UNIQUE (`company`)",
             "ALTER TABLE `configs` RENAME TO `config`",
+            "ALTER TABLE `product` DROP COLUMN `uuid`",
+            "ALTER TABLE `product` DROP INDEX `uuid`",
             "ALTER TABLE `product` RENAME COLUMN `image` TO `pic`",
+            "ALTER TABLE `product` ADD `price` DOUBLE",
+            "ALTER TABLE `product` ADD `no` CHAR(36) NOT NULL",
             "ALTER TABLE `email` RENAME COLUMN `id` TO `email_id`",
             "ALTER TABLE `product` ADD INDEX `idx_product_name_869427` (`name`, `type_db_alias`)",
+            "ALTER TABLE `product` ADD INDEX `idx_product_no_e4d701` (`no`)",
             "ALTER TABLE `email` ADD INDEX `idx_email_email_4a1a33` (`email`)",
             "ALTER TABLE `product` ADD UNIQUE INDEX `uid_product_name_869427` (`name`, `type_db_alias`)",
             "ALTER TABLE `product` ALTER COLUMN `view_num` SET DEFAULT 0",
-            "ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
-            "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'",
+            "ALTER TABLE `product` RENAME COLUMN `is_delete` TO `is_deleted`",
+            "ALTER TABLE `product` RENAME COLUMN `is_review` TO `is_reviewed`",
+            "ALTER TABLE `product` MODIFY COLUMN `id` BIGINT NOT NULL",
             "ALTER TABLE `user` DROP COLUMN `avatar`",
             "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(100) NOT NULL",
-            "ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL",
-            "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
-            "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
-            "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0",
             "ALTER TABLE `user` MODIFY COLUMN `longitude` DECIMAL(10,8) NOT NULL",
-            "ALTER TABLE `user` ADD UNIQUE INDEX `uid_user_usernam_9987ab` (`username`)",
+            "ALTER TABLE `user` ADD UNIQUE INDEX `username` (`username`)",
             "CREATE TABLE `email_user` (\n    `email_id` INT NOT NULL REFERENCES `email` (`email_id`) ON DELETE CASCADE,\n    `user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
             "CREATE TABLE IF NOT EXISTS `newmodel` (\n    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,\n    `name` VARCHAR(50) NOT NULL\n) CHARACTER SET utf8mb4",
-            "ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
-            "ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL",
-            "ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0",
+            "CREATE TABLE `product_user` (\n    `product_id` BIGINT NOT NULL REFERENCES `product` (`id`) ON DELETE CASCADE,\n    `user_id` INT NOT NULL REFERENCES `user` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+            "CREATE TABLE `config_category_map` (\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE,\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+            "DROP TABLE IF EXISTS `config_category`",
+            "ALTER TABLE `config` MODIFY COLUMN `slug` VARCHAR(20) NOT NULL",
         }
+        if tortoise.__version__ >= "1.0":
+            expected_upgrade_operators |= {
+                "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_e2e3874c`",
+                "DROP TABLE IF EXISTS `configs_category`",
+            }
+            expected_upgrade_operators -= {
+                "CREATE TABLE `config_category_map` (\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE,\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+                "DROP TABLE IF EXISTS `config_category`",
+            }
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+            expected_upgrade_operators.add(
+                "ALTER TABLE `config` MODIFY COLUMN `value` JSON NOT NULL"
+            )
+
+        upgrade_operators = set(Migrate.upgrade_operators)
+        upgrade_more_than_expected = upgrade_operators - expected_upgrade_operators
+        assert not upgrade_more_than_expected
+        upgrade_less_than_expected = expected_upgrade_operators - upgrade_operators
+        assert not upgrade_less_than_expected
+
         expected_downgrade_operators = {
             "ALTER TABLE `category` MODIFY COLUMN `name` VARCHAR(200) NOT NULL",
             "ALTER TABLE `category` MODIFY COLUMN `slug` VARCHAR(200) NOT NULL",
-            "ALTER TABLE `config` DROP COLUMN `user_id`",
+            "ALTER TABLE `category` ADD UNIQUE INDEX `title` (`title`)",
+            "ALTER TABLE `category` RENAME COLUMN `owner_id` TO `user_id`",
+            "ALTER TABLE `category` DROP FOREIGN KEY `fk_category_user_110d4c63`",
+            "ALTER TABLE `category` ADD INDEX `idx_category_slug_e9bcff` (`slug`)",
+            "ALTER TABLE `category` DROP INDEX `idx_category_slug_e9bcff`",
+            "ALTER TABLE `config` DROP INDEX `idx_config_name_2c83c8`, ADD UNIQUE (`name`)",
             "ALTER TABLE `config` DROP FOREIGN KEY `fk_config_user_17daa970`",
             "ALTER TABLE `config` ALTER COLUMN `status` SET DEFAULT 1",
+            "ALTER TABLE `config` DROP COLUMN `user_id`",
+            "ALTER TABLE `config` MODIFY COLUMN `slug` VARCHAR(10) NOT NULL",
+            "ALTER TABLE `config` RENAME TO `configs`",
             "ALTER TABLE `email` ADD `user_id` INT NOT NULL",
             "ALTER TABLE `email` DROP COLUMN `address`",
-            "ALTER TABLE `config` RENAME TO `configs`",
-            "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
+            "ALTER TABLE `email` DROP COLUMN `config_id`",
+            "ALTER TABLE `email` DROP FOREIGN KEY `fk_email_config_88e28c1b`",
             "ALTER TABLE `email` RENAME COLUMN `email_id` TO `id`",
-            "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
+            "ALTER TABLE `email` DROP INDEX `company`, ADD INDEX `idx_email_company_1c9234` (`company`)",
             "ALTER TABLE `email` DROP INDEX `idx_email_email_4a1a33`",
+            "ALTER TABLE `product` RENAME COLUMN `pic` TO `image`",
+            "ALTER TABLE `product` ADD `uuid` INT NOT NULL UNIQUE",
+            "ALTER TABLE `product` DROP INDEX `idx_product_name_869427`",
+            "ALTER TABLE `product` DROP COLUMN `price`",
+            "ALTER TABLE `product` DROP COLUMN `no`",
             "ALTER TABLE `product` DROP INDEX `uid_product_name_869427`",
+            "ALTER TABLE `product` DROP INDEX `idx_product_no_e4d701`",
             "ALTER TABLE `product` ALTER COLUMN `view_num` DROP DEFAULT",
-            "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL  DEFAULT ''",
-            "ALTER TABLE `user` DROP INDEX `idx_user_usernam_9987ab`",
+            "ALTER TABLE `product` RENAME COLUMN `is_deleted` TO `is_delete`",
+            "ALTER TABLE `product` RENAME COLUMN `is_reviewed` TO `is_review`",
+            "ALTER TABLE `product` MODIFY COLUMN `id` INT NOT NULL",
+            "ALTER TABLE `user` ADD `avatar` VARCHAR(200) NOT NULL DEFAULT ''",
+            "ALTER TABLE `user` DROP INDEX `username`",
             "ALTER TABLE `user` MODIFY COLUMN `password` VARCHAR(200) NOT NULL",
             "DROP TABLE IF EXISTS `email_user`",
             "DROP TABLE IF EXISTS `newmodel`",
-            "ALTER TABLE `user` MODIFY COLUMN `intro` LONGTEXT NOT NULL",
-            "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL",
-            "ALTER TABLE `category` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
-            "ALTER TABLE `product` MODIFY COLUMN `created_at` DATETIME(6) NOT NULL  DEFAULT CURRENT_TIMESTAMP(6)",
-            "ALTER TABLE `product` MODIFY COLUMN `is_reviewed` BOOL NOT NULL  COMMENT 'Is Reviewed'",
-            "ALTER TABLE `user` MODIFY COLUMN `last_login` DATETIME(6) NOT NULL  COMMENT 'Last Login'",
-            "ALTER TABLE `user` MODIFY COLUMN `is_active` BOOL NOT NULL  COMMENT 'Is Active' DEFAULT 1",
-            "ALTER TABLE `user` MODIFY COLUMN `is_superuser` BOOL NOT NULL  COMMENT 'Is SuperUser' DEFAULT 0",
+            "DROP TABLE IF EXISTS `product_user`",
             "ALTER TABLE `user` MODIFY COLUMN `longitude` DECIMAL(12,9) NOT NULL",
-            "ALTER TABLE `product` MODIFY COLUMN `body` LONGTEXT NOT NULL",
-            "ALTER TABLE `email` MODIFY COLUMN `is_primary` BOOL NOT NULL  DEFAULT 0",
+            "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+            "DROP TABLE IF EXISTS `config_category_map`",
         }
-        assert not set(Migrate.upgrade_operators).symmetric_difference(expected_upgrade_operators)
-
-        assert not set(Migrate.downgrade_operators).symmetric_difference(
-            expected_downgrade_operators
-        )
+        if tortoise.__version__ >= "1.0":
+            expected_downgrade_operators |= {
+                "CREATE TABLE `configs_category` (\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE,\n    `configs_id` VARCHAR(10) NOT NULL REFERENCES `configs` (`slug`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+                "ALTER TABLE `category` ADD CONSTRAINT `fk_category_user_e2e3874c` FOREIGN KEY (`user_id`) REFERENCES `user` (`id`) ON DELETE CASCADE",
+            }
+            expected_downgrade_operators -= {
+                "DROP TABLE IF EXISTS `config_category_map`",
+                "CREATE TABLE `config_category` (\n    `config_id` VARCHAR(20) NOT NULL REFERENCES `config` (`slug`) ON DELETE CASCADE,\n    `category_id` INT NOT NULL REFERENCES `category` (`id`) ON DELETE CASCADE\n) CHARACTER SET utf8mb4",
+            }
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+            expected_downgrade_operators.add(
+                "ALTER TABLE `config` MODIFY COLUMN `value` TEXT NOT NULL"
+            )
+        downgrade_operators = set(Migrate.downgrade_operators)
+        downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
+        assert not downgrade_more_than_expected
+        downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
+        assert not downgrade_less_than_expected
+        output = capsys.readouterr().out
+        if not IS_TORTOISE_V1 and not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in output
+        assert ignore_on_delete in output
 
     elif isinstance(Migrate.ddl, PostgresDDL):
         expected_upgrade_operators = {
+            'DROP INDEX IF EXISTS "uid_category_title_f7fc03"',
             'ALTER TABLE "category" ALTER COLUMN "name" DROP NOT NULL',
             'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(100) USING "slug"::VARCHAR(100)',
-            'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+            'ALTER TABLE "category" RENAME COLUMN "user_id" TO "owner_id"',
+            'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_110d4c63" FOREIGN KEY ("owner_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+            'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "category_title_key"',
+            'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" USING HASH ("slug")',
+            'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
+            'ALTER TABLE "configs" RENAME TO "config"',
+            'CREATE INDEX IF NOT EXISTS "idx_config_name_2c83c8" ON "config" ("name")',
+            'DROP INDEX IF EXISTS "uid_config_name_2c83c8"',
             'ALTER TABLE "config" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "config" ADD CONSTRAINT "fk_config_user_17daa970" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
             'ALTER TABLE "config" ALTER COLUMN "status" DROP DEFAULT',
-            'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
-            'ALTER TABLE "configs" RENAME TO "config"',
+            'ALTER TABLE "config" ALTER COLUMN "slug" TYPE VARCHAR(20) USING "slug"::VARCHAR(20)',
+            'ALTER TABLE "email" ADD "config_id" VARCHAR(20) NOT NULL UNIQUE',
             'ALTER TABLE "email" ADD "address" VARCHAR(200) NOT NULL',
-            'ALTER TABLE "email" DROP COLUMN "user_id"',
             'ALTER TABLE "email" RENAME COLUMN "id" TO "email_id"',
-            'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
+            'ALTER TABLE "email" DROP COLUMN "user_id"',
+            'ALTER TABLE "email" ADD CONSTRAINT "fk_email_config_88e28c1b" FOREIGN KEY ("config_id") REFERENCES "config" ("slug") ON DELETE CASCADE',
+            'DROP INDEX IF EXISTS "idx_email_company_1c9234"',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_email_company_1c9234" ON "email" ("company")',
+            'DROP INDEX IF EXISTS "uid_product_uuid_d33c18"',
+            'ALTER TABLE "product" DROP COLUMN "uuid"',
             'ALTER TABLE "product" ALTER COLUMN "view_num" SET DEFAULT 0',
             'ALTER TABLE "product" RENAME COLUMN "image" TO "pic"',
-            'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
-            'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+            'ALTER TABLE "product" RENAME COLUMN "is_review" TO "is_reviewed"',
+            'ALTER TABLE "product" RENAME COLUMN "is_delete" TO "is_deleted"',
+            'ALTER TABLE "product" ADD "price" DOUBLE PRECISION',
+            'ALTER TABLE "product" ADD "no" UUID NOT NULL',
+            'ALTER TABLE "product" ALTER COLUMN "id" TYPE BIGINT USING "id"::BIGINT',
             'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(100) USING "password"::VARCHAR(100)',
             'ALTER TABLE "user" DROP COLUMN "avatar"',
-            'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
-            'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
-            'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
             'ALTER TABLE "user" ALTER COLUMN "longitude" TYPE DECIMAL(10,8) USING "longitude"::DECIMAL(10,8)',
-            'CREATE INDEX "idx_product_name_869427" ON "product" ("name", "type_db_alias")',
-            'CREATE INDEX "idx_email_email_4a1a33" ON "email" ("email")',
+            'CREATE INDEX IF NOT EXISTS "idx_product_name_869427" ON "product" ("name", "type_db_alias")',
+            'CREATE INDEX IF NOT EXISTS "idx_email_email_4a1a33" ON "email" ("email")',
+            'CREATE INDEX IF NOT EXISTS "idx_product_no_e4d701" ON "product" ("no")',
             'CREATE TABLE "email_user" (\n    "email_id" INT NOT NULL REFERENCES "email" ("email_id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
-            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n);\nCOMMENT ON COLUMN "config"."user_id" IS \'User\'',
-            'CREATE UNIQUE INDEX "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
-            'CREATE UNIQUE INDEX "uid_user_usernam_9987ab" ON "user" ("username")',
+            'CREATE TABLE IF NOT EXISTS "newmodel" (\n    "id" SERIAL NOT NULL PRIMARY KEY,\n    "name" VARCHAR(50) NOT NULL\n)',
+            'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_product_name_869427" ON "product" ("name", "type_db_alias")',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_user_usernam_9987ab" ON "user" ("username")',
+            'CREATE TABLE "product_user" (\n    "product_id" BIGINT NOT NULL REFERENCES "product" ("id") ON DELETE CASCADE,\n    "user_id" INT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE\n)',
+            'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
+            'DROP TABLE IF EXISTS "config_category"',
         }
+        if IS_TORTOISE_V1:
+            expected_upgrade_operators |= {
+                'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_e2e3874c"',
+                'DROP TABLE IF EXISTS "configs_category"',
+                "COMMENT ON COLUMN config.\"user_id\" IS 'User'",
+            }
+            expected_upgrade_operators -= {
+                'CREATE TABLE "config_category_map" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE\n)',
+                'COMMENT ON COLUMN "config"."user_id" IS \'User\'',
+                'DROP TABLE IF EXISTS "config_category"',
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
+            }
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+            expected_upgrade_operators.add(
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
+            )
+        upgrade_operators = set(Migrate.upgrade_operators)
+        upgrade_more_than_expected = upgrade_operators - expected_upgrade_operators
+        assert not upgrade_more_than_expected
+        upgrade_less_than_expected = expected_upgrade_operators - upgrade_operators
+        assert not upgrade_less_than_expected
+
         expected_downgrade_operators = {
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_category_title_f7fc03" ON "category" ("title")',
             'ALTER TABLE "category" ALTER COLUMN "name" SET NOT NULL',
             'ALTER TABLE "category" ALTER COLUMN "slug" TYPE VARCHAR(200) USING "slug"::VARCHAR(200)',
-            'ALTER TABLE "category" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
+            'ALTER TABLE "category" RENAME COLUMN "owner_id" TO "user_id"',
+            'ALTER TABLE "category" DROP CONSTRAINT IF EXISTS "fk_category_user_110d4c63"',
+            'DROP INDEX IF EXISTS "idx_category_slug_e9bcff"',
+            'CREATE INDEX IF NOT EXISTS "idx_category_slug_e9bcff" ON "category" ("slug")',
             'ALTER TABLE "config" ALTER COLUMN "status" SET DEFAULT 1',
+            'ALTER TABLE "config" DROP CONSTRAINT IF EXISTS "fk_config_user_17daa970"',
             'ALTER TABLE "config" DROP COLUMN "user_id"',
-            'ALTER TABLE "config" DROP CONSTRAINT "fk_config_user_17daa970"',
+            'ALTER TABLE "config" ALTER COLUMN "slug" TYPE VARCHAR(10) USING "slug"::VARCHAR(10)',
+            'DROP INDEX IF EXISTS "idx_config_name_2c83c8"',
+            'CREATE UNIQUE INDEX IF NOT EXISTS "uid_config_name_2c83c8" ON "config" ("name")',
             'ALTER TABLE "config" RENAME TO "configs"',
-            'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB',
             'ALTER TABLE "email" ADD "user_id" INT NOT NULL',
             'ALTER TABLE "email" DROP COLUMN "address"',
             'ALTER TABLE "email" RENAME COLUMN "email_id" TO "id"',
-            'ALTER TABLE "email" ALTER COLUMN "is_primary" TYPE BOOL USING "is_primary"::BOOL',
+            'ALTER TABLE "email" DROP COLUMN "config_id"',
+            'ALTER TABLE "email" DROP CONSTRAINT IF EXISTS "fk_email_config_88e28c1b"',
+            'CREATE INDEX IF NOT EXISTS "idx_email_company_1c9234" ON "email" ("company")',
+            'DROP INDEX IF EXISTS "uid_email_company_1c9234"',
+            'ALTER TABLE "product" ADD "uuid" INT NOT NULL UNIQUE',
             'ALTER TABLE "product" ALTER COLUMN "view_num" DROP DEFAULT',
             'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
-            'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL  DEFAULT \'\'',
+            'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
+            'ALTER TABLE "product" RENAME COLUMN "is_reviewed" TO "is_review"',
+            'ALTER TABLE "product" DROP COLUMN "price"',
+            'ALTER TABLE "product" DROP COLUMN "no"',
+            'ALTER TABLE "product" ALTER COLUMN "id" TYPE INT USING "id"::INT',
+            'ALTER TABLE "user" ADD "avatar" VARCHAR(200) NOT NULL DEFAULT \'\'',
             'ALTER TABLE "user" ALTER COLUMN "password" TYPE VARCHAR(200) USING "password"::VARCHAR(200)',
-            'ALTER TABLE "user" ALTER COLUMN "last_login" TYPE TIMESTAMPTZ USING "last_login"::TIMESTAMPTZ',
-            'ALTER TABLE "user" ALTER COLUMN "is_superuser" TYPE BOOL USING "is_superuser"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "is_active" TYPE BOOL USING "is_active"::BOOL',
-            'ALTER TABLE "user" ALTER COLUMN "intro" TYPE TEXT USING "intro"::TEXT',
             'ALTER TABLE "user" ALTER COLUMN "longitude" TYPE DECIMAL(12,9) USING "longitude"::DECIMAL(12,9)',
-            'ALTER TABLE "product" ALTER COLUMN "created_at" TYPE TIMESTAMPTZ USING "created_at"::TIMESTAMPTZ',
-            'ALTER TABLE "product" ALTER COLUMN "is_reviewed" TYPE BOOL USING "is_reviewed"::BOOL',
-            'ALTER TABLE "product" ALTER COLUMN "body" TYPE TEXT USING "body"::TEXT',
-            'DROP INDEX "idx_product_name_869427"',
-            'DROP INDEX "idx_email_email_4a1a33"',
-            'DROP INDEX "idx_user_usernam_9987ab"',
-            'DROP INDEX "uid_product_name_869427"',
+            'ALTER TABLE "user" DROP CONSTRAINT IF EXISTS "user_username_key"',
+            'DROP TABLE IF EXISTS "product_user"',
+            'DROP INDEX IF EXISTS "idx_product_name_869427"',
+            'DROP INDEX IF EXISTS "idx_email_email_4a1a33"',
+            'DROP INDEX IF EXISTS "uid_user_usernam_9987ab"',
+            'DROP INDEX IF EXISTS "uid_product_name_869427"',
+            'DROP INDEX IF EXISTS "idx_product_no_e4d701"',
             'DROP TABLE IF EXISTS "email_user"',
             'DROP TABLE IF EXISTS "newmodel"',
+            'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
+            'DROP TABLE IF EXISTS "config_category_map"',
         }
-        assert not set(Migrate.upgrade_operators).symmetric_difference(expected_upgrade_operators)
-        assert not set(Migrate.downgrade_operators).symmetric_difference(
-            expected_downgrade_operators
-        )
+        if IS_TORTOISE_V1:
+            expected_downgrade_operators |= {
+                'ALTER TABLE "category" RENAME COLUMN "owner_id" TO "user_id"',
+                'ALTER TABLE "product" RENAME COLUMN "pic" TO "image"',
+                'ALTER TABLE "product" RENAME COLUMN "is_deleted" TO "is_delete"',
+                'ALTER TABLE "product" RENAME COLUMN "is_reviewed" TO "is_review"',
+                'ALTER TABLE "category" ADD CONSTRAINT "fk_category_user_e2e3874c" FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE',
+                'CREATE TABLE "configs_category" (\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE,\n    "configs_id" VARCHAR(10) NOT NULL REFERENCES "configs" ("slug") ON DELETE CASCADE\n)',
+            }
+            expected_downgrade_operators -= {
+                'DROP TABLE IF EXISTS "config_category_map"',
+                'CREATE TABLE "config_category" (\n    "config_id" VARCHAR(20) NOT NULL REFERENCES "config" ("slug") ON DELETE CASCADE,\n    "category_id" INT NOT NULL REFERENCES "category" ("id") ON DELETE CASCADE\n)',
+            }
+        elif sys.version_info >= (3, 14) or hasattr(Tortoise, "_get_context"):
+            expected_downgrade_operators.add(
+                'ALTER TABLE "config" ALTER COLUMN "value" TYPE JSONB USING "value"::JSONB'
+            )
+        downgrade_operators = set(Migrate.downgrade_operators)
+        downgrade_more_than_expected = downgrade_operators - expected_downgrade_operators
+        assert not downgrade_more_than_expected
+        downgrade_less_than_expected = expected_downgrade_operators - downgrade_operators
+        assert not downgrade_less_than_expected
+        output = capsys.readouterr().out
+        if not IS_TORTOISE_V1 and not tortoise_version_less_than("0.24.2"):
+            # https://github.com/tortoise/tortoise-orm/pull/1903
+            # TortoiseORM 0.24.2 changes:
+            # Use 'unique' instead of 'create_unique_index' for m2m field
+            assert warning_msg in output
+        assert ignore_on_delete in output
 
     elif isinstance(Migrate.ddl, SqliteDDL):
         assert Migrate.upgrade_operators == []
@@ -958,7 +1300,7 @@ def test_sort_all_version_files(mocker):
         ],
     )
 
-    Migrate.migrate_location = "."
+    Migrate.migrate_location = Path(".")
 
     assert Migrate.get_all_version_files() == [
         "1_datetime_update.py",
@@ -966,3 +1308,247 @@ def test_sort_all_version_files(mocker):
         "10_datetime_update.py",
         "11_datetime_update.py",
     ]
+
+
+def test_sort_files_containing_non_migrations(mocker):
+    mocker.patch(
+        "os.listdir",
+        return_value=[
+            "1_datetime_update.py",
+            "11_datetime_update.py",
+            "10_datetime_update.pyc",
+            "2_datetime_update.py",
+            "not_a_migration.py",
+            "999.py",
+            "123foo_not_a_migration.py",
+        ],
+    )
+
+    Migrate.migrate_location = Path(".")
+
+    assert Migrate.get_all_version_files() == [
+        "1_datetime_update.py",
+        "2_datetime_update.py",
+        "10_datetime_update.py",
+        "11_datetime_update.py",
+    ]
+
+
+@pytest.fixture
+def tmp_migrate_dir(tmp_path):
+    Migrate.app = "foo"
+    Migrate.migrate_location = tmp_path
+    with chdir(tmp_path):
+        yield
+
+
+async def test_empty_migration(mocker, tmp_work_dir: Path) -> None:
+    mocker.patch("os.listdir", return_value=[])
+    Migrate.migrate_location = tmp_work_dir
+    Migrate.app = "models_second"
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
+    migration_file = await Migrate.migrate("update", True, no_input=True)
+    assert Path(migration_file).read_text() == expected_content
+
+
+async def test_remove_conflicts_empty(mocker, tmp_migrate_dir) -> None:
+    Migrate.app = "models"
+    # empty migration
+    expected_content = MIGRATE_TEMPLATE.format(
+        upgrade_sql="",
+        downgrade_sql="",
+        models_state=get_formatted_compressed_data(get_models_describe(Migrate.app)),
+    )
+    pre_migrate_file = Path("0_datetime_name.py")
+    pre_migrate_file.write_text("Invalid migration content")
+    mocker.patch("asyncclick.prompt", side_effect=(False,))
+    migration_file = await Migrate.migrate("update", empty=True)
+    assert pre_migrate_file.exists()
+    assert migration_file is None
+
+    mocker.patch("asyncclick.prompt", side_effect=(True,))
+    migration_file = await Migrate.migrate("update", empty=True)
+    assert not pre_migrate_file.exists()
+    assert migration_file and migration_file.startswith("0_")
+    assert Path(migration_file).read_text() == expected_content
+
+    await anyio.sleep(1)  # ensure new migration filename to be generated
+    new_migration_file = await Migrate.migrate("update", empty=True, no_input=True)
+    assert not Path(migration_file).exists()
+    assert new_migration_file.startswith("0_")
+    assert Path(new_migration_file).read_text() == expected_content
+
+
+async def test_remove_conflicts(mocker, tmp_migrate_dir) -> None:
+    from tests.models import NewModel
+
+    # normal migration
+    mocker.patch("aerich.migrate.get_models_describe", return_value={})
+    mocker.patch("aerich.utils.get_models_describe", return_value={})
+    Migrate._last_version_content = {}
+    init_file = Path("0_datetime_init.py")
+    init_file.touch()
+    pre_migrate_file = Path("1_datetime_name.py")
+    pre_migrate_file.write_text("Invalid migration content")
+    mocker.patch("asyncclick.prompt", side_effect=(False,))
+    migration_file = await Migrate.migrate("update", empty=False)
+    assert pre_migrate_file.exists()
+    assert migration_file == ""
+
+    models_describe = {"foo.NewModel": get_models_describe("models")["models.NewModel"]}
+    last_version = Aerich(app="foo", content="{}", version=init_file.name)
+    mocker.patch("asyncclick.prompt", side_effect=(True,))
+    mocker.patch("aerich.migrate.get_models_describe", return_value=models_describe)
+    mocker.patch("aerich.migrate.Migrate.get_last_version", return_value=last_version)
+    mocker.patch("aerich.migrate.Migrate._get_model", return_value=NewModel)
+    migration_file = await Migrate.migrate("update", empty=False)
+    assert not pre_migrate_file.exists()
+    assert migration_file and migration_file.startswith("1_")
+
+    await anyio.sleep(1)  # ensure new migration filename to be generated
+    new_migration_file = await Migrate.migrate("update", empty=True, no_input=True)
+    assert not Path(migration_file).exists()
+    assert new_migration_file and new_migration_file.startswith("1_")
+
+
+def _test_migrate_upgrade(max_model_num: int = 2, offline=False, messages="") -> None:
+    run_shell(
+        "aerich init -t settings.TORTOISE_ORM",
+        capture_output=False,
+        env={"AERICH_NO_TORTOISE_V1_WARNING": "1"},
+    )
+    run_shell("aerich init-db", capture_output=False)
+    output = run_shell("pytest -s _tests.py::test_1")
+    assert "error" not in output.lower()
+    for num in range(2, max_model_num + 1):
+        shutil.move(f"models_{num}.py", "models.py")
+        output = run_shell("aerich migrate" + " --offline" * offline)
+        assert "error" not in output.lower()
+        for line in messages.strip().splitlines():
+            assert line.strip() in output
+        output = run_shell("aerich upgrade")
+        assert "error" not in output.lower()
+        output = run_shell(f"pytest -s _tests.py::test_{num}")
+        assert "error" not in output.lower()
+
+
+@requires_dialect("sqlite")
+def test_migrate_with_rescursive_m2m(tmp_work_dir):
+    prepare_py_files("m2m_rescursive")
+    _test_migrate_upgrade()
+
+
+@requires_dialect("sqlite")
+def test_skip_model_name_changes(tmp_work_dir):
+    prepare_py_files("skip_model_name_changes")
+    _test_migrate_upgrade(3)
+    shutil.move("models_4.py", "models.py")
+    output = run_shell("aerich migrate")
+    assert "error" not in output.lower()
+    assert "warning" in output.lower()
+    assert "not support" in output
+    assert "models.UserAge -> models.Users" in output
+    assert "Please check the the migration file content before upgrade!" in output
+    output = run_shell("aerich upgrade")
+    assert "error" not in output.lower()
+    output = run_shell("pytest -s _tests.py::test_4")
+    assert "error" not in output.lower()
+
+
+@requires_dialect("sqlite")
+def test_ignore_on_delete(tmp_work_dir):
+    prepare_py_files("ignore_on_delete")
+    messages = """
+Ignore 'on_delete' changes 'CASCADE' -> 'NO ACTION' for models.Profile.user (You may need to do it in db manually).
+Ignore 'on_delete' changes 'CASCADE' -> 'SET NULL' for models.User.group (You may need to do it in db manually).
+No changes detected
+    """
+    _test_migrate_upgrade(messages=messages)
+
+
+@requires_dialect("postgres")
+def test_migrate_with_m2m_comment(tmp_work_dir):
+    prepare_py_files("m2m_comment")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
+
+
+@requires_dialect("postgres", "mysql")
+def test_drop_field_unique(tmp_work_dir):
+    prepare_py_files("drop_field_unique")
+    with tmp_daily_db():
+        _test_migrate_upgrade(5)
+
+
+@requires_dialect("sqlite")
+def test_delete_model_with_m2m_field(tmp_work_dir):
+    prepare_py_files("delete_model_with_m2m_field")
+    _test_migrate_upgrade(3)
+
+
+@requires_dialect("sqlite")
+def test_migrate_custom_index_offline(tmp_work_dir):
+    prepare_py_files("custom_index_offline")
+    _test_migrate_upgrade(3, offline=True)
+
+
+@requires_dialect("postgres", "mysql")
+def test_table_creations(tmp_work_dir):
+    prepare_py_files("table_creations")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
+
+
+@pytest.mark.anyio
+async def test_get_last_version(caplog):
+    caplog.set_level(logging.DEBUG)
+    Migrate.app = "models"
+
+    expected_sql = 'SELECT "version" "version" FROM "aerich"'
+    if Dialect.is_mysql():
+        expected_sql = expected_sql.replace('"', "`")
+    await Migrate._get_last_version_num()
+    text1 = caplog.text
+    assert expected_sql in text1
+    caplog.clear()
+
+    select_content = r'SELECT [",a-z]*?"content"[",a-z]* FROM "aerich"'
+    if Dialect.is_mysql():
+        select_content = select_content.replace('"', "`")
+    await Migrate.get_last_version()
+    text2 = caplog.text
+    assert expected_sql not in text2
+    # select content column from aerich may cost too much when content length is large
+    assert re.search(select_content, text2)
+    caplog.clear()
+
+    await Migrate.get_last_version(fields=["id", "version"])
+    text3 = caplog.text
+    assert not re.search(select_content, text3)
+
+
+@requires_dialect("mysql")
+@pytest.mark.anyio
+async def test_get_db_version(monkeypatch):
+    origin_db_version = Migrate._db_version
+    mysql_version = "5.7"
+    monkeypatch.setenv("AERICH_MYSQL_VERSION", mysql_version)
+    await Migrate._get_db_version(Migrate.ddl.client)
+    assert Migrate._db_version != mysql_version
+    await Migrate._get_db_version(Migrate.ddl.client, offline=True)
+    assert Migrate._db_version == mysql_version
+    monkeypatch.setenv("AERICH_MYSQL_VERSION", "8.0")
+    await Migrate._get_db_version(Migrate.ddl.client, offline=True)
+    assert Migrate._db_version == "8.0"
+    Migrate._db_version = origin_db_version
+
+
+@requires_dialect("postgres", "mysql")
+def test_create_multi_foreignkey_tables(tmp_work_dir):
+    prepare_py_files("order_fk")
+    with tmp_daily_db():
+        _test_migrate_upgrade()
