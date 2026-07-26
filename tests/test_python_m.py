@@ -18,14 +18,15 @@ def test_poetry_add(tmp_work_dir: Path):
     poetry = "poetry"
     if shutil.which(poetry) is None:
         poetry = "uvx " + poetry
-    toml_file = Path(__file__).parent.parent / "pyproject.toml"
+    root_dir = Path(__file__).parent.resolve().parent
+    toml_file = root_dir / "pyproject.toml"
     pyproject = tomllib.loads(toml_file.read_text(encoding="utf-8"))
     requires_python = pyproject["project"]["requires-python"]  # e.g.: ">=3.10"
     run_shell(f"{poetry} init --no-interaction --python={requires_python!r}")
     py = "{}.{}".format(*sys.version_info)
     run_shell(f"{poetry} config --local virtualenvs.in-project true")
     run_shell(f"{poetry} env use {py}")
-    package = Path(__file__).parent.resolve().parent
+    package = root_dir
     if WINDOWS and package.anchor != tmp_work_dir.anchor:
         # Fix: path is on mount 'D:', start on mount 'C:'
         tmp_package = Path(package.name)
