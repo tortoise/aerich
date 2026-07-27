@@ -15,14 +15,14 @@ def test_create_table():
         assert (
             ret
             == f"""CREATE TABLE IF NOT EXISTS `category` (
-`id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-`slug` VARCHAR(100) NOT NULL,
-`name` VARCHAR(200),
-`title` VARCHAR(20) NOT NULL,
-`created_at` DATETIME(6) NOT NULL{default_ts},
-`owner_id` INT NOT NULL COMMENT 'User',
-CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
-FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
+    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `slug` VARCHAR(100) NOT NULL,
+    `name` VARCHAR(200),
+    `title` VARCHAR(20) NOT NULL,
+    `created_at` DATETIME(6) NOT NULL{default_ts},
+    `owner_id` INT NOT NULL COMMENT 'User',
+    CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
+    FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
 ) CHARACTER SET utf8mb4"""
         )
 
