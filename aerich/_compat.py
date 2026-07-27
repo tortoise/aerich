@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from tortoise.fields.relational import ManyToManyFieldInstance
 
 
-__all__ = ("Self", "tomllib", "imports_tomlkit", "tortoise_version_less_than")
+__all__ = ("Self", "imports_tomlkit", "tomllib", "tortoise_version_less_than")
 
 
 def imports_tomlkit() -> ModuleType:

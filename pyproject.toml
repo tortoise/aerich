@@ -6,7 +6,7 @@ authors = [{name="long2ice", email="long2ice@gmail.com>"}]
 license = {text="Apache-2.0"}
 readme = "README.md"
 keywords = ["migrate", "Tortoise-ORM", "mysql", "postgresql"]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "tortoise-orm (>=0.21.0,!=1.0.0,<2.0.0)",
   "dictdiffer (>=0.9.0,<1.0.0)",
@@ -18,7 +18,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -57,7 +56,7 @@ aerich = "aerich.cli:main"
 
 [dependency-groups]
 dev = [
-    "ruff >=0.9.0",
+    "ruff >=0.16.0",
     "bandit >=1.7.0",
     "mypy >=1.10.0",
     "twine >=6.1.0",
@@ -69,10 +68,10 @@ test = [
     "async-timeout >=5.0.1; python_version <'3.11'",
     "pydantic-settings >=2.10.1",
     # required for sha256_password by asyncmy
-    "cryptography; python_version >='3.9.0,!=3.9.1'",
+    "cryptography",
 ]
 vector = [
-    "tortoise-vector >=0.2.0; python_version >='3.10'",
+    "tortoise-vector >=0.2.0",
 ]
 
 [tool.aerich]
@@ -130,7 +129,11 @@ extend-select = [
     "UP",     # https://docs.astral.sh/ruff/rules/#pyupgrade-up
     "RUF100", # https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
 ]
-ignore = ["UP031"] # https://docs.astral.sh/ruff/rules/printf-string-formatting/
+ignore = [
+    "UP031",  # https://docs.astral.sh/ruff/rules/printf-string-formatting/
+    "DTZ005", # https://docs.astral.sh/ruff/rules/call-datetime-now-without-tzinfo/
+    "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default/
+]
 
 [tool.ruff.lint.isort]
 extra-standard-library = ["tomllib"]

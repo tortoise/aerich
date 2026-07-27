@@ -6,9 +6,9 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 src_dir := "aerich"
-project_name := "aerich"
-checkfiles := src_dir + " tests/ conftest.py"
-pytest_opts := "--cov=aerich --cov-append --tb=native -q"
+project_name := file_name(justfile_directory())
+checkfiles := "tests/ conftest.py " + src_dir
+pytest_opts := "--cov-append --tb=native -q --cov=" + src_dir
 test_db := "/test_\\{\\}"
 mysql_url := "mysql://root:" + env_var_or_default("MYSQL_PASS", "123456") + "@" + env_var_or_default("MYSQL_HOST", "127.0.0.1") + ":" + env_var_or_default("MYSQL_PORT", "3306") + test_db
 postgres_test_uri := env_var_or_default("POSTGRES_USER", "postgres") + ":" + env_var_or_default("POSTGRES_PASS", "123456") + "@" + env_var_or_default("POSTGRES_HOST", "127.0.0.1") + ":" + env_var_or_default("POSTGRES_PORT", "5432") + test_db
@@ -85,15 +85,15 @@ _pytest *args:
 
 [unix]
 _pytest_env env_name env_value *args:
-    {{ env_name }}='{{ env_value }}' just _run pytest {{ args }} {{ pytest_opts }}
+    {{ env_name }}='{{ env_value }}' just _pytest {{ args }}
 
 [windows]
 _pytest_env env_name env_value *args:
-    $env:{{ env_name }} = '{{ env_value }}'; just _run pytest {{ args }} {{ pytest_opts }}
+    $env:{{ env_name }} = '{{ env_value }}'; just _pytest {{ args }}
 
 [unix]
 _pytest_vector db_url *args:
-    AERICH_TEST_VECTOR=1 TEST_DB='{{ db_url }}' just _run pytest {{ args }} {{ pytest_opts }}
+    AERICH_TEST_VECTOR=1 TEST_DB='{{ db_url }}' just _pytest {{ args }}
 
 [windows]
 _pytest_vector db_url *args:

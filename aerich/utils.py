@@ -185,7 +185,7 @@ def get_models_describe(app: str) -> dict[str, dict[str, Any]]:
         if not is_tortoise_inited():
             raise NotInitedError("Tortoise not inited yet.") from e
         logger.debug(f"{Tortoise.apps.keys() = }")
-        raise e
+        raise
     for model in app_config.values():
         managed = getattr(model.Meta, "managed", None)
         describe = model.describe()
@@ -210,7 +210,7 @@ def file_module_info(path: str | Path, name: str) -> pkgutil.ModuleInfo:
 
 
 def import_py_file(file: str | Path) -> ModuleType:
-    module_name, file_ext = os.path.splitext(os.path.split(file)[-1])
+    module_name, _file_ext = os.path.splitext(os.path.split(file)[-1])
     spec = importlib.util.spec_from_file_location(module_name, file)
     module = importlib.util.module_from_spec(spec)  # type:ignore[arg-type]
     spec.loader.exec_module(module)  # type:ignore[union-attr]
@@ -220,8 +220,8 @@ def import_py_file(file: str | Path) -> ModuleType:
 def _load_py_spec(module_info: pkgutil.ModuleInfo):
     module_finder: FileFinder
     name: str
-    ispkg: bool
-    module_finder, name, ispkg = module_info  # type:ignore[assignment]
+    _ispkg: bool
+    module_finder, name, _ispkg = module_info  # type:ignore[assignment]
     spec = None
     with contextlib.suppress(AttributeError):
         # 'nuitka_module_loader' object has no attribute 'invalidate_caches'

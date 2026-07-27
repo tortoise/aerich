@@ -29,7 +29,7 @@ except KeyError as e:
         db_url = db_url.replace("/{/}", "{}")
         default_db = expand_db_url(db_url, testing=True)
     else:
-        raise e
+        raise
 
 tortoise_orm = {
     "connections": {

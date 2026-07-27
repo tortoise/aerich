@@ -35,7 +35,7 @@ class User(Model):
     longitude = fields.DecimalField(max_digits=12, decimal_places=9)
 
     class Meta:
-        indexes = [Index(fields=("username", "is_active")), CustomIndex(fields=("is_superuser",))]
+        indexes = (Index(fields=("username", "is_active")), CustomIndex(fields=("is_superuser",)))
 
 
 class Email(Model):
@@ -57,7 +57,7 @@ class Category(Model):
     created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [Index(fields=("slug",))]
+        indexes = (Index(fields=("slug",)),)
 
 
 class Product(Model):

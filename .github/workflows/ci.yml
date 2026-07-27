@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, 3.14]
+        python-version: ['3.10', 3.14]
     steps:
       - uses: actions/checkout@v6
       - name: Setup Python
@@ -48,7 +48,7 @@ jobs:
         options: --health-cmd=pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         tortoise-orm:
           - tortoise021
           - tortoise022
@@ -56,9 +56,6 @@ jobs:
           - tortoise024
           - tortoise025
           - tortoise11
-        exclude:
-          - python-version: "3.9"
-            tortoise-orm: "tortoise11"
     steps:
       - name: Start MySQL
         run: sudo systemctl start mysql.service

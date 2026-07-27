@@ -268,7 +268,7 @@ tortoise_orm = {
     },
     "apps": {
         "models": {"models": ["tests.models", "aerich.models"], "default_connection": "default"},
-        "models_second": {"models": ["tests.models_second"], "default_connection": "second", },
+        "models_second": {"models": ["tests.models_second"], "default_connection": "second"},
     },
 }
 ```
@@ -294,8 +294,8 @@ You can use `aerich` out of cli by use `Command` class.
 from aerich import Command
 from aerich.utils import load_tortoise_config
 
-async with Command(tortoise_config=load_tortoise_config(), app='models') as command:
-    await command.migrate('test')
+async with Command(tortoise_config=load_tortoise_config(), app="models") as command:
+    await command.migrate("test")
     await command.upgrade()
     print(await command.history())
 ```

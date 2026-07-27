@@ -12,4 +12,4 @@ class Aerich(Model):
     content: dict = fields.JSONField(encoder=encoder, decoder=decoder)
 
     class Meta:
-        ordering = ["-id"]
+        ordering = ("-id",)

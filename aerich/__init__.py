@@ -318,7 +318,7 @@ class Command(TortoiseContext):
         return await Migrate.fix_migrations(self.tortoise_config)
 
     @staticmethod
-    async def get_applied_migrations(self, app: str | None = None) -> list[str]:
+    async def get_applied_migrations(app: str | None = None) -> list[str]:
         """
         Get applied migrations by query the 'aerich' table
 
