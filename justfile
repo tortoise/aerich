@@ -42,7 +42,7 @@ _ruff command *args:
 style: deps _style
 
 _codeqc:
-    @just _run mypy {{ checkfiles }}
+    @just _run ty check {{ checkfiles }}
     @just _run bandit -c pyproject.toml -r {{ checkfiles }}
     @just _run twine check dist/*
 

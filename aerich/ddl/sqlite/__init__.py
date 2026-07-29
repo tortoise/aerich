@@ -13,7 +13,7 @@ class SqliteDDL(BaseDDL):
     _ADD_INDEX_TEMPLATE = 'CREATE {unique}INDEX "{index_name}" ON "{table_name}" ({column_names})'
     _DROP_INDEX_TEMPLATE = 'DROP INDEX IF EXISTS "{index_name}"'
 
-    def modify_column(self, model: type[Model], field_object: dict, is_pk: bool = True):
+    def modify_column(self, model: type[Model], field_describe: dict, is_pk: bool = True) -> str:
         raise NotSupportError("Modify column is unsupported in SQLite.")
 
     def alter_column_default(self, model: type[Model], field_describe: dict):

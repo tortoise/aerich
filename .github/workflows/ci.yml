@@ -33,6 +33,10 @@ jobs:
           echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
       - name: Check code style and Type Hints
         run: just check
+      - name: Check type hints by mypy
+        run: |
+          uv tool install mypy
+          mypy --python-executable=.venv/bin/python aerich
 
   ci:
     runs-on: ubuntu-latest

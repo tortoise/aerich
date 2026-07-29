@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import asyncclick as click
 from dictdiffer import diff
@@ -37,6 +37,9 @@ from aerich.utils import (
     py_module_path,
     run_async,
 )
+
+if TYPE_CHECKING:
+    from aerich.ddl.postgres import PostgresDDL
 
 MIGRATE_TEMPLATE = """from tortoise import BaseDBAsyncClient
 
@@ -108,17 +111,20 @@ class Migrate:
 
     @classmethod
     def _get_model(cls, model: str) -> type[Model]:
-        return Tortoise.apps[cls.app].get(model)  # type: ignore
+        model_class = Tortoise.apps[cls.app].get(model)
+        return cast(type[Model], model_class)
 
     @classmethod
     async def get_last_version(cls, fields: Sequence[str] | None = None) -> Aerich | None:
         qs = Aerich.filter(app=cls.app).first()
         try:
-            res = await (qs.values(*fields) if fields else qs)
+            if fields:
+                res = await qs.values(*fields)
+                return Aerich(**res)
+            else:
+                return await qs
         except OperationalError:
             return None
-        else:
-            return Aerich(**res) if isinstance(res, dict) else res
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
@@ -869,8 +875,9 @@ class Migrate:
                                         upgrade,
                                     )
                                 else:
+                                    old_value, new_value = cast(tuple[str, str], changes[1][2])
                                     cls._add_operator(
-                                        cls._rename_field(model, *changes[1][2]),  # type: ignore
+                                        cls._rename_field(model, old_value, new_value),
                                         upgrade,
                                     )
                 if not is_rename:
@@ -1091,7 +1098,8 @@ class Migrate:
     def _drop_unique_index(cls, model: type[Model], field_name: str) -> list[str]:
         field_name, *_ = cls._resolve_fk_fields_name(model, (field_name,))
         if hasattr(cls.ddl, "drop_unique_index"):
-            return cls.ddl.drop_unique_index(model, field_name)
+            ddl = cast("PostgresDDL", cls.ddl)
+            return ddl.drop_unique_index(model, field_name)
         return [cls.ddl.drop_index(model, [field_name], unique=True)]
 
     @classmethod
