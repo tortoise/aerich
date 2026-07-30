@@ -1196,11 +1196,12 @@ class Migrate:
                     for index, sql in enumerate(cls.upgrade_operators[:-1]):
                         if pattern.search(sql):
                             sqls = sql.split(";")
-                            idx = len(sqls) - 1
-                            for i, s in enumerate(sqls):
+                            idx = 0
+                            s = ""
+                            for s in sqls:
                                 if pattern.search(s):
-                                    idx = i
                                     break
+                                idx += 1
                             comment_sql = s.strip()
                             sqls.pop(idx)
                             cls.upgrade_operators[index] = ";".join(sqls)

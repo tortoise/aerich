@@ -34,9 +34,7 @@ jobs:
       - name: Check code style and Type Hints
         run: just check
       - name: Check type hints by mypy
-        run: |
-          uv tool install mypy
-          mypy --python-executable=.venv/bin/python aerich
+        run: just mypy
 
   ci:
     runs-on: ubuntu-latest

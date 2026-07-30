@@ -7,11 +7,11 @@ import pytest
 with contextlib.suppress(KeyError):  # Use suppress to fix ruff check issue I001
     from aerich import TortoiseContext
 
-_TORTOISE_ORM: dict[str, Any] | None = None
+TORTOISE_ORM: dict[str, Any] | None = None
 with contextlib.suppress(ImportError):
     settings = importlib.import_module("settings")
 
-    _TORTOISE_ORM = settings.TORTOISE_ORM
+    TORTOISE_ORM = settings.TORTOISE_ORM
 
 
 @pytest.fixture(scope="session")
@@ -21,5 +21,5 @@ def anyio_backend() -> str:
 
 @pytest.fixture(autouse=True)
 async def init_connections():
-    async with TortoiseContext(_TORTOISE_ORM):
+    async with TortoiseContext(TORTOISE_ORM):
         yield
