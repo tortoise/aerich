@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 
 from tortoise.backends.base.schema_generator import BaseSchemaGenerator
@@ -105,16 +104,17 @@ class BaseDDL:
             ] or is_default_function(default):
                 default = ""
             else:
-                default_generator = self.schema_generator._column_default_generator
-                if tortoise_version_less_than("1.0"):
-                    default_generator = partial(  # type:ignore[call-arg]
-                        default_generator, auto_now_add=auto_now_add, auto_now=auto_now
-                    )
+                kw = (
+                    {"auto_now_add": auto_now_add, "auto_now": auto_now}
+                    if tortoise_version_less_than("1.0")
+                    else {}
+                )
                 try:
-                    default = default_generator(
+                    default = self.schema_generator._column_default_generator(
                         db_table,
                         db_column,
                         self.schema_generator._escape_default_value(default),
+                        **kw,
                     )
                 except NotImplementedError:
                     default = ""
@@ -191,11 +191,7 @@ class BaseDDL:
         )
 
     def _index_name(self, unique: bool | None, model: type[Model], field_names: list[str]) -> str:
-        func_name = "_get_index_name"
-        if not hasattr(self.schema_generator, func_name):
-            # For tortoise-orm<0.24.1
-            func_name = "_generate_index_name"
-        return getattr(self.schema_generator, func_name)(
+        return self.schema_generator._get_index_name(
             "idx" if not unique else "uid", model, field_names
         )
 
@@ -246,11 +242,7 @@ class BaseDDL:
         pk_field = cast(dict, reference_table_describe.get("pk_field"))
         to_field = cast(str, pk_field.get("db_column"))
         to_table = cast(str, reference_table_describe.get("table"))
-        func_name = "_get_fk_name"
-        if not hasattr(self.schema_generator, func_name):
-            # For tortoise-orm<0.24.1
-            func_name = "_generate_fk_name"
-        return getattr(self.schema_generator, func_name)(
+        return self.schema_generator._get_fk_name(
             from_table=db_table,
             from_field=db_column,
             to_table=to_table,

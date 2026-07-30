@@ -20,7 +20,7 @@ from tortoise import BaseDBAsyncClient, Model, Tortoise
 from tortoise.exceptions import ConfigurationError, OperationalError
 from tortoise.indexes import Index
 
-from aerich._compat import is_tortoise_inited, tortoise_version_less_than
+from aerich._compat import is_tortoise_inited
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
 from aerich.enums import Color
@@ -118,9 +118,7 @@ class Migrate:
         except OperationalError:
             return None
         else:
-            if isinstance(res, dict):
-                res = Aerich(**res)
-            return res
+            return Aerich(**res) if isinstance(res, dict) else res
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
@@ -433,23 +431,6 @@ class Migrate:
 
     @classmethod
     def _handle_indexes(cls, model: type[Model], indexes: list[tuple[str] | Index]) -> list:
-        if not tortoise_version_less_than("0.23.0"):
-            # tortoise>=0.23.0 have __eq__/__hash__ with Index class since 313ee76.
-            return indexes
-        if index_classes := {index.__class__ for index in indexes if isinstance(index, Index)}:
-            # Leave magic patch here to compare with older version of tortoise-orm
-            # TODO: limit tortoise>0.22.2 in pyproject.toml and remove this function when v0.10.0 released
-            for index_cls in index_classes:
-                if index_cls(fields=("id",)) != index_cls(fields=("id",)):
-
-                    def _hash(self) -> int:
-                        return hash((tuple(sorted(self.fields)), self.name, self.expressions))
-
-                    def _eq(self, other) -> bool:
-                        return type(self) is type(other) and self.__dict__ == other.__dict__
-
-                    setattr(index_cls, "__hash__", _hash)  # NOQA:B010
-                    setattr(index_cls, "__eq__", _eq)  # NOQA:B010
         return indexes
 
     @classmethod
@@ -1098,13 +1079,7 @@ class Migrate:
         if isinstance(fields_name, Index):
             if cls.dialect == "mysql":
                 # schema_generator of MySQL return a empty index sql
-                if hasattr(fields_name, "field_names"):
-                    # tortoise>=0.24
-                    fields = fields_name.field_names
-                else:
-                    # TODO: remove else when drop support for tortoise<0.24
-                    if not (fields := fields_name.fields):
-                        fields = [getattr(i, "get_sql")() for i in fields_name.expressions]  # NOQA:B009
+                fields = fields_name.field_names
                 return cls.ddl.drop_index(model, fields, unique, name=fields_name.name)
             return cls.ddl.drop_index_by_name(
                 model, fields_name.index_name(cls.ddl.schema_generator, model)
@@ -1126,13 +1101,7 @@ class Migrate:
         if isinstance(fields_name, Index):
             if cls.dialect == "mysql":
                 # schema_generator of MySQL return a empty index sql
-                if hasattr(fields_name, "field_names"):
-                    # tortoise>=0.24
-                    fields = fields_name.field_names
-                else:
-                    # TODO: remove else when drop support for tortoise<0.24
-                    if not (fields := fields_name.fields):
-                        fields = [getattr(i, "get_sql")() for i in fields_name.expressions]  # NOQA:B009
+                fields = fields_name.field_names
                 return cls.ddl.add_index(
                     model,
                     fields,
@@ -1140,13 +1109,7 @@ class Migrate:
                     index_type=fields_name.INDEX_TYPE,
                     extra=fields_name.extra,
                 )
-            sql = fields_name.get_sql(cls.ddl.schema_generator, model, safe=True)
-            if tortoise_version_less_than("0.24.0"):
-                sql = sql.replace("  ", " ")
-                if cls.dialect == "postgres" and (exists := "IF NOT EXISTS ") not in sql:
-                    idx = " INDEX "
-                    sql = sql.replace(idx, idx + exists)
-            return sql
+            return fields_name.get_sql(cls.ddl.schema_generator, model, safe=True)
         field_names = cls._resolve_fk_fields_name(model, fields_name)
         return cls.ddl.add_index(model, field_names, unique)
 
@@ -1225,11 +1188,13 @@ class Migrate:
                     for index, sql in enumerate(cls.upgrade_operators[:-1]):
                         if pattern.search(sql):
                             sqls = sql.split(";")
+                            idx = len(sqls) - 1
                             for i, s in enumerate(sqls):
                                 if pattern.search(s):
+                                    idx = i
                                     break
                             comment_sql = s.strip()
-                            sqls.pop(i)
+                            sqls.pop(idx)
                             cls.upgrade_operators[index] = ";".join(sqls)
                             # Put comment of this table behind the create sql
                             cls.upgrade_operators.append(comment_sql)

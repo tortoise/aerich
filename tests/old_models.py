@@ -85,7 +85,7 @@ class Config(Model):
     name = fields.CharField(max_length=100, unique=True)
     label = fields.CharField(max_length=200)
     key = fields.CharField(max_length=20)
-    value: dict = fields.JSONField()
+    value = fields.JSONField[dict]()
     status: Status = fields.IntEnumField(Status, default=Status.on)
 
     class Meta:

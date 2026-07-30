@@ -1,5 +1,3 @@
-import tortoise
-
 from aerich.ddl.mysql import MysqlDDL
 from aerich.ddl.postgres import PostgresDDL
 from aerich.ddl.sqlite import SqliteDDL
@@ -12,12 +10,11 @@ def test_create_table():
     ret = Migrate.ddl.create_table(Category)
     default_ts = "" if IS_TORTOISE_V1 else " DEFAULT CURRENT_TIMESTAMP"
     if isinstance(Migrate.ddl, MysqlDDL):
-        if tortoise.__version__ >= "0.24":
-            if not IS_TORTOISE_V1:
-                default_ts = " DEFAULT CURRENT_TIMESTAMP(6)"
-            assert (
-                ret
-                == f"""CREATE TABLE IF NOT EXISTS `category` (
+        if not IS_TORTOISE_V1:
+            default_ts = " DEFAULT CURRENT_TIMESTAMP(6)"
+        assert (
+            ret
+            == f"""CREATE TABLE IF NOT EXISTS `category` (
     `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `slug` VARCHAR(100) NOT NULL,
     `name` VARCHAR(200),
@@ -27,24 +24,10 @@ def test_create_table():
     CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE,
     FULLTEXT KEY `idx_category_slug_e9bcff` (`slug`)
 ) CHARACTER SET utf8mb4"""
-            )
-            return
-        assert (
-            ret
-            == """CREATE TABLE IF NOT EXISTS `category` (
-    `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    `slug` VARCHAR(100) NOT NULL,
-    `name` VARCHAR(200),
-    `title` VARCHAR(20) NOT NULL,
-    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    `owner_id` INT NOT NULL COMMENT 'User',
-    CONSTRAINT `fk_category_user_110d4c63` FOREIGN KEY (`owner_id`) REFERENCES `user` (`id`) ON DELETE CASCADE
-) CHARACTER SET utf8mb4;
-CREATE FULLTEXT INDEX `idx_category_slug_e9bcff` ON `category` (`slug`)"""
         )
 
     elif isinstance(Migrate.ddl, SqliteDDL):
-        exists = "IF NOT EXISTS " if tortoise.__version__ >= "0.24" else ""
+        exists = "IF NOT EXISTS "
         assert (
             ret
             == f"""CREATE TABLE IF NOT EXISTS "category" (
