@@ -117,14 +117,14 @@ class Migrate:
     @classmethod
     async def get_last_version(cls, fields: Sequence[str] | None = None) -> Aerich | None:
         qs = Aerich.filter(app=cls.app).first()
-        with contextlib.suppress(OperationalError):
-            if fields:
-                res = await qs.values(*fields)
-                if res is not None:
-                    return Aerich(**res)
-            else:
-                return await qs
-        return None
+        try:
+            res = await (qs.values(*fields) if fields else qs)
+        except OperationalError:
+            return None
+        else:
+            if isinstance(res, dict):
+                return Aerich(**cast(dict[str, Any], res))
+            return res
 
     @classmethod
     def get_last_version_file(cls) -> str | None:
