@@ -62,7 +62,7 @@ Commands:
 
 ## Usage
 
-You need to add `aerich.models` to your `Tortoise-ORM` config first. Example:
+First, you need to include `aerich.models` in your Tortoise‑ORM config. Example:
 
 ```python
 TORTOISE_ORM = {
@@ -75,6 +75,8 @@ TORTOISE_ORM = {
     },
 }
 ```
+
+* Note: This can be omitted if there is only one item in "apps". *
 
 ### Initialization
 
