@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextlib
 import functools
 import importlib
-import inspect
 import os
 import pkgutil
 import re
@@ -848,11 +847,7 @@ class Migrate:
                                         type=bool,
                                         show_choices=True,
                                     )
-                                    if inspect.iscoroutinefunction(click.prompt):
-                                        # For asyncclick>=8.3
-                                        is_rename = run_async(confirm, tip)
-                                    elif isinstance(r := confirm(tip), bool):
-                                        is_rename = r
+                                    is_rename = run_async(confirm, tip)
                                 if is_rename:
                                     if rename_fields is None:
                                         rename_fields = cls._rename_fields[new_model_str] = {}
