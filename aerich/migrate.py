@@ -995,8 +995,7 @@ class Migrate:
                     add_index_sql = cls._add_index(model, (field_name,), unique)
                     cls._add_operator(add_index_sql, upgrade, True)
                 else:
-                    unique = old_data_field.get("unique")
-                    if unique:
+                    if old_data_field.get("unique"):
                         for sql in cls._drop_unique_index(model, field_name):
                             cls._add_operator(sql, upgrade, True)
                     else:

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from tortoise.backends.base_postgres.client import BasePostgresClient
 
     from aerich._compat import Self
+    from aerich.inspectdb import Inspect
 
 
 _init_asyncio_patch()  # Change event_loop_policy for Windows
@@ -191,7 +192,8 @@ class Command(TortoiseContext):
         connection = get_app_connection(self.tortoise_config, self.app)
         match connection.schema_generator.DIALECT:
             case "postgres":
-                inspect = InspectPostgres(cast("BasePostgresClient", connection), tables)
+                conn = cast("BasePostgresClient", connection)
+                inspect: Inspect = InspectPostgres(conn, tables)
             case "mysql":
                 inspect = InspectMySQL(connection, tables)
             case "sqlite":

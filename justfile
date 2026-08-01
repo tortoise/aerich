@@ -123,4 +123,4 @@ report:
 build *args: deps
     uv build {{ args }}
 
-ci: build _check _testall
+ci: build _check mypy pyright _testall
