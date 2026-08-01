@@ -72,11 +72,11 @@ class Category(Model):
 
     class Meta:
         if Dialect.is_postgres():
-            indexes = [HashIndex(fields=("slug",))]
+            indexes: list[Index] = [HashIndex(fields=("slug",))]
         elif Dialect.is_mysql():
-            indexes = [FullTextIndex(fields=("slug",))]  # type:ignore
+            indexes = [FullTextIndex(fields=("slug",))]
         else:
-            indexes = [Index(fields=("slug",))]  # type:ignore
+            indexes = [Index(fields=("slug",))]
 
 
 class Product(Model):

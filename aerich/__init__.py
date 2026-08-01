@@ -5,7 +5,7 @@ import warnings
 from collections.abc import Generator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import asyncclick as click
 from tortoise import BaseDBAsyncClient, Tortoise
@@ -197,7 +197,7 @@ class Command(TortoiseContext):
             cls = InspectSQLite
         else:
             raise NotImplementedError(f"{dialect} is not supported")
-        inspect = cls(connection, tables)
+        inspect = cls(connection, tables)  # ty:ignore[invalid-argument-type]
         if self._inspectdb_fields:
             inspect._special_fields = self._inspectdb_fields
         return await inspect.inspect()
@@ -327,7 +327,8 @@ class Command(TortoiseContext):
         qs = Aerich.all()
         if app is not None:
             qs = qs.filter(app=app)
-        return await qs.values_list("version", flat=True)  # type:ignore[return-value]
+        version_list = await qs.values_list("version", flat=True)
+        return cast(list[str], version_list)
 
     @classmethod
     def list_applied(cls, app: str | None = None) -> None:

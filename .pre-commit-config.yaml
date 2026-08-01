@@ -25,3 +25,11 @@ repos:
       - id: codespell  # See pyproject.toml for args
         additional_dependencies:
           - tomli
+
+  - repo: local
+    hooks:
+      - id: ty-check
+        name: check type hints by ty
+        entry: uv run --frozen ty check
+        language: system
+        pass_filenames: false

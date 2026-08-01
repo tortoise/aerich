@@ -42,7 +42,7 @@ _ruff command *args:
 style: deps _style
 
 _codeqc:
-    @just _run mypy {{ checkfiles }}
+    @just _run ty check {{ checkfiles }}
     @just _run bandit -c pyproject.toml -r {{ checkfiles }}
     @just _run twine check dist/*
 
@@ -61,6 +61,20 @@ check: deps _check
 _lint: _build _style _codeqc
 
 lint: deps _lint
+
+[unix]
+_uvx package option *args:
+    uvx {{ package }} --{{option}}=.venv/bin/python {{ args }}
+
+[windows]
+_uvx package option *args:
+    uvx {{ package }} --{{option}}=.venv/Scripts/python.exe {{ args }}
+
+mypy path=(src_dir) *args:
+    @just _uvx mypy "python-executable" {{ path }} {{ args }}
+
+pyright path=(src_dir) *args:
+    @just _uvx pyright "pythonpath" {{ path }} {{ args }}
 
 test *args: deps
     just _pytest {{ args }}

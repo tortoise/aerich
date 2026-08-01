@@ -58,8 +58,8 @@ aerich = "aerich.cli:main"
 dev = [
     "ruff >=0.16.0",
     "bandit >=1.7.0",
-    "mypy >=1.10.0",
     "twine >=6.1.0",
+    "ty >=0.0.64",
 ]
 test = [
     "pytest >=8.3.0",
@@ -143,3 +143,17 @@ exclude_dirs = ["tests", "conftest.py"]
 
 [tool.codespell]
 ignore-words-list = "Bu"
+
+[tool.ty.src]
+include = ["aerich/", "tests/", "conftest.py"]
+[[tool.ty.overrides]]
+include = ["tests/assets/**"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
+[[tool.ty.overrides]]
+include = ["aerich/_compat.py"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+deprecated = "ignore"
+unused-type-ignore-comment = "ignore"

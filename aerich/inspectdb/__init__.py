@@ -111,7 +111,7 @@ class Inspect:
     ) -> None:
         self.conn = conn
         with contextlib.suppress(AttributeError):
-            self.database = conn.database  # type:ignore[attr-defined]
+            self.database = conn.database  # type:ignore
         self.tables = tables
         self._special_fields = special_fields
 

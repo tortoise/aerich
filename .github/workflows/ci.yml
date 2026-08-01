@@ -33,6 +33,8 @@ jobs:
           echo "$(uv tool dir --bin)" >> "$GITHUB_PATH"
       - name: Check code style and Type Hints
         run: just check
+      - name: Check type hints by mypy
+        run: just mypy
 
   ci:
     runs-on: ubuntu-latest
@@ -177,20 +179,16 @@ jobs:
           enable-cache: true
           python-version: '3.13'
           activate-environment: true
-      - name: Install just via apt
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y just
       - name: Install dependencies
         run: uv pip install --group vector --group test -e ".[toml,mysql]"
       - name: Test tortoise vector
-        run: just test_postgres_vector
+        run: uvx --from rust-just just test_postgres_vector
         env:
           POSTGRES_PASS: 123456
           POSTGRES_HOST: 127.0.0.1
           POSTGRES_PORT: 5432
       - name: Show test coverage
-        run: just report
+        run: uvx --from rust-just just report
 
   psycopgSupport:
     runs-on: ${{ matrix.os }}
@@ -211,18 +209,20 @@ jobs:
         with:
           enable-cache: true
           activate-environment: true
-      - name: Install just via apt
+      - name: Install just via curl
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y just
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/bin
+          echo "$HOME/bin" >> "$GITHUB_PATH"
       # Windows alternatives:
-      #   winget install --id Casey.Just --exact
       #   uv tool install rust-just
       #   pipx install rust-just
+      #   gh install casey/just
+      #   winget install --id Casey.Just --exact
       - name: Install just via Chocolatey
         if: runner.os == 'Windows'
-        run: choco install just -y
+        run: |
+          choco install just -y
       - name: Install dependencies
         run: |
           uv pip install --group test -e ".[toml,psycopg,mysql]"
