@@ -209,10 +209,11 @@ jobs:
         with:
           enable-cache: true
           activate-environment: true
-      - name: Install just via apt
+      - name: Install just via curl
         if: runner.os == 'Linux'
         run: |
-          snap install --edge --classic just
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to ~/bin
+          echo "$HOME/bin" >> "$GITHUB_PATH"
       # Windows alternatives:
       #   uv tool install rust-just
       #   pipx install rust-just
