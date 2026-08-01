@@ -35,6 +35,8 @@ jobs:
         run: just check
       - name: Check type hints by mypy
         run: just mypy
+      - name: Check type hints by pyright
+        run: just pyright
 
   ci:
     runs-on: ubuntu-latest
