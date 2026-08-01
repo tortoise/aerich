@@ -433,7 +433,7 @@ class Migrate:
         return indexes
 
     @classmethod
-    def _get_indexes(cls, model, model_describe: dict) -> set[Index | tuple[str, ...]]:
+    def _get_indexes(cls, model: type[Model], model_describe: dict) -> set[Index | tuple[str, ...]]:
         indexes: set[Index | tuple[str, ...]] = set()
         for x in cls._handle_indexes(model, model_describe.get("indexes", [])):
             if isinstance(x, Index):
@@ -451,7 +451,12 @@ class Migrate:
 
     @classmethod
     def _handle_m2m_fields(
-        cls, old_model_describe: dict, new_model_describe: dict, model, new_models, upgrade=True
+        cls,
+        old_model_describe: dict,
+        new_model_describe: dict,
+        model: type[Model],
+        new_models: dict[str, dict],
+        upgrade=True,
     ) -> None:
         old_m2m_fields = cast("list[dict]", old_model_describe.get("m2m_fields", []))
         new_m2m_fields = cast("list[dict]", new_model_describe.get("m2m_fields", []))
@@ -493,13 +498,17 @@ class Migrate:
                 if not change:
                     continue
             new_value = change[0][1]
+            table: str | None = None
             if isinstance(new_value, str):
                 for new_m2m_field in new_m2m_fields:
                     if new_m2m_field["name"] == new_value:
-                        table = cast(str, new_m2m_field.get("through"))
+                        table = new_m2m_field.get("through")
                         break
             else:
                 table = new_value.get("through")
+            if table is None:
+                click.secho(f"Failed to parse table name for {new_value = }", fg=Color.yellow)
+                continue
             if action == "add":
                 add = False
                 if upgrade:
@@ -513,12 +522,11 @@ class Migrate:
                         cls._downgrade_m2m.append(table)
                         add = True
                 if add:
-                    ref_desc = cast(dict, new_models.get(new_value.get("model_name")))
-                    cls._add_operator(
-                        cls.create_m2m(model, new_value, ref_desc),
-                        upgrade,
-                        fk_m2m_index=True,
-                    )
+                    field_describe = cast(dict[str, Any], new_value)
+                    model_name = cast(str, field_describe.get("model_name"))
+                    ref_desc = cast(dict, new_models.get(model_name))
+                    create_m2m_sql = cls.create_m2m(model, field_describe, ref_desc)
+                    cls._add_operator(create_m2m_sql, upgrade, fk_m2m_index=True)
             elif action == "remove":
                 add = False
                 if upgrade and table not in cls._upgrade_m2m:
@@ -650,7 +658,7 @@ class Migrate:
     def _handle_add_models(
         cls,
         upgrade: bool,
-        new_models,
+        new_models: dict[str, dict],
         new_table_items: list[tuple[str, dict, type[Model]]],
         other_table_items: list[tuple[str, dict, type[Model]]] | None = None,
     ) -> None:
@@ -900,12 +908,9 @@ class Migrate:
                     upgrade,
                 )
                 if old_data_field["indexed"] and old_data_field["db_column"] not in old_o2o_columns:
-                    is_unique_field = old_data_field.get("unique")
-                    cls._add_operator(
-                        cls._drop_index(model, {db_column}, is_unique_field),
-                        upgrade,
-                        True,
-                    )
+                    is_unique_field = bool(old_data_field.get("unique"))
+                    drop_index_sql = cls._drop_index(model, {db_column}, is_unique_field)
+                    cls._add_operator(drop_index_sql, upgrade, True)
 
             # change fields
             for field_name in set(new_data_fields_name).intersection(set(old_data_fields_name)):
@@ -986,11 +991,11 @@ class Migrate:
             if option == "indexed":
                 # change index
                 if old_new[0] is False and old_new[1] is True:
-                    unique = new_data_field.get("unique")
-                    cls._add_operator(cls._add_index(model, (field_name,), unique), upgrade, True)
+                    unique = bool(new_data_field.get("unique"))
+                    add_index_sql = cls._add_index(model, (field_name,), unique)
+                    cls._add_operator(add_index_sql, upgrade, True)
                 else:
-                    unique = old_data_field.get("unique")
-                    if unique:
+                    if old_data_field.get("unique"):
                         for sql in cls._drop_unique_index(model, field_name):
                             cls._add_operator(sql, upgrade, True)
                     else:

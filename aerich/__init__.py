@@ -34,6 +34,8 @@ from aerich.utils import (
 from aerich.version import __version__
 
 if TYPE_CHECKING:
+    from tortoise.backends.base_postgres.client import BasePostgresClient
+
     from aerich._compat import Self
     from aerich.inspectdb import Inspect
 
@@ -188,16 +190,16 @@ class Command(TortoiseContext):
 
     async def inspectdb(self, tables: list[str] | None = None) -> str:
         connection = get_app_connection(self.tortoise_config, self.app)
-        dialect = connection.schema_generator.DIALECT
-        if dialect == "mysql":
-            cls: type[Inspect] = InspectMySQL
-        elif dialect == "postgres":
-            cls = InspectPostgres
-        elif dialect == "sqlite":
-            cls = InspectSQLite
-        else:
-            raise NotImplementedError(f"{dialect} is not supported")
-        inspect = cls(connection, tables)  # ty:ignore[invalid-argument-type]
+        match connection.schema_generator.DIALECT:
+            case "postgres":
+                conn = cast("BasePostgresClient", connection)
+                inspect: Inspect = InspectPostgres(conn, tables)
+            case "mysql":
+                inspect = InspectMySQL(connection, tables)
+            case "sqlite":
+                inspect = InspectSQLite(connection, tables)
+            case _ as dialect:
+                raise NotImplementedError(f"{dialect} is not supported")
         if self._inspectdb_fields:
             inspect._special_fields = self._inspectdb_fields
         return await inspect.inspect()
