@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextlib
 import functools
 import importlib
-import inspect
 import os
 import pkgutil
 import re
@@ -257,18 +256,12 @@ class Migrate:
                 tip = f"Migration file exists({[py_module_path(m) for m in conflict_modules]}). Do you want to remove them?"
             overwrite = no_input
             if not overwrite:
-                confirm = functools.partial(
-                    click.prompt,
+                overwrite = await click.prompt(
                     tip,
                     default=False,
                     type=bool,
                     show_choices=True,
                 )
-                if inspect.iscoroutinefunction(click.prompt):
-                    # For asyncclick>=8.3
-                    overwrite = await confirm()
-                else:
-                    overwrite = bool(confirm())
                 if not overwrite:
                     return None
             # delete same version files
@@ -846,11 +839,7 @@ class Migrate:
                                         type=bool,
                                         show_choices=True,
                                     )
-                                    if inspect.iscoroutinefunction(click.prompt):
-                                        # For asyncclick>=8.3
-                                        is_rename = run_async(confirm, tip)
-                                    elif isinstance(r := confirm(tip), bool):
-                                        is_rename = r
+                                    is_rename = run_async(confirm, tip)
                                 if is_rename:
                                     if rename_fields is None:
                                         rename_fields = cls._rename_fields[new_model_str] = {}
