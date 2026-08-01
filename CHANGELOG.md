@@ -4,6 +4,11 @@
 
 ### [0.10.0]**(Unreleased)**
 
+#### Changed
+- feat: set asyncclick version constraint to `>=8.3` ([#551])
+
+[#551]: https://github.com/tortoise/aerich/pull/551
+
 ## 0.9
 
 ### [0.9.3](../../releases/tag/v0.9.3) - 2026-07-11
