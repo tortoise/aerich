@@ -11,5 +11,5 @@ class Aerich(Model):
     app = fields.CharField(max_length=MAX_APP_LENGTH)
     content = fields.JSONField[dict](encoder=encoder, decoder=decoder)
 
-    class Meta:
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         ordering = ("-id",)

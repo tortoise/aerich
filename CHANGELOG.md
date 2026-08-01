@@ -7,6 +7,10 @@
 #### Changed
 - feat: set asyncclick version constraint to `>=8.3` ([#551])
 
+#### Fixed
+- fix: issues for `pyright aerich/` ([#553])
+
+[#553]: https://github.com/tortoise/aerich/pull/553
 [#551]: https://github.com/tortoise/aerich/pull/551
 
 ## 0.9
