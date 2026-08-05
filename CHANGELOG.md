@@ -2,9 +2,14 @@
 
 ## 0.10
 
-### [0.10.0]**(Unreleased)**
+### [0.10.1]**(Unreleased)**
+
+### [0.10.0](../../releases/tag/v0.10.0) - 2026-08-05
 
 #### Changed
+- feat: drop support for py39 ([#548])
+- feat: drop support for `tortoise-orm<0.25` ([#549])
+- feat: migrate type-checking tool from `mypy` to `ty` ([#550])
 - feat: set asyncclick version constraint to `>=8.3` ([#551])
 
 #### Fixed
@@ -12,6 +17,9 @@
 
 [#553]: https://github.com/tortoise/aerich/pull/553
 [#551]: https://github.com/tortoise/aerich/pull/551
+[#550]: https://github.com/tortoise/aerich/pull/550
+[#549]: https://github.com/tortoise/aerich/pull/549
+[#548]: https://github.com/tortoise/aerich/pull/548
 
 ## 0.9
 
