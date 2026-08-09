@@ -43,7 +43,7 @@ toml = [
 asyncpg = ["asyncpg"]
 psycopg = ["psycopg[pool,binary] (>=3.0.12,<4.0.0)"]
 # Need asyncmy or aiomysql for MySQL
-asyncmy = ["asyncmy>=0.2.9"]
+asyncmy = ["asyncmy>=0.2.12"]
 mysql = ["aiomysql>=0.2.0"]
 
 [project.urls]
