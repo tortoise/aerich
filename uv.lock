@@ -56,10 +56,10 @@ vector = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiomysql", marker = "extra == 'mysql'", specifier = ">=0.2.0" },
+    { name = "aiomysql", marker = "extra == 'mysql'" },
     { name = "anyio", specifier = ">=3.6.2,<5.0.0" },
     { name = "asyncclick", specifier = ">=8.3.0,<9.0.0" },
-    { name = "asyncmy", marker = "extra == 'asyncmy'", specifier = ">=0.2.12" },
+    { name = "asyncmy", marker = "extra == 'asyncmy'", specifier = ">=0.2.12,<1.0.0" },
     { name = "asyncpg", marker = "extra == 'asyncpg'" },
     { name = "dictdiffer", specifier = ">=0.9.0,<1.0.0" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'psycopg'", specifier = ">=3.0.12,<4.0.0" },
