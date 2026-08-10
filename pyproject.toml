@@ -43,8 +43,8 @@ toml = [
 asyncpg = ["asyncpg"]
 psycopg = ["psycopg[pool,binary] (>=3.0.12,<4.0.0)"]
 # Need asyncmy or aiomysql for MySQL
-asyncmy = ["asyncmy>=0.2.9"]
-mysql = ["aiomysql>=0.2.0"]
+asyncmy = ["asyncmy  (>=0.2.12,<1.0.0)"]
+mysql = ["aiomysql"]
 
 [project.urls]
 homepage = "https://github.com/tortoise/aerich"
@@ -83,8 +83,8 @@ src_folder = "./."
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-[tool.pdm]
-version = {source="file", path="aerich/version.py"}
+[tool.pdm.version]
+path = "aerich/version.py"
 
 [tool.pdm.build]
 excludes = ["./**/.git", "./**/.*_cache"]
