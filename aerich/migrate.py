@@ -23,6 +23,7 @@ from aerich._compat import is_tortoise_inited
 from aerich.coder import load_index
 from aerich.ddl import BaseDDL
 from aerich.enums import Color
+from aerich.exceptions import NotSupportError
 from aerich.models import MAX_VERSION_LENGTH, Aerich
 from aerich.utils import (
     decompress_dict,
@@ -1022,11 +1023,20 @@ class Migrate:
             elif option == "description":
                 # change comment
                 cls._add_operator(cls._set_comment(model, new_data_field), upgrade)
+            elif option == "python-type":
+                # When upgrade tortoise-orm from 0.x to 1.x
+                #   JSONField[Union[dict, list]] -> JSONField[dict | list]
+                continue
             else:
                 if modified or (action != "change" and old_new == [("db_default", "__NOT_SET__")]):
                     continue
                 # modify column
-                cls._add_operator(cls._modify_field(model, new_data_field), upgrade)
+                try:
+                    sql = cls._modify_field(model, new_data_field)
+                except NotSupportError:
+                    click.echo(f"{model = }; {field_name = }; {change = }")
+                    raise
+                cls._add_operator(sql, upgrade)
                 modified = True
 
     @classmethod
