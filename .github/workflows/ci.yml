@@ -100,6 +100,15 @@ jobs:
       - name: Run tests for sqlite
         run:
           just test_sqlite
+      - name: Verify tortoise upgrading for sqlite migrations
+        if: matrix.tortoise-orm == 'tortoise025'
+        run: |
+          TEST_DB=sqlite://db.sqlite3 aerich init-db
+          TEST_DB=sqlite://db.sqlite3 aerich migrate
+          TEST_DB=sqlite://db.sqlite3 aerich upgrade
+          uv pip install --upgrade "tortoise-orm>=1.1"
+          TEST_DB=sqlite://db.sqlite3 aerich migrate
+          TEST_DB=sqlite://db.sqlite3 aerich upgrade
       - name: Show test coverage
         run: just report
 
