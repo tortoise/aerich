@@ -2,7 +2,18 @@
 
 ## 0.10
 
-### [0.10.1]**(Unreleased)**
+### [0.10.2]**(Unreleased)**
+
+### [0.10.1](../../releases/tag/v0.10.1) - 2026-08-23
+
+#### Changed
+- chore: upgrade asyncmy to 0.2.12 ([#557])
+
+#### Fixed
+- fix: failed to generate migration in SQLite app if JSONField was used with old version ([#558])
+
+[#558]: https://github.com/tortoise/aerich/pull/558
+[#557]: https://github.com/tortoise/aerich/pull/557
 
 ### [0.10.0](../../releases/tag/v0.10.0) - 2026-08-05
 
