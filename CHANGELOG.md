@@ -4,6 +4,11 @@
 
 ### [0.10.2]**(Unreleased)**
 
+#### Fixed
+- fix: run each statement of a non-transactional migration separately, so a migration with more than one `CREATE`/`DROP INDEX CONCURRENTLY` no longer fails with "cannot run inside a transaction block" on PostgreSQL ([#467])
+
+[#467]: https://github.com/tortoise/aerich/issues/467
+
 ### [0.10.1](../../releases/tag/v0.10.1) - 2026-08-23
 
 #### Changed

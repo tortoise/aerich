@@ -30,6 +30,7 @@ from aerich.utils import (
     import_py_module,
     load_tortoise_config,
     py_module_path,
+    split_sql_statements,
 )
 from aerich.version import __version__
 
@@ -107,6 +108,7 @@ class Command(TortoiseContext):
         version_file: str,
         fake: bool = False,
         version_module: pkgutil.ModuleInfo | None = None,
+        run_in_transaction: bool = True,
     ) -> None:
         if version_module is not None:
             m = import_py_module(version_module)
@@ -114,7 +116,16 @@ class Command(TortoiseContext):
             m = import_py_file(Path(Migrate.migrate_location, version_file))
         upgrade = m.upgrade
         if not fake:
-            await conn.execute_script(await upgrade(conn))
+            script = await upgrade(conn)
+            if run_in_transaction:
+                await conn.execute_script(script)
+            else:
+                # Running the whole script as one multi-statement query
+                # would implicitly start a transaction on PostgreSQL, which
+                # defeats the purpose of opting out of one: statements like
+                # CREATE/DROP INDEX CONCURRENTLY need each to run on its own.
+                for statement in split_sql_statements(script):
+                    await conn.execute_query(statement)
 
         model_state_str = getattr(m, "MODELS_STATE", None)
         models_state = (
@@ -139,7 +150,9 @@ class Command(TortoiseContext):
                         await self._upgrade(conn, version_file, fake, version_module)
                 else:
                     app_conn = get_app_connection(self.tortoise_config, self.app)
-                    await self._upgrade(app_conn, version_file, fake, version_module)
+                    await self._upgrade(
+                        app_conn, version_file, fake, version_module, run_in_transaction=False
+                    )
                 migrated.append(version_file)
         return migrated
 
