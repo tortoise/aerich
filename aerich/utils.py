@@ -56,6 +56,20 @@ def add_src_path(path: str) -> str:
     return path
 
 
+def split_sql_statements(script: str) -> list[str]:
+    """Split a multi-statement SQL script into individual statements.
+
+    Sending several statements in a single query call implicitly wraps
+    them in a transaction on PostgreSQL, even when the connection itself
+    isn't in one. That breaks statements which must run outside of any
+    transaction, such as ``CREATE/DROP INDEX CONCURRENTLY``: a migration
+    with two or more of them fails with e.g. "CREATE INDEX CONCURRENTLY
+    cannot run inside a transaction block" as soon as they're sent
+    together, even though each one works fine on its own.
+    """
+    return [statement.strip() for statement in script.split(";") if statement.strip()]
+
+
 def get_app_connection_name(config: dict[str, dict[str, Any]], app_name: str) -> str:
     """
     get connection name
